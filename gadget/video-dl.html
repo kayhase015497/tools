@@ -315,6 +315,90 @@ h1 {
 .vd-warn p { font-size: 0.875rem; color: var(--text-dim); margin-bottom: 0.4rem; }
 .vd-warn a { color: var(--accent); }
 
+/* Advanced settings */
+.vd-adv-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-family: 'Space Mono', monospace;
+  font-size: 0.75rem;
+  cursor: pointer;
+  padding: 0;
+  transition: color 0.15s;
+}
+.vd-adv-toggle:hover { color: var(--text-dim); }
+.vd-adv-toggle-arrow { transition: transform 0.2s; display: inline-block; }
+.vd-adv-toggle.open .vd-adv-toggle-arrow { transform: rotate(90deg); }
+
+.vd-adv-panel {
+  display: none;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1rem 1.2rem;
+  margin-top: 0.5rem;
+}
+.vd-adv-panel.open { display: block; }
+
+.vd-adv-label {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  margin-bottom: 0.4rem;
+  display: block;
+}
+.vd-adv-desc {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin-bottom: 0.6rem;
+  line-height: 1.5;
+}
+.vd-adv-desc a { color: var(--accent); }
+
+.vd-adv-input-row {
+  display: flex;
+  gap: 0.5rem;
+}
+.vd-api-input {
+  flex: 1;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-family: 'Space Mono', monospace;
+  font-size: 0.78rem;
+  padding: 0.45rem 0.7rem;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.vd-api-input:focus { border-color: var(--border-focus); }
+.vd-api-input::placeholder { color: var(--text-muted); }
+
+.vd-adv-save-btn {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-dim);
+  font-family: 'Space Mono', monospace;
+  font-size: 0.75rem;
+  padding: 0.45rem 0.8rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color 0.15s, color 0.15s;
+}
+.vd-adv-save-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+.vd-adv-current {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  margin-top: 0.5rem;
+}
+.vd-adv-current span { color: var(--tag-text); }
+
 .vd-notice {
   margin-top: 2.5rem;
   padding-top: 1.5rem;
@@ -386,6 +470,23 @@ h1 {
       <div class="vd-spinner" id="vd-spinner"></div>
       <span id="vd-submit-text">取得下載連結</span>
     </button>
+
+    <!-- Advanced settings -->
+    <button class="vd-adv-toggle" id="vd-adv-toggle">
+      <span class="vd-adv-toggle-arrow">▶</span> 進階設定
+    </button>
+    <div class="vd-adv-panel" id="vd-adv-panel">
+      <label class="vd-adv-label" for="vd-api-input">Cobalt API 端點</label>
+      <p class="vd-adv-desc">
+        官方 <code>api.cobalt.tools</code> 已要求驗證，請改用社群自架實例。<br>
+        可在 <a href="https://instances.cobalt.best" target="_blank" rel="noopener">instances.cobalt.best</a> 找到可用實例（選 Auth: none 的）。
+      </p>
+      <div class="vd-adv-input-row">
+        <input class="vd-api-input" id="vd-api-input" type="url" placeholder="https://your-cobalt-instance.example/"/>
+        <button class="vd-adv-save-btn" id="vd-adv-save">儲存</button>
+      </div>
+      <div class="vd-adv-current" id="vd-adv-current"></div>
+    </div>
   </div>
 
   <!-- Result -->
@@ -405,13 +506,14 @@ h1 {
   </div>
 
   <div class="vd-notice">
-    下載服務由 <a href="https://cobalt.tools" target="_blank" rel="noopener">cobalt.tools</a> 提供（開源、免費、無廣告）。<br>
+    下載服務由 <a href="https://cobalt.tools" target="_blank" rel="noopener">cobalt.tools</a> 提供（開源）。需自行設定可用的 cobalt 實例。<br>
     本工具僅供私人使用，請勿下載受版權保護的內容。
   </div>
 </main>
 
 <script>
-const COBALT_API = 'https://api.cobalt.tools/';
+const LS_KEY = 'vd-cobalt-api';
+const DEFAULT_API = 'https://api.cobalt.tools/';
 
 const urlInput = document.getElementById('vd-url');
 const clearBtn = document.getElementById('vd-clear');
@@ -426,8 +528,41 @@ const resultTitle = document.getElementById('vd-result-title');
 const resultContent = document.getElementById('vd-result-content');
 const warnEl = document.getElementById('vd-warn');
 const warnMsg = document.getElementById('vd-warn-msg');
+const advToggle = document.getElementById('vd-adv-toggle');
+const advPanel = document.getElementById('vd-adv-panel');
+const apiInput = document.getElementById('vd-api-input');
+const advSave = document.getElementById('vd-adv-save');
+const advCurrent = document.getElementById('vd-adv-current');
 
 const UNSUPPORTED = ['facebook.com', 'fb.watch', 'weibo.com', 'weibo.cn'];
+
+function getCobaltApi() {
+  try { return localStorage.getItem(LS_KEY) || DEFAULT_API; } catch { return DEFAULT_API; }
+}
+
+function updateAdvCurrent() {
+  const api = getCobaltApi();
+  advCurrent.innerHTML = `目前使用：<span>${api}</span>`;
+}
+
+// Init advanced settings UI
+updateAdvCurrent();
+
+advToggle.addEventListener('click', () => {
+  const open = advPanel.classList.toggle('open');
+  advToggle.classList.toggle('open', open);
+  if (open) apiInput.value = getCobaltApi();
+});
+
+advSave.addEventListener('click', () => {
+  const val = apiInput.value.trim();
+  if (!val) return;
+  const url = val.endsWith('/') ? val : val + '/';
+  try { localStorage.setItem(LS_KEY, url); } catch {}
+  updateAdvCurrent();
+  advSave.textContent = '已儲存 ✓';
+  setTimeout(() => { advSave.textContent = '儲存'; }, 1500);
+});
 
 urlInput.addEventListener('input', () => {
   clearBtn.classList.toggle('visible', urlInput.value.length > 0);
@@ -464,10 +599,7 @@ function isUnsupported(url) {
 
 async function handleSubmit() {
   const url = urlInput.value.trim();
-  if (!url) {
-    urlInput.focus();
-    return;
-  }
+  if (!url) { urlInput.focus(); return; }
 
   hideResults();
 
@@ -487,19 +619,15 @@ async function handleSubmit() {
   if (format !== 'auto') body.downloadMode = format === 'mp4' ? 'auto' : 'mute';
 
   try {
-    const res = await fetch(COBALT_API, {
+    const res = await fetch(getCobaltApi(), {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
       body: JSON.stringify(body),
     });
-
     const data = await res.json();
     showResult(data);
   } catch (err) {
-    showError('網路錯誤：無法連線到 cobalt.tools，請稍後再試。');
+    showError('網路錯誤：無法連線到指定的 API 端點，請檢查「進階設定」中的網址是否正確。');
   } finally {
     setLoading(false);
   }
@@ -509,19 +637,14 @@ function showResult(data) {
   resultEl.classList.add('visible');
 
   if (data.status === 'redirect' || data.status === 'tunnel' || data.status === 'stream') {
-    const dlUrl = data.url;
     resultBox.className = 'vd-result-box success';
     resultTitle.textContent = '下載連結已就緒';
-    resultContent.innerHTML = renderDlBtn(dlUrl, '下載影片');
+    resultContent.innerHTML = renderDlBtn(data.url, '下載影片');
 
   } else if (data.status === 'picker') {
     resultBox.className = 'vd-result-box success';
     resultTitle.textContent = `選擇要下載的項目（共 ${data.picker.length} 個）`;
-    if (data.audio) {
-      resultContent.innerHTML = renderDlBtn(data.audio, '下載音訊（背景音樂）');
-    } else {
-      resultContent.innerHTML = '';
-    }
+    resultContent.innerHTML = data.audio ? renderDlBtn(data.audio, '下載音訊（背景音樂）') : '';
     const grid = document.createElement('div');
     grid.className = 'vd-picker-grid';
     data.picker.forEach((item, i) => {
@@ -546,10 +669,7 @@ function showResult(data) {
     resultContent.appendChild(grid);
 
   } else if (data.status === 'error') {
-    const code = data.error?.code || 'unknown';
-    const msg = errorMessage(code);
-    showError(msg);
-
+    showError(errorMessage(data.error?.code || 'unknown'));
   } else {
     showError('收到未知的回應格式，請嘗試其他連結。');
   }
@@ -574,9 +694,11 @@ function showError(msg) {
 
 function errorMessage(code) {
   const map = {
-    'error.api.unreachable': '無法連線到下載服務，請稍後再試。',
+    'error.api.auth.jwt.missing': 'API 端點要求驗證（JWT）。官方 api.cobalt.tools 已不再開放匿名使用。請至「進階設定」改用社群自架實例（可在 instances.cobalt.best 找到 Auth: none 的實例）。',
+    'error.api.auth.jwt.invalid': 'API 金鑰無效，請至「進階設定」更換端點。',
+    'error.api.unreachable': '無法連線到下載服務，請確認端點網址或稍後再試。',
     'error.api.link.invalid': '網址格式不正確，請確認後重試。',
-    'error.api.link.unsupported': '此網址不支援，cobalt.tools 目前無法處理此平台或連結。',
+    'error.api.link.unsupported': '此網址不支援，該 cobalt 實例無法處理此平台或連結。',
     'error.api.fetch.empty': '找不到可下載的媒體，可能是私人或已刪除的內容。',
     'error.api.fetch.short': '連結解析失敗，請嘗試完整網址。',
     'error.api.fetch.fail': '無法取得影片資訊，可能需要登入或內容受限。',
