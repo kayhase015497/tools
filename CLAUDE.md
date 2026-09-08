@@ -15,7 +15,7 @@
 tools/
 ├── index.html          # 工具集首頁（列出所有工具的入口）
 ├── CLAUDE.md           # 本文件
-├── tools/              # 各工具 HTML 檔案放這裡
+├── gadget/             # 各工具 HTML 檔案放這裡
 │   └── ...
 ├── .github/
 │   └── workflows/
@@ -39,7 +39,7 @@ tools/
 
 ### 新增工具 SOP
 
-1. 在 `tools/` 建立 `<tool-name>.html`
+1. 在 `gadget/` 建立 `<tool-name>.html`
 2. 採用深色主題、繁中、Space Mono 標籤
 3. CSS class 加工具名稱前綴防衝突
 4. 在 `index.html` 的 `#th-grid` 裡新增一張 `.th-card`（`<a>` 標籤）
@@ -48,7 +48,7 @@ tools/
 ### index.html 新增卡片範例
 
 ```html
-<a class="th-card" href="tools/my-tool.html">
+<a class="th-card" href="gadget/my-tool.html">
   <div class="th-card-name">工具名稱</div>
   <div class="th-card-desc">一兩句說明這個工具做什麼</div>
   <div class="th-card-tags">
