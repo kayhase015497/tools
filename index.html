@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>自製工具集 — kayhase015497</title>
+<meta name="description" content="各種自製小工具集合"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"/>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0b0f1a;
+    --bg-card: #111827;
+    --bg-card-hover: #1a2236;
+    --border: #1e2d45;
+    --accent: #3b82f6;
+    --accent-dim: #1d4ed8;
+    --text: #e2e8f0;
+    --text-dim: #94a3b8;
+    --tag-bg: #1e3a5f;
+    --tag-text: #93c5fd;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Noto Sans TC', sans-serif;
+    min-height: 100vh;
+    line-height: 1.6;
+  }
+
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 2rem clamp(1rem, 5vw, 4rem);
+    display: flex;
+    align-items: baseline;
+    gap: 1.2rem;
+    flex-wrap: wrap;
+  }
+
+  .th-logo {
+    font-family: 'Space Mono', monospace;
+    font-size: clamp(1.1rem, 2.5vw, 1.4rem);
+    color: var(--accent);
+    letter-spacing: 0.04em;
+    text-decoration: none;
+  }
+
+  .th-subtitle {
+    font-size: 0.85rem;
+    color: var(--text-dim);
+    font-family: 'Space Mono', monospace;
+  }
+
+  main {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: clamp(2rem, 5vw, 4rem) clamp(1rem, 5vw, 4rem);
+  }
+
+  .th-section-title {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 1.5rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .th-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+    gap: 1rem;
+    margin-bottom: 3rem;
+  }
+
+  .th-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.4rem 1.6rem;
+    text-decoration: none;
+    color: inherit;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    transition: background 0.15s, border-color 0.15s, transform 0.15s;
+    cursor: pointer;
+  }
+
+  .th-card:hover {
+    background: var(--bg-card-hover);
+    border-color: var(--accent-dim);
+    transform: translateY(-2px);
+  }
+
+  .th-card-name {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  .th-card-desc {
+    font-size: 0.875rem;
+    color: var(--text-dim);
+    flex: 1;
+  }
+
+  .th-card-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-top: 0.4rem;
+  }
+
+  .th-tag {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.7rem;
+    background: var(--tag-bg);
+    color: var(--tag-text);
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+  }
+
+  .th-empty {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 3rem 1rem;
+    color: var(--text-dim);
+    font-size: 0.9rem;
+    border: 1px dashed var(--border);
+    border-radius: 8px;
+  }
+
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 1.5rem clamp(1rem, 5vw, 4rem);
+    font-family: 'Space Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--text-dim);
+  }
+
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --bg: #0b0f1a;
+      --bg-card: #111827;
+    }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <span class="th-logo">kayhase015497 / tools</span>
+  <span class="th-subtitle">自製工具集</span>
+</header>
+
+<main>
+  <p class="th-section-title">所有工具</p>
+
+  <div class="th-grid" id="th-grid">
+    <!-- 工具卡片從這裡開始新增 -->
+    <!-- 範例：
+    <a class="th-card" href="tools/my-tool.html">
+      <div class="th-card-name">工具名稱</div>
+      <div class="th-card-desc">工具說明</div>
+      <div class="th-card-tags">
+        <span class="th-tag">JS</span>
+        <span class="th-tag">工具類型</span>
+      </div>
+    </a>
+    -->
+    <div class="th-empty">還沒有工具，從 <code>tools/</code> 目錄新增第一個工具吧</div>
+  </div>
+</main>
+
+<footer>
+  <span>kayhase015497.github.io/tools</span>
+</footer>
+
+</body>
+</html>
