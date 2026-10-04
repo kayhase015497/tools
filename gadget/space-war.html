@@ -66,6 +66,7 @@
   .sw-btn { pointer-events: auto; cursor: pointer; font-family: 'Noto Sans TC', sans-serif; font-size: 13px; font-weight: 500; color: var(--cyan);
     background: rgba(8,16,32,.78); border: 1px solid var(--line); padding: 9px 14px; min-height: 40px;
     clip-path: polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%); transition: background .15s, color .15s; }
+  .sw-btn:disabled { opacity: .55; cursor: wait; }
   .sw-btn:hover { background: rgba(30,60,100,.85); color: #fff; }
   .sw-btn.red { color: #ffb4c2; border-color: rgba(255,68,102,.5); }
   .sw-btn.big { font-size: 15px; padding: 12px 26px; letter-spacing: .1em; }
@@ -184,7 +185,7 @@
       <button class="sw-btn big" type="button" id="sw-go">進入戰場</button>
       <button class="sw-btn big ghost" type="button" id="sw-go-mute">靜音進入</button>
     </div>
-    <p class="sw-legal">非官方同人作品，與遊戲官方無關。劇中台詞與設定版權歸原權利人所有。</p>
+    <p class="sw-legal">非官方同人作品，與遊戲官方無關。劇中台詞與設定版權歸原權利人所有。<br/>配樂：Elyxiel《HSR 3.7 – Irontomb Battle Theme (Phase 2)》Epic OST。</p>
   </div></div>
 </div>
 
@@ -204,6 +205,7 @@ const fmtClock = (t) => 'T+ ' + String(Math.floor(t / 60)).padStart(2, '0') + ':
 const COARSE = window.matchMedia && matchMedia('(pointer: coarse)').matches;
 
 /* ───────── 時間軸與台詞 ───────── */
+const MUSIC_URL = '../assets/irontomb-bgm.mp3', MUSIC_OFFSET = 30; // 從曲子 0:30 起播：安靜段對上開場黑幕與「第四時刻」黑幕
 const T = { REVEAL: 12, CONTROL: 20, FLASH: 140, DOOM: 152, IMPACT: 159, WHITE: 170, END: 178 };
 
 const WHO = {
@@ -277,7 +279,7 @@ const Snd = (function () {
   function setMuted(m) { muted = m; if (master) master.gain.setTargetAtTime(m ? 0 : 0.55, ctx.currentTime, 0.05); }
   function tension(v) {
     if (!drone) return;
-    drone.g.gain.setTargetAtTime(0.03 + 0.12 * v, ctx.currentTime, 0.6);
+    drone.g.gain.setTargetAtTime(0.02 + 0.06 * v, ctx.currentTime, 0.6);
     drone.f.frequency.setTargetAtTime(120 + 900 * v, ctx.currentTime, 0.6);
   }
   function env(g, t0, a, peak, dec) {
@@ -323,11 +325,42 @@ const Snd = (function () {
       o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + 3.2);
     });
   }
+  // 配樂：以 <audio> 串進 Web Audio，方便統一靜音與淡出
+  let mus = null, musGain = null, musDone = false;
+  function musicLoad(url, offset, cb) {
+    if (!ctx) { cb(false); return; }
+    const a = new Audio(); a.preload = 'auto'; a.src = url; mus = a; musDone = false;
+    try { const src = ctx.createMediaElementSource(a); musGain = ctx.createGain(); musGain.gain.value = 0; src.connect(musGain); musGain.connect(master); } catch (e) { musGain = null; }
+    let seeked = false, ready = false, done = false;
+    const go = () => { if (done) return; done = true; cb(true); };
+    a.addEventListener('loadedmetadata', () => { try { a.currentTime = offset; } catch (e) { seeked = true; } });
+    a.addEventListener('seeked', () => { seeked = true; if (ready) go(); });
+    a.addEventListener('canplaythrough', () => { ready = true; if (seeked) go(); });
+    a.addEventListener('error', go);
+    setTimeout(go, 9000);
+    a.load();
+  }
+  function musicPlay() {
+    if (!mus || musDone) return;
+    mus.play().catch(() => {});
+    if (musGain) { const t = ctx.currentTime; musGain.gain.cancelScheduledValues(t); musGain.gain.setValueAtTime(0, t); musGain.gain.linearRampToValueAtTime(0.85, t + 1.6); }
+  }
+  function musicFade(sec) {
+    if (!mus || musDone) return; musDone = true;
+    if (musGain) musGain.gain.setTargetAtTime(0, ctx.currentTime, sec / 3);
+    setTimeout(() => { try { mus.pause(); } catch (e) {} }, sec * 1000);
+  }
+  function musicSync(pos) { if (mus && !musDone && !mus.paused && Math.abs(mus.currentTime - pos) > 0.7) { try { mus.currentTime = pos; } catch (e) {} } }
+  function musicHold(on, pos) {
+    if (!mus || musDone) return;
+    if (on) { try { mus.pause(); } catch (e) {} } else { try { mus.currentTime = pos; } catch (e) {} mus.play().catch(() => {}); }
+  }
+  function musicInfo() { return mus ? { pos: mus.currentTime, paused: mus.paused, ready: mus.readyState, done: musDone } : null; }
   function silence(sec) {
     if (!ctx) return;
     drone.g.gain.setTargetAtTime(0, ctx.currentTime, sec / 3);
   }
-  return { init, resume, setMuted, tension, zap, boom, riser, swell, silence, get on() { return !!ctx; } };
+  return { init, resume, setMuted, tension, zap, boom, riser, swell, silence, musicLoad, musicPlay, musicFade, musicSync, musicHold, musicInfo, get hasMusic() { return !!mus; }, get on() { return !!ctx; } };
 })();
 
 /* ───────── three.js 場景 ───────── */
@@ -1068,6 +1101,7 @@ function flashDom(color, opacity, sec) {
   veil.style.transition = 'none'; veil.style.background = color; veil.style.opacity = opacity; void veil.offsetWidth;
   veil.style.transition = 'opacity ' + sec + 's ease-out'; veil.style.opacity = 0;
 }
+let isMuted = false;
 const hud = $('#sw-hud'), helpEl = $('#sw-help'), cmdsEl = $('#sw-cmds'), endEl = $('#sw-end');
 helpEl.innerHTML = COARSE
   ? '<b>輕點</b> 下令移動／攻擊　<b>拖曳</b> 平移<br/><b>雙指</b> 縮放旋轉　<b>高度▲▼</b> 切換指令高度'
@@ -1088,7 +1122,7 @@ function updateHud(t) {
 }
 
 /* ───────── 導演（時間軸事件） ───────── */
-let t = 0, started = false, evIdx = 0, nextWave = 24, tickIdx = 0, endStage = 0;
+let lastSync = 0, t = 0, started = false, evIdx = 0, nextWave = 24, tickIdx = 0, endStage = 0;
 const EVENTS = [
   [T.REVEAL, () => { cv.classList.add('on'); hud.classList.add('on'); setVeil('#000', 0, 1.2); Snd.tension(0.25); cam.locked = true; }],
   [T.CONTROL, () => { control = true; cam.locked = false; setSel(allies.filter((s) => !s.dead)); helpEl.classList.add('on'); cmdsEl.classList.add('on'); Snd.tension(0.5); pushTick('艦隊指揮權已移交至你。', 'Fleet command transferred.'); }],
@@ -1099,12 +1133,13 @@ const EVENTS = [
   [T.DOOM, () => { cv.style.transition = 'opacity 1.6s ease'; resetDoomCam(); buildDoom(); doom.on = true; cv.classList.add('on'); setVeil('#000', 0, 1.6); Snd.riser(7); Snd.tension(0.3); }],
   [T.IMPACT + 0.2, () => Snd.tension(1)],
   [T.WHITE, () => { setVeil('#fff', 1, 4.5); Snd.swell(7); }],
-  [T.END, () => { setVeil('#000', 1, 2.2); Snd.silence(2); endEl.classList.add('on'); }]
+  [T.END, () => { setVeil('#000', 1, 2.2); Snd.silence(2); Snd.musicFade(5); endEl.classList.add('on'); }]
 ];
 function resetDoomCam() { cam.az = 0.2; cam.pol = 0.9; cam.dist = 900; cam.tx = 0; cam.tz = 0; cam.shake = 0; setSel([]); }
 
 function step(dt) {
   t += dt;
+  if (t - lastSync > 2) { lastSync = t; Snd.musicSync(MUSIC_OFFSET + t); }
   while (evIdx < EVENTS.length && t >= EVENTS[evIdx][0]) EVENTS[evIdx++][1]();
   while (tickIdx < TICKS.length && t >= TICKS[tickIdx][0] && t < T.FLASH) { pushTick(TICKS[tickIdx][1], TICKS[tickIdx][2]); tickIdx++; }
   if (t >= T.FLASH) { while (tickIdx < TICKS.length) tickIdx++; }
@@ -1156,15 +1191,21 @@ function loop(now) {
 }
 function begin(mute) {
   Snd.init(); Snd.setMuted(!!mute); Snd.resume();
-  if (mute) { $('#sw-mute').textContent = '音效：關'; }
-  $('#sw-title').classList.add('off'); started = true; last = 0;
+  if (mute) { $('#sw-mute').textContent = '音效：關'; isMuted = true; }
+  const go = () => { $('#sw-title').classList.add('off'); started = true; last = 0; Snd.musicPlay(); };
+  if (mute || !Snd.on) { go(); return; }
+  document.querySelectorAll('.sw-title .sw-btn').forEach((b) => { b.disabled = true; });
+  $('#sw-go').textContent = '載入配樂…';
+  Snd.musicLoad(MUSIC_URL, MUSIC_OFFSET, go);
 }
 $('#sw-go').addEventListener('click', () => begin(false));
 $('#sw-go-mute').addEventListener('click', () => begin(true));
 $('#sw-again').addEventListener('click', () => location.reload());
-let isMuted = false;
-$('#sw-mute').addEventListener('click', () => { isMuted = !isMuted; Snd.setMuted(isMuted); $('#sw-mute').textContent = '音效：' + (isMuted ? '關' : '開'); });
-document.addEventListener('visibilitychange', () => { if (document.hidden) { if (Snd.on) Snd.setMuted(true); } else { Snd.setMuted(isMuted); } });
+$('#sw-mute').addEventListener('click', () => {
+  isMuted = !isMuted; Snd.setMuted(isMuted); $('#sw-mute').textContent = '音效：' + (isMuted ? '關' : '開');
+  if (!isMuted && Snd.on && !Snd.hasMusic && started && t < T.END) Snd.musicLoad(MUSIC_URL, MUSIC_OFFSET + t, () => Snd.musicPlay()); // 靜音進入後才開聲音：補載配樂
+});
+document.addEventListener('visibilitychange', () => { if (document.hidden) { if (Snd.on) Snd.setMuted(true); Snd.musicHold(true); } else { Snd.setMuted(isMuted); if (started) Snd.musicHold(false, MUSIC_OFFSET + t); } });
 
 window.addEventListener('resize', resize);
 spawnAllies(); spawnEnemies(true); resize(); applyCam();
@@ -1173,7 +1214,7 @@ requestAnimationFrame(loop);
 // 除錯／測試用：快轉到指定秒數（不影響正常遊玩）
 window.swDebug = {
   warp(to) { started = true; $('#sw-title').classList.add('off'); while (t < to) step(0.05); },
-  get t() { return t; }, allies, enemies, get kills() { return kills; }, get ironFrac() { return ironFrac(); },
+  get music() { return Snd.musicInfo(); }, get t() { return t; }, allies, enemies, get kills() { return kills; }, get ironFrac() { return ironFrac(); },
   cmd, setSel, orderMove, cam
 };
 })();
