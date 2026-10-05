@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="en">
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
-<title>翁法羅斯終章・太空戰</title>
+<title>Amphoreus Finale · Space Battle</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"/>
 <style>
@@ -56,6 +56,12 @@
   .sw-tick.out { opacity: 0; }
   .sw-tick-zh { font-size: clamp(12px, 1.5vw, 14px); font-weight: 500; }
   .sw-tick-en { font-family: 'Space Mono', monospace; font-size: clamp(9px, 1.1vw, 11px); color: var(--dim); margin-top: 1px; }
+  /* 語言切換：預設英文，標題畫面可切換為中文版 */
+  .lang-en .i-zh, .lang-zh .i-en { display: none; }
+  .lang-en .sw-zh, .lang-en .sw-tick-zh { display: none; }
+  .lang-en .sw-tick-en { font-family: 'Noto Sans TC', sans-serif; font-size: clamp(12px, 1.5vw, 14px); color: var(--text); font-weight: 500; margin-top: 0; }
+  .lang-en .sw-end-line .sw-en { font-family: 'Noto Sans TC', sans-serif; font-size: clamp(17px, 2.8vw, 26px); color: var(--text); margin-top: 0; font-weight: 400; }
+  .lang-en .sw-end-line.small .sw-en { font-size: clamp(14px, 2vw, 18px); color: var(--dim); }
   @keyframes sw-tick-in { from { opacity: 0; transform: translateX(-12px); } to { opacity: 1; transform: none; } }
   .sw-help { position: absolute; left: 16px; bottom: max(14px, env(safe-area-inset-bottom)); font-size: 11px; color: var(--dim);
     line-height: 1.7; max-width: 320px; opacity: 0; transition: opacity .6s; }
@@ -130,8 +136,8 @@
     .sw-top-r b { font-size: 13px; }
     .sw-ticker { margin: 8px 12px 0; width: auto; gap: 5px; }
     .sw-tick:nth-last-child(n+3) { display: none; }
-    .sw-tick-en { display: none; }
-    .sw-tick-zh { font-size: 12px; }
+    .lang-zh .sw-tick-en { display: none; }
+    .sw-tick-zh, .lang-en .sw-tick-en { font-size: 12px; }
     .sw-help { display: none; }
     .sw-cmds { left: 10px; right: 10px; display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; }
     .sw-cmds .sw-btn { padding: 8px 2px; font-size: 12px; white-space: nowrap; min-height: 42px; }
@@ -157,24 +163,24 @@
         <div class="sw-clock" id="sw-clock">T+ 00:00</div>
       </div>
       <div class="sw-boss">
-        <div class="sw-boss-name"><span>鐵墓 <i>IRONTOMB</i></span><b id="sw-boss-pct">100.00%</b></div>
+        <div class="sw-boss-name"><span><span class="i-en">IRONTOMB</span><span class="i-zh">鐵墓 <i>IRONTOMB</i></span></span><b id="sw-boss-pct">100.00%</b></div>
         <div class="sw-boss-bar"><div class="sw-boss-ghost" id="sw-boss-ghost"></div><div class="sw-boss-fill" id="sw-boss-fill"></div></div>
       </div>
       <div class="sw-top-r">
-        <div>艦艇 <b id="sw-n-ally">0</b> · 擊毀 <b id="sw-n-kill">0</b></div>
-        <div>選取 <b id="sw-n-sel">0</b> · 高度 Y <b id="sw-cmdy">0</b></div>
-        <button class="sw-btn ghost sw-mute" id="sw-mute" type="button">音效：開</button>
+        <div><span data-i="ships"></span> <b id="sw-n-ally">0</b> · <span data-i="kills"></span> <b id="sw-n-kill">0</b></div>
+        <div><span data-i="sel"></span> <b id="sw-n-sel">0</b> · <span data-i="alt"></span> <b id="sw-cmdy">0</b></div>
+        <button class="sw-btn ghost sw-mute" id="sw-mute" type="button"></button>
       </div>
     </div>
     <div class="sw-ticker" id="sw-ticker"></div>
     </div>
     <div class="sw-help" id="sw-help"></div>
     <div class="sw-cmds" id="sw-cmds">
-      <button class="sw-btn" type="button" data-cmd="all">全選艦隊</button>
-      <button class="sw-btn" type="button" data-cmd="charge">全軍突擊</button>
-      <button class="sw-btn" type="button" data-cmd="up">高度▲</button>
-      <button class="sw-btn" type="button" data-cmd="down">高度▼</button>
-      <button class="sw-btn red" type="button" data-cmd="iron">集火鐵墓</button>
+      <button class="sw-btn" type="button" data-cmd="all" data-i="all"></button>
+      <button class="sw-btn" type="button" data-cmd="charge" data-i="charge"></button>
+      <button class="sw-btn" type="button" data-cmd="up" data-i="up"></button>
+      <button class="sw-btn" type="button" data-cmd="down" data-i="down"></button>
+      <button class="sw-btn red" type="button" data-cmd="iron" data-i="iron"></button>
     </div>
   </div>
 
@@ -191,14 +197,15 @@
 
   <div class="sw-title" id="sw-title"><div class="sw-title-in">
     <div class="sw-kicker">FAN-MADE INTERACTIVE EXPERIENCE</div>
-    <h1 class="sw-h1">翁法羅斯終章・太空戰</h1>
+    <h1 class="sw-h1" data-i="h1"></h1>
     <div class="sw-sub-h">ANTI-IRONTOMB COSMIC ALLIANCE · FINAL STAND</div>
-    <p class="sw-note">指揮反鐵墓宇宙聯軍的艦隊，碾壓反物質軍團，直面行星級的鐵墓。<br/>約 3 分半鐘的互動體驗，建議開啟聲音並使用耳機。<br/>桌機：左鍵框選／下令、右鍵旋轉、滾輪縮放。手機：輕點下令、拖曳平移、雙指縮放。</p>
+    <p class="sw-note" data-i="note"></p>
     <div class="sw-row">
-      <button class="sw-btn big" type="button" id="sw-go">進入戰場</button>
-      <button class="sw-btn big ghost" type="button" id="sw-go-mute">靜音進入</button>
+      <button class="sw-btn big" type="button" id="sw-go" data-i="go"></button>
+      <button class="sw-btn big ghost" type="button" id="sw-go-mute" data-i="goMute"></button>
     </div>
-    <p class="sw-legal">非官方同人作品，與遊戲官方無關。劇中台詞與設定版權歸原權利人所有。<br/>配樂：《Agony Converging into River》© HOYO-MiX。</p>
+    <div class="sw-row" style="margin-top:14px"><button class="sw-btn ghost" type="button" id="sw-lang" data-i="lang"></button></div>
+    <p class="sw-legal" data-i="legal"></p>
   </div></div>
 </div>
 
@@ -1092,7 +1099,7 @@ function updateSubs(t) {
     const S = subs[k], cur = CUES.find((c) => c.box === k && t >= c.t && t < c.t + c.dur) || null;
     if (cur !== S.cur) {
       S.cur = cur; S.n = -1;
-      if (cur) { const w = WHO[cur.who]; S.who.textContent = w.zh + ' · ' + w.en; S.who.style.color = w.c; S.el.classList.add('on'); }
+      if (cur) { const w = WHO[cur.who]; S.who.textContent = LANG === 'zh' ? w.zh + ' · ' + w.en : w.en; S.who.style.color = w.c; S.el.classList.add('on'); }
       else S.el.classList.remove('on');
     }
     if (cur) {
@@ -1115,10 +1122,39 @@ function flashDom(color, opacity, sec) {
   veil.style.transition = 'opacity ' + sec + 's ease-out'; veil.style.opacity = 0;
 }
 let isMuted = false;
+const STR = {
+  en: {
+    h1: 'Amphoreus Finale · Space Battle',
+    note: 'Command the Anti-Irontomb Cosmic Alliance fleet, crush the Antimatter Legion, and face the planet-sized Irontomb.<br/>About 3.5 minutes. Sound on and headphones recommended.<br/>Desktop: left-drag to box-select, click to order, right-drag to rotate, wheel to zoom. Mobile: tap to order, drag to pan, pinch to zoom.',
+    go: 'Enter Battlefield', goMute: 'Enter Muted', lang: '中文版', loading: 'Loading music…',
+    legal: 'Unofficial fan work, not affiliated with the game\'s publisher. Dialogue and settings © their respective owners.<br/>Music: "Agony Converging into River" © HOYO-MiX.',
+    ships: 'Ships', kills: 'Kills', sel: 'Selected', alt: 'Alt Y',
+    all: 'Select all', charge: 'Charge', up: 'Alt▲', down: 'Alt▼', iron: 'Focus Tomb',
+    soundOn: 'Sound: On', soundOff: 'Sound: Off', tomb: 'IRONTOMB · PLANETARY',
+    helpD: '<b>Left-drag</b> box select　<b>Left-click</b> move / click the Tomb to focus<br/><b>Right-drag</b> rotate　<b>Wheel</b> zoom　<b>WASD</b> pan<br/><b>R/F</b> command altitude (3D)　<b>1/2/3</b> shortcuts',
+    helpC: '<b>Tap</b> to order　<b>Drag</b> to pan<br/><b>Pinch</b> zoom / rotate　<b>Alt▲▼</b> command altitude'
+  },
+  zh: {
+    h1: '翁法羅斯終章・太空戰',
+    note: '指揮反鐵墓宇宙聯軍的艦隊，碾壓反物質軍團，直面行星級的鐵墓。<br/>約 3 分半鐘的互動體驗，建議開啟聲音並使用耳機。<br/>桌機：左鍵框選／下令、右鍵旋轉、滾輪縮放。手機：輕點下令、拖曳平移、雙指縮放。',
+    go: '進入戰場', goMute: '靜音進入', lang: 'English', loading: '載入配樂…',
+    legal: '非官方同人作品，與遊戲官方無關。劇中台詞與設定版權歸原權利人所有。<br/>配樂：《Agony Converging into River》© HOYO-MiX。',
+    ships: '艦艇', kills: '擊毀', sel: '選取', alt: '高度 Y',
+    all: '全選艦隊', charge: '全軍突擊', up: '高度▲', down: '高度▼', iron: '集火鐵墓',
+    soundOn: '音效：開', soundOff: '音效：關', tomb: 'IRONTOMB · 行星級',
+    helpD: '<b>左鍵拖曳</b> 框選　<b>左鍵點擊</b> 移動／點鐵墓集火<br/><b>右鍵拖曳</b> 旋轉　<b>滾輪</b> 縮放　<b>WASD</b> 平移<br/><b>R/F</b> 指令高度（立體戰場）　<b>1/2/3</b> 快捷指令',
+    helpC: '<b>輕點</b> 下令移動／攻擊　<b>拖曳</b> 平移<br/><b>雙指</b> 縮放旋轉　<b>高度▲▼</b> 切換指令高度'
+  }
+};
+const setMuteLabel = () => { $('#sw-mute').textContent = isMuted ? STR[LANG].soundOff : STR[LANG].soundOn; };
+function applyLang(l) {
+  LANG = l; try { localStorage.setItem('sw-lang', l); } catch (e) {}
+  const root = $('#sw-root'); root.classList.toggle('lang-en', l === 'en'); root.classList.toggle('lang-zh', l === 'zh');
+  document.documentElement.lang = l === 'zh' ? 'zh-Hant' : 'en'; document.title = l === 'zh' ? '翁法羅斯終章・太空戰' : 'Amphoreus Finale · Space Battle';
+  document.querySelectorAll('[data-i]').forEach((el) => { el.innerHTML = STR[l][el.dataset.i]; });
+  tombLabel.textContent = STR[l].tomb; setMuteLabel(); helpEl.innerHTML = COARSE ? STR[l].helpC : STR[l].helpD;
+}
 const hud = $('#sw-hud'), helpEl = $('#sw-help'), cmdsEl = $('#sw-cmds'), endEl = $('#sw-end');
-helpEl.innerHTML = COARSE
-  ? '<b>輕點</b> 下令移動／攻擊　<b>拖曳</b> 平移<br/><b>雙指</b> 縮放旋轉　<b>高度▲▼</b> 切換指令高度'
-  : '<b>左鍵拖曳</b> 框選　<b>左鍵點擊</b> 移動／點鐵墓集火<br/><b>右鍵拖曳</b> 旋轉　<b>滾輪</b> 縮放　<b>WASD</b> 平移<br/><b>R/F</b> 指令高度（立體戰場）　<b>1/2/3</b> 快捷指令';
 function updateHud(t) {
   $('#sw-clock').textContent = fmtClock(Math.max(0, t - T.REVEAL));
   const f = ironFrac() * 100;
@@ -1135,7 +1171,7 @@ function updateHud(t) {
 }
 
 /* ───────── 導演（時間軸事件） ───────── */
-let lastSync = 0, t = 0, started = false, evIdx = 0, nextWave = 24, tickIdx = 0, endStage = 0;
+let LANG = 'en', lastSync = 0, t = 0, started = false, evIdx = 0, nextWave = 24, tickIdx = 0, endStage = 0;
 const EVENTS = [
   [T.REVEAL, () => { cv.classList.add('on'); hud.classList.add('on'); setVeil('#000', 0, 1.2); Snd.tension(0.25); cam.locked = true; }],
   [T.CONTROL, () => { control = true; cam.locked = false; setSel(allies.filter((s) => !s.dead)); helpEl.classList.add('on'); cmdsEl.classList.add('on'); Snd.tension(0.5); pushTick('艦隊指揮權已移交至你。', 'Fleet command transferred.'); if (COARSE) pushTick('輕點下令・拖曳平移・雙指縮放旋轉', 'Tap to order · drag to pan · pinch to zoom'); }],
@@ -1203,20 +1239,24 @@ function loop(now) {
 }
 function begin(mute) {
   Snd.init(); Snd.setMuted(!!mute); Snd.resume();
-  if (mute) { $('#sw-mute').textContent = '音效：關'; isMuted = true; }
+  if (mute) { isMuted = true; setMuteLabel(); }
   const go = () => { $('#sw-title').classList.add('off'); started = true; last = 0; Snd.musicPlay(); };
   if (mute || !Snd.on) { go(); return; }
   document.querySelectorAll('.sw-title .sw-btn').forEach((b) => { b.disabled = true; });
-  $('#sw-go').textContent = '載入配樂…';
+  $('#sw-go').textContent = STR[LANG].loading;
   Snd.musicLoad(MUSIC_URL, MUSIC_OFFSET, go);
 }
 $('#sw-go').addEventListener('click', () => begin(false));
 $('#sw-go-mute').addEventListener('click', () => begin(true));
 $('#sw-mute').addEventListener('click', () => {
-  isMuted = !isMuted; Snd.setMuted(isMuted); $('#sw-mute').textContent = '音效：' + (isMuted ? '關' : '開');
+  isMuted = !isMuted; Snd.setMuted(isMuted); setMuteLabel();
   if (!isMuted && Snd.on && !Snd.hasMusic && started && t < T.END) Snd.musicLoad(MUSIC_URL, MUSIC_OFFSET + t, () => Snd.musicPlay()); // 靜音進入後才開聲音：補載配樂
 });
 document.addEventListener('visibilitychange', () => { if (document.hidden) { if (Snd.on) Snd.setMuted(true); Snd.musicHold(true); } else { Snd.setMuted(isMuted); if (started) Snd.musicHold(false, MUSIC_OFFSET + t); } });
+
+$('#sw-lang').addEventListener('click', () => applyLang(LANG === 'en' ? 'zh' : 'en'));
+let storedLang = 'en'; try { storedLang = localStorage.getItem('sw-lang') === 'zh' ? 'zh' : 'en'; } catch (e) {}
+applyLang(storedLang);
 
 window.addEventListener('resize', resize);
 spawnAllies(); spawnEnemies(true); resize(); applyCam();
