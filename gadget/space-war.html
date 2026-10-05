@@ -632,7 +632,7 @@ const allies = [], enemies = [];
 let kills = 0, ironDmg = 0, ghostPct = 100;
 const ironFrac = () => 0.8 + 0.2 * Math.exp(-ironDmg / 900000);
 
-const NS = COARSE ? 0.65 : 1; // 手機上縮減數量
+const NS = 1; // 艦隊數量倍率（手機也維持全量；若跑不動可改成 0.65）
 function buildMoon(g) {
   const body = new THREE.Group(); g.add(body);
   body.add(new THREE.Mesh(new THREE.SphereGeometry(16, 24, 18), new THREE.MeshBasicMaterial({ color: 0x2b2300 })));
