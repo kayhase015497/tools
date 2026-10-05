@@ -204,7 +204,7 @@
       <button class="sw-btn big" type="button" id="sw-go">進入戰場</button>
       <button class="sw-btn big ghost" type="button" id="sw-go-mute">靜音進入</button>
     </div>
-    <p class="sw-legal">非官方同人作品，與遊戲官方無關。劇中台詞與設定版權歸原權利人所有。<br/>配樂：《Irontomb Battle Theme (Phase 2)》© HOYO-MiX。</p>
+    <p class="sw-legal">非官方同人作品，與遊戲官方無關。劇中台詞與設定版權歸原權利人所有。<br/>配樂：《Agony Converging into River》© HOYO-MiX。</p>
   </div></div>
 </div>
 
@@ -466,23 +466,147 @@ const SYSTEMS = [];
 })();
 
 /* 鐵墓 */
-const ZONE = 135; // 禁區半徑：聯軍艦艇不得進入（距鐵墓中心）
-const TOMB = { x: 0, y: 0, z: 0, r: 27, group: new THREE.Group() };
+const ZONE = 165; // 禁區半徑：聯軍艦艇不得進入（距鐵墓中心）
+const TOMB = { x: 0, y: 0, z: 0, r: 60, yaw: 0, parts: [], group: new THREE.Group() }; // r：外接球半徑（用於碰撞）；實際受擊點取自 parts
 (function buildTomb() {
   const g = TOMB.group; g.position.set(TOMB.x, TOMB.y, TOMB.z);
-  g.add(new THREE.Mesh(new THREE.SphereGeometry(TOMB.r, 32, 24), new THREE.MeshBasicMaterial({ color: 0x07030c })));
-  TOMB.wire1 = new THREE.Mesh(new THREE.IcosahedronGeometry(TOMB.r + 0.6, 3), new THREE.MeshBasicMaterial({ color: 0x7a46ff, wireframe: true, transparent: true, opacity: 0.55 }));
-  TOMB.wire2 = new THREE.Mesh(new THREE.IcosahedronGeometry(TOMB.r + 6, 1), new THREE.MeshBasicMaterial({ color: 0xff2a4a, wireframe: true, transparent: true, opacity: 0.3 }));
-  g.add(TOMB.wire1, TOMB.wire2);
-  TOMB.glow = mkGlow(0xff2244, 150, 0.8); g.add(TOMB.glow);
+  const body = new THREE.Group(); g.add(body); TOMB.body = body; const BS = 1.25; body.scale.setScalar(BS); // 行星級：整體放大
+
+  /* ── 巨人模型：把所有零件合併成三個網格（深色實體＋稜線＋發光部位），並以頂點色模擬打光 ── */
+  const V = THREE.Vector3, Q = THREE.Quaternion, M4 = THREE.Matrix4, Zax = new V(0, 0, 1);
+  const fillP = [], fillC = [], edgeP = [], glowP = [], glowC = [];
+  const LD = new V(0.35, 0.55, 0.75).normalize(), e1 = new V(), e2 = new V(), nn = new V(), va = new V(), vb = new V(), vc = new V();
+  const colOf = new THREE.Color();
+  function addGeo(geo, m) {
+    const g1 = geo.clone().applyMatrix4(m), ng = g1.index ? g1.toNonIndexed() : g1, p = ng.attributes.position.array;
+    for (let i = 0; i < p.length; i += 9) {
+      va.set(p[i], p[i + 1], p[i + 2]); vb.set(p[i + 3], p[i + 4], p[i + 5]); vc.set(p[i + 6], p[i + 7], p[i + 8]);
+      e1.subVectors(vb, va); e2.subVectors(vc, va); nn.crossVectors(e1, e2).normalize();
+      const sh = Math.pow(clamp(nn.dot(LD) * 0.5 + 0.5, 0, 1), 1.4), dn = Math.max(0, -nn.y), bk = Math.max(0, -nn.z);
+      const r = 0.028 + 0.15 * sh + dn * 0.42, gg = 0.022 + 0.115 * sh + dn * 0.05, b = 0.05 + 0.2 * sh + dn * 0.09 + bk * 0.08;
+      for (let k = 0; k < 3; k++) { fillP.push(p[i + k * 3], p[i + k * 3 + 1], p[i + k * 3 + 2]); fillC.push(r, gg, b); }
+    }
+    const ep = new THREE.EdgesGeometry(g1, 25).attributes.position.array;
+    for (let i = 0; i < ep.length; i++) edgeP.push(ep[i]);
+  }
+  function addGlow(geo, m, hex) {
+    const g1 = geo.clone().applyMatrix4(m), ng = g1.index ? g1.toNonIndexed() : g1, p = ng.attributes.position.array; colOf.setHex(hex);
+    for (let i = 0; i < p.length; i += 3) { glowP.push(p[i], p[i + 1], p[i + 2]); glowC.push(colOf.r, colOf.g, colOf.b); }
+  }
+  const P = (x, y, z) => new V(x, y, z);
+  const mat = (pos, q, sc) => new M4().compose(pos, q || new Q(), sc || new V(1, 1, 1));
+  const eul = (x, y, z) => new Q().setFromEuler(new THREE.Euler(x, y, z));
+  const hexGeo = new THREE.CylinderGeometry(0.5, 0.42, 1, 6).rotateX(Math.PI / 2);
+  const coneGeo = new THREE.ConeGeometry(0.5, 1, 5).rotateX(Math.PI / 2);
+  const octGeo = new THREE.OctahedronGeometry(1, 0), boxGeo = new THREE.BoxGeometry(1, 1, 1);
+  const between = (geo, a, b, th, glow, hex) => {
+    const d = new V().subVectors(b, a), len = d.length() || 0.01, q = new Q().setFromUnitVectors(Zax, d.clone().normalize());
+    const m = mat(a.clone().add(b).multiplyScalar(0.5), q, new V(th, th, len)); glow ? addGlow(geo, m, hex) : addGeo(geo, m);
+  };
+  const limb = (a, b, th) => between(hexGeo, a, b, th), spike = (a, b, th) => between(coneGeo, a, b, th);
+  const frontZ = (y) => (10 + 7 * clamp((y + 7) / 38, 0, 1)) * 0.866 * 0.74; // 軀幹前緣（供肋骨與發光條貼合）
+
+  // 軀幹與肩帶
+  addGeo(new THREE.CylinderGeometry(17, 10, 38, 6).rotateY(Math.PI / 6), mat(P(0, 12, 0), null, new V(1, 1, 0.74)));
+  addGeo(boxGeo, mat(P(0, 31, 0), null, new V(50, 8, 15)));
+  addGeo(boxGeo, mat(P(0, -10, 0), null, new V(17, 6, 11)));
+  for (let i = 0; i < 5; i++) { const y = 26 - i * 6.4; addGeo(boxGeo, mat(P(0, y, frontZ(y) + 0.8), null, new V(24 - i * 2.6, 2.4, 4))); }          // 肋骨板
+  for (let i = 0; i < 6; i++) { const y = 27 - i * 4.9; addGlow(boxGeo, mat(P(0, y, frontZ(y) + 3.2), null, new V(11 - i * 1.1, 1.3, 0.9)), 0xb878ff); } // 胸口梯狀紫光
+  addGlow(boxGeo, mat(P(0, 16, frontZ(16) + 3.4), null, new V(1.5, 24, 0.9)), 0x8a4cff);
+  for (let i = 0; i < 6; i++) spike(P(0, 34 - i * 7, -6), P(0, 39 - i * 7, -16 - (i % 2) * 3), 3.2);                                               // 背脊棘刺
+
+  // 頭：高聳的尖頂兜帽、面罩與紅色眼縫
+  addGeo(boxGeo, mat(P(0, 37, 0), null, new V(9, 5, 9)));
+  addGeo(new THREE.ConeGeometry(11.5, 40, 4).rotateY(Math.PI / 4), mat(P(0, 58, -1)));
+  addGeo(new THREE.ConeGeometry(9, 22, 4).rotateY(Math.PI / 4), mat(P(0, 49, 3), eul(0.18, 0, 0)));
+  addGeo(octGeo, mat(P(0, 46, 4), null, new V(5.5, 8, 4.2)));
+  addGlow(boxGeo, mat(P(0, 48, 8.4), null, new V(7, 0.9, 0.8)), 0xff4466);
+  addGlow(octGeo, mat(P(0, 45, 8), eul(0, 0, 0), new V(4.2, 7, 1.6)), 0x9a5cff);
+  [1, -1].forEach((sg) => { spike(P(sg * 5, 50, -2), P(sg * 13, 68, -9), 3.4); spike(P(sg * 4, 42, -3), P(sg * 10, 36, -12), 2.6); });
+
+  // 肩甲與三對手臂
+  const claws = (base, dir, n, len, spread) => {
+    for (let k = 0; k < n; k++) {
+      const o = (k - (n - 1) / 2), d = dir.clone().add(new V(o * spread * 0.4 * (Math.abs(dir.x) > 0.5 ? 0 : 1), o * spread * (Math.abs(dir.x) > 0.5 ? 0.6 : 0), o * spread * 0.9)).normalize();
+      spike(base.clone().add(new V(0, o * 1.4 * (Math.abs(dir.x) > 0.5 ? 1 : 0), o * 1.8)), base.clone().add(d.multiplyScalar(len)), 2.3);
+    }
+  };
+  [1, -1].forEach((sg) => {
+    addGeo(octGeo, mat(P(sg * 27, 35, 0), eul(0, 0, sg * 0.28), new V(18, 9, 15)));                              // 肩甲
+    spike(P(sg * 24, 39, 0), P(sg * 30, 56, -4), 4.2); spike(P(sg * 33, 38, 2), P(sg * 47, 49, 3), 3.4); spike(P(sg * 30, 36, 6), P(sg * 38, 40, 18), 3);
+    // 上臂（最粗，十字架姿勢平舉）
+    const S = P(sg * 27, 31, 0), E = P(sg * 56, 32, 0), W = P(sg * 86, 31, 0);
+    limb(S, E, 14); addGeo(octGeo, mat(E, null, new V(9.5, 9.5, 9.5))); limb(E, W, 10.5);
+    addGeo(boxGeo, mat(P(sg * 42, 39.5, 0), null, new V(26, 3, 14)));                                               // 上臂護甲
+    addGeo(boxGeo, mat(P(sg * 71, 37, 0), null, new V(18, 2.6, 10.5)));
+    for (let i = 0; i < 5; i++) { const x = 33 + i * 10.5; spike(P(sg * x, 39, 0), P(sg * (x + 3), 46 + (i % 2) * 3, -1.5), 3); }
+    [34, 44, 62, 72].forEach((x, k) => addGeo(boxGeo, mat(P(sg * x, 31.5, 0), null, new V(3.2, k < 2 ? 17 : 13, k < 2 ? 17 : 13))));  // 分節護甲環
+    spike(P(sg * 56, 36, -2), P(sg * 60, 54, -7), 4.6); spike(P(sg * 56, 28, -2), P(sg * 60, 14, -8), 3.4);            // 手肘棘刺
+    limb(P(sg * 85, 31, 0), P(sg * 96, 31, 0), 12);                                                                  // 手掌
+    claws(P(sg * 96, 31, 0), P(sg * 1, -0.1, 0).normalize(), 4, 14, 0.5);
+    addGlow(octGeo, mat(P(sg * 93, 31, 0), null, new V(4.2, 4.2, 4.2)), 0xb36bff);
+    // 中臂
+    const S2 = P(sg * 16, 20, 1), E2 = P(sg * 40, 5, 4), W2 = P(sg * 57, -17, 7);
+    limb(S2, E2, 9); addGeo(octGeo, mat(E2, null, new V(6.5, 6.5, 6.5))); limb(E2, W2, 7); spike(P(sg * 40, 8, 2), P(sg * 46, 20, -4), 3.2);
+    limb(W2, P(sg * 58, -23, 7), 6.4); claws(P(sg * 58, -23, 7), P(sg * 0.25, -1, 0.1).normalize(), 4, 12, 0.55);
+    addGlow(octGeo, mat(P(sg * 58, -20, 7), null, new V(3, 3, 3)), 0xb36bff);
+    // 下臂
+    const S3 = P(sg * 10, 4, 2), E3 = P(sg * 24, -12, 5), W3 = P(sg * 32, -40, 8);
+    limb(S3, E3, 6.2); addGeo(octGeo, mat(E3, null, new V(4.4, 4.4, 4.4))); limb(E3, W3, 5);
+    limb(W3, P(sg * 33, -44, 8), 4.6); claws(P(sg * 33, -44, 8), P(sg * 0.12, -1, 0.1).normalize(), 3, 11, 0.5);
+    // 髖部與拖曳的長刃
+    spike(P(sg * 8, -10, 0), P(sg * 22, -26, -5), 4.2); spike(P(sg * 3, -14, -2), P(sg * 11, -72, -15), 5);
+  });
+  // 脊椎串：往下逐漸細碎、消散
+  for (let i = 0; i < 9; i++) {
+    const y = -16 - i * 5.5, r = 6 - i * 0.5; addGeo(octGeo, mat(P(0, y, -i * 0.4), null, new V(r * 1.1, 3.2, r * 0.8)));
+    if (i % 2 === 0) spike(P(0, y, -3), P(0, y - 7, -13 - i), 2.2);
+  }
+  // 漂浮的碎片
+  for (let i = 0; i < 20; i++) {
+    const a = rnd(0, Math.PI * 2), u = rnd(-0.6, 0.9), r = rnd(52, 98), cs = Math.sqrt(1 - u * u), sz = rnd(1.6, 5.2);
+    addGeo(octGeo, mat(P(Math.cos(a) * cs * r, 6 + u * 60, Math.sin(a) * cs * r), eul(rnd(0, 3), rnd(0, 3), rnd(0, 3)), new V(sz, sz * 0.5, sz * 0.32)));
+  }
+
+  const mk = (arr, n) => new THREE.BufferAttribute(new Float32Array(arr), n);
+  const fg = new THREE.BufferGeometry(); fg.setAttribute('position', mk(fillP, 3)); fg.setAttribute('color', mk(fillC, 3));
+  body.add(new THREE.Mesh(fg, new THREE.MeshBasicMaterial({ vertexColors: true, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 })));
+  const rim = new THREE.Mesh(fg, new THREE.MeshBasicMaterial({ color: 0x8a46ff, side: THREE.BackSide, transparent: true, opacity: 0.4, blending: THREE.AdditiveBlending, depthWrite: false })); rim.scale.setScalar(1.045); body.add(rim); // 輪廓光
+  const eg = new THREE.BufferGeometry(); eg.setAttribute('position', mk(edgeP, 3));
+  TOMB.edges = new THREE.LineSegments(eg, new THREE.LineBasicMaterial({ color: 0x8d68ff, transparent: true, opacity: 0.78 })); body.add(TOMB.edges);
+  const gg = new THREE.BufferGeometry(); gg.setAttribute('position', mk(glowP, 3)); gg.setAttribute('color', mk(glowC, 3));
+  body.add(new THREE.Mesh(gg, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false })));
+
+  // 頭後光環（帶刻度）
+  const hp = []; const HR = 25;
+  for (let i = 0; i < 64; i++) { const a = i / 64 * Math.PI * 2, b = (i + 1) / 64 * Math.PI * 2; hp.push(Math.cos(a) * HR, Math.sin(a) * HR, 0, Math.cos(b) * HR, Math.sin(b) * HR, 0); }
+  for (let i = 0; i < 72; i++) { const a = i / 72 * Math.PI * 2, l = i % 6 === 0 ? 5 : 2.4; hp.push(Math.cos(a) * HR, Math.sin(a) * HR, 0, Math.cos(a) * (HR + l), Math.sin(a) * (HR + l), 0); }
+  for (let i = 0; i < 30; i++) { const a = i / 30 * Math.PI, b = (i + 1) / 30 * Math.PI; hp.push(Math.cos(a) * 31, Math.sin(a) * 31, 0, Math.cos(b) * 31, Math.sin(b) * 31, 0); }
+  const hg = new THREE.BufferGeometry(); hg.setAttribute('position', mk(hp, 3));
+  TOMB.halo = new THREE.LineSegments(hg, new THREE.LineBasicMaterial({ color: 0xff7a96, transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending, depthWrite: false }));
+  const haloG = new THREE.Group(); haloG.position.set(0, 46, -10); haloG.add(TOMB.halo); body.add(haloG);
+
+  // 發光：紅色眼核與橫向光芒、手掌紫光、背後與腳下的火光
+  const eye = mkGlow(0xff4466, 34, 0.95); eye.position.set(0, 33, 11); body.add(eye);
+  const streak = mkGlow(0xff9fb4, 1, 0.85); streak.scale.set(210, 5, 1); streak.position.set(0, 33, 11); body.add(streak);
+  [[93, 31, 0], [58, -20, 7]].forEach((q) => [1, -1].forEach((sg) => { const gl = mkGlow(0xb36bff, q[1] > 0 ? 26 : 15, 0.85); gl.position.set(sg * q[0], q[1], q[2]); body.add(gl); }));
+  TOMB.glow = mkGlow(0xff2244, 210, 0.3); TOMB.glow.position.set(0, 12, -16); body.add(TOMB.glow);
+  const fire = mkGlow(0xff6a2a, 120, 0.55); fire.position.set(0, -30, 0); body.add(fire);
+
+  // 受擊部位（光束會落在這些身體部位上）：[x, y, z, 半徑, 權重]
+  TOMB.parts = [[0, 14, 0, 18, 3], [0, 52, 0, 10, 1], [0, -12, 0, 10, 0.8]];
+  [1, -1].forEach((sg) => TOMB.parts.push([sg * 27, 34, 0, 12, 1.5], [sg * 56, 32, 0, 8, 1], [sg * 92, 31, 0, 9, 1.2], [sg * 40, 5, 4, 7, 0.7], [sg * 57, -18, 7, 7, 0.7], [sg * 24, -12, 5, 6, 0.4]));
+  TOMB.parts = TOMB.parts.map((q) => [q[0] * BS, q[1] * BS, q[2] * BS, q[3] * BS, q[4]]);
+  TOMB.partW = TOMB.parts.reduce((a, q) => a + q[4], 0);
+
   // 腳下的威脅區
-  const flat = (geo, mat) => { const m = new THREE.Mesh(geo, mat); m.rotation.x = -Math.PI / 2; m.position.y = -TOMB.y + 0.1; return m; };
-  TOMB.zone = flat(new THREE.CircleGeometry(72, 96), addMat(0xff1f45, 0.14));
-  TOMB.zoneRing = flat(new THREE.RingGeometry(70, 73, 128), addMat(0xff3b5c, 0.8));
+  const flat = (geo, mat2) => { const m = new THREE.Mesh(geo, mat2); m.rotation.x = -Math.PI / 2; m.position.y = -TOMB.y + 0.1; return m; };
+  TOMB.zone = flat(new THREE.CircleGeometry(138, 96), addMat(0xff1f45, 0.07));
+  TOMB.zoneRing = flat(new THREE.RingGeometry(136.5, 139.5, 160), addMat(0xff3b5c, 0.8));
   TOMB.zoneRing2 = flat(new THREE.RingGeometry(ZONE - 0.8, ZONE + 0.8, 160), addMat(0xff3b5c, 0.55));
   TOMB.zoneSphere = new THREE.Mesh(new THREE.IcosahedronGeometry(ZONE, 2), new THREE.MeshBasicMaterial({ color: 0xff5a7a, wireframe: true, transparent: true, opacity: 0.1, blending: THREE.AdditiveBlending, depthWrite: false }));
   g.add(TOMB.zone, TOMB.zoneRing, TOMB.zoneRing2, TOMB.zoneSphere);
-  // 無限符號
+  // 無限符號（懸在頭頂上方）
   const pts = [], cols = [], N = 220;
   for (let i = 0; i < N; i++) {
     const t = i / N * Math.PI * 2, d = 1 + Math.sin(t) * Math.sin(t);
@@ -493,7 +617,7 @@ const TOMB = { x: 0, y: 0, z: 0, r: 27, group: new THREE.Group() };
   TOMB.inf = new THREE.Group();
   TOMB.inf.add(new THREE.LineLoop(lg, new THREE.LineBasicMaterial({ vertexColors: true, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false })));
   const core = mkGlow(0xffffff, 26, 0.9); TOMB.inf.add(core);
-  TOMB.inf.position.y = 50; TOMB.inf.rotation.x = -0.75; g.add(TOMB.inf);
+  TOMB.inf.position.y = 112; TOMB.inf.rotation.x = -0.75; g.add(TOMB.inf);
   scene.add(g);
 })();
 
@@ -780,12 +904,15 @@ function killShip(s) {
 }
 function hitIron(dmg, big) {
   ironDmg += dmg;
-  if (Math.random() < (big ? 1 : 0.1)) dmgNum(TOMB.x + rnd(-14, 14), TOMB.y + 30 + rnd(0, 10), TOMB.z + rnd(-14, 14), dmg * rnd(0.9, 1.4), true);
+  if (Math.random() < (big ? 1 : 0.1)) dmgNum(TOMB.x + rnd(-36, 36), TOMB.y + rnd(10, 60), TOMB.z + rnd(-10, 10), dmg * rnd(0.9, 1.4), true);
 }
 function tombPoint(fx, fy, fz) {
-  let dx = fx - TOMB.x, dy = fy - TOMB.y, dz = fz - TOMB.z; const l = Math.hypot(dx, dy, dz) || 1;
-  dx = dx / l + rnd(-0.25, 0.25); dy = dy / l + rnd(-0.25, 0.25); dz = dz / l + rnd(-0.25, 0.25); const m = Math.hypot(dx, dy, dz) || 1;
-  return [TOMB.x + dx / m * TOMB.r, TOMB.y + dy / m * TOMB.r, TOMB.z + dz / m * TOMB.r];
+  let r = Math.random() * TOMB.partW, part = TOMB.parts[0];
+  for (const q of TOMB.parts) { r -= q[4]; if (r <= 0) { part = q; break; } }
+  const c = Math.cos(TOMB.yaw), sn = Math.sin(TOMB.yaw), px = TOMB.x + part[0] * c + part[2] * sn, py = TOMB.y + part[1], pz = TOMB.z - part[0] * sn + part[2] * c;
+  let dx = fx - px, dy = fy - py, dz = fz - pz; const l = Math.hypot(dx, dy, dz) || 1;
+  dx = dx / l + rnd(-0.35, 0.35); dy = dy / l + rnd(-0.35, 0.35); dz = dz / l + rnd(-0.35, 0.35); const m = Math.hypot(dx, dy, dz) || 1;
+  return [px + dx / m * part[3], py + dy / m * part[3], pz + dz / m * part[3]];
 }
 function nearest(s, foes) {
   let best = 1e12, f = null;
@@ -905,7 +1032,7 @@ function updatePulses(dt) {
   for (let i = 0; i < pulses.length; i++) { pulses[i].age += dt; }
   while (pulses.length > 1 && pulses[0].age > 4) pulses.shift();
   const p = pulses[pulses.length - 1];
-  if (p && p.age < 4) { pulseMesh.visible = true; const k = p.age / 4; pulseMesh.scale.setScalar(72 + k * 260); pulseMesh.material.opacity = (1 - k) * 0.55; } else pulseMesh.visible = false;
+  if (p && p.age < 4) { pulseMesh.visible = true; const k = p.age / 4; pulseMesh.scale.setScalar(138 + k * 260); pulseMesh.material.opacity = (1 - k) * 0.55; } else pulseMesh.visible = false;
 }
 
 /* ───────── 末日演出 ───────── */
@@ -921,7 +1048,7 @@ function buildDoom() {
   const core = new THREE.Mesh(new THREE.BoxGeometry(4.2, 262, 4.2), addMat(0xff2a4a, 0.8)); core.position.y = 131; sw.add(core);
   const white = new THREE.Mesh(new THREE.BoxGeometry(1.5, 262, 1.5), addMat(0xffffff, 0.95)); white.position.y = 131; sw.add(white);
   const tip = mkGlow(0xff4a68, 190, 0.95); sw.add(tip); sw.userData.tip = tip;
-  sw.scale.set(2.4, 1, 2.4); sw.position.set(0, 560, 0); sw.visible = false; scene.add(sw); doom.sword = sw;
+  sw.scale.set(2.4, 1, 2.4); sw.position.set(0, 560, 24); sw.visible = false; scene.add(sw); doom.sword = sw;
   const disc = new THREE.Mesh(new THREE.SphereGeometry(1, 48, 32), addMat(0xff2a4a, 0.12)); disc.visible = false; scene.add(disc);
   const ring = new THREE.Mesh(new THREE.RingGeometry(0.965, 1, 160), addMat(0xffe0e8, 0.95)); ring.rotation.x = -Math.PI / 2; ring.position.y = 0.6; ring.visible = false; scene.add(ring);
   doom.waveDisc = disc; doom.wave = ring;
@@ -950,7 +1077,7 @@ function updateDoom(dt, t) {
     if (p > 0.15) { emit(rnd(-1.5, 1.5), sw.position.y + rnd(0, 120), rnd(-1.5, 1.5), 0, -40, 0, 1, 0.3, 0.45, rnd(6, 14), 0.9, 0.5); }
     cam.shake = p * p * 1.4;
     scene.background.lerp(BG_DOOM, dt * 0.35); scene.fog.color.copy(scene.background);
-    TOMB.glow.material.opacity = 0.8 + p * 0.2;
+    TOMB.glow.material.opacity = 0.3 + p * 0.5;
   }
   if (!doom.impacted && t >= T.IMPACT) {
     doom.impacted = true; doom.waveT = 0;
@@ -978,7 +1105,7 @@ function updateDoom(dt, t) {
 
 /* ───────── 鏡頭與操作 ───────── */
 let control = false, selCount = 0;
-const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), tombSphere = new THREE.Sphere(new THREE.Vector3(TOMB.x, TOMB.y, TOMB.z), 32);
+const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), tombSphere = new THREE.Sphere(new THREE.Vector3(TOMB.x, TOMB.y + 15, TOMB.z), 90);
 function pickRay(cx, cy) { ndc.set(cx / W * 2 - 1, -(cy / H) * 2 + 1); ray.setFromCamera(ndc, camera); }
 let cmdY = 0; // 指令平面高度（Y 軸）
 const cmdPlane = (function () {
@@ -1136,7 +1263,7 @@ function updateHud(t) {
     const sh = L.ship, p = sh.dead ? null : toScreen(sh.x, sh.y + L.dy, sh.z);
     if (p && p.ok && on) { L.el.style.transform = 'translate(' + p.x.toFixed(0) + 'px,' + p.y.toFixed(0) + 'px) translate(-50%,-50%)'; L.el.style.opacity = 1; } else L.el.style.opacity = 0;
   }
-  const s = toScreen(TOMB.x, TOMB.y + 62, TOMB.z);
+  const s = toScreen(TOMB.x, TOMB.y + 140, TOMB.z);
   if (s.ok) { tombLabel.style.transform = 'translate(' + s.x.toFixed(0) + 'px,' + s.y.toFixed(0) + 'px) translate(-50%,-50%)'; tombLabel.style.opacity = hud.classList.contains('on') ? 1 : 0; } else tombLabel.style.opacity = 0;
 }
 
@@ -1184,10 +1311,11 @@ function step(dt) {
     // 清理已毀艦艇
     for (let i = allies.length - 1; i >= 0; i--) if (allies[i].dead) allies.splice(i, 1);
     for (let i = enemies.length - 1; i >= 0; i--) if (enemies[i].dead) enemies.splice(i, 1);
-    TOMB.wire1.rotation.y += dt * 0.08; TOMB.wire2.rotation.y -= dt * 0.12; TOMB.wire2.rotation.x += dt * 0.05;
+    TOMB.yaw = Math.sin(t * 0.12) * 0.12; TOMB.body.rotation.y = TOMB.yaw; TOMB.halo.rotation.z += dt * 0.12;
+    for (let k = 0; k < 2; k++) emit(rnd(-16, 16), rnd(-40, 10), rnd(-10, 10), rnd(-3, 3), rnd(6, 18), rnd(-3, 3), 1, rnd(0.25, 0.5), 0.1, rnd(2, 4.5), rnd(1.6, 2.8), 0.3); // 身體下方飄散的餘燼
     TOMB.inf.rotation.y += dt * 0.5;
     const pu = 1 + 0.12 * Math.sin(t * 2.2);
-    TOMB.zoneRing.material.opacity = 0.55 + 0.3 * Math.sin(t * 2.2); TOMB.glow.scale.set(150 * pu, 150 * pu, 1);
+    TOMB.zoneRing.material.opacity = 0.55 + 0.3 * Math.sin(t * 2.2); TOMB.glow.scale.set(210 * pu, 210 * pu, 1);
     updateBeams(dt); updateBubbles(dt); updateDrops(); updateMarks(dt); updateNums(dt);
     updateParticles(dt);
     updateHud(t);
