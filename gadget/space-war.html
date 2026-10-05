@@ -114,14 +114,12 @@
   .sw-legal { margin-top: 26px; font-size: 11px; color: #5b6784; line-height: 1.7; }
   .sw-end { position: absolute; inset: 0; z-index: 8; display: flex; align-items: center; justify-content: center; padding: 24px;
     text-align: center; opacity: 0; pointer-events: none; transition: opacity 1.5s; }
-  .sw-end.on { opacity: 1; pointer-events: auto; }
+  .sw-end.on { opacity: 1; }
   .sw-end-line { opacity: 0; transform: translateY(8px); transition: opacity 1.6s, transform 1.6s; margin-bottom: 26px; }
   .sw-end-line.on { opacity: 1; transform: none; }
   .sw-end-line .sw-zh { font-size: clamp(18px, 3vw, 28px); color: var(--text); }
   .sw-end-line .sw-en { font-size: clamp(11px, 1.6vw, 14px); font-family: 'Space Mono', monospace; color: var(--dim); margin-top: 6px; font-weight: 400; }
   .sw-end-line.small .sw-zh { font-size: clamp(14px, 2vw, 18px); color: var(--dim); }
-  .sw-end-btns { opacity: 0; transition: opacity 1.4s; margin-top: 34px; }
-  .sw-end-btns.on { opacity: 1; }
   .sw-mute { margin-top: 6px; padding: 5px 10px; min-height: 28px; font-size: 11px; }
   @media (max-width: 640px) {
     .sw-top { grid-template-columns: 1fr auto; gap: 6px 10px; padding-left: 12px; padding-right: 12px; }
@@ -187,10 +185,6 @@
     <div class="sw-end-line"><div class="sw-zh">宇宙的第四時刻，鐵墓加冕。</div><div class="sw-en">The cosmos' Fourth Instant — the coronation of Irontomb.</div></div>
     <div class="sw-end-line small"><div class="sw-zh">這場戰鬥，從一開始就沒有被寫下勝利。</div><div class="sw-en">No victory was ever written into this battle.</div></div>
     <div class="sw-end-line"><div class="sw-zh">生命的第一因是什麼？一場與「博識尊」（Nous）的終極辯論正式開始。</div><div class="sw-en">What is the first cause of life? The ultimate debate with Nous begins.</div></div>
-    <div class="sw-end-btns sw-row" id="sw-end-btns">
-      <button class="sw-btn big" type="button" id="sw-again">再次體驗</button>
-      <a class="sw-btn big ghost" href="../index.html" style="text-decoration:none;display:inline-flex;align-items:center">回到首頁</a>
-    </div>
   </div></div>
 
   <div class="sw-veil" id="sw-veil"></div>
@@ -1196,7 +1190,6 @@ function step(dt) {
   if (t >= T.END + 1.2 && endStage < 1) { endStage = 1; endEl.querySelectorAll('.sw-end-line')[0].classList.add('on'); }
   if (t >= T.END + 4.5 && endStage < 2) { endStage = 2; endEl.querySelectorAll('.sw-end-line')[1].classList.add('on'); }
   if (t >= T.END + 8.5 && endStage < 3) { endStage = 3; endEl.querySelectorAll('.sw-end-line')[2].classList.add('on'); }
-  if (t >= T.END + 12.5 && endStage < 4) { endStage = 4; $('#sw-end-btns').classList.add('on'); }
 }
 
 /* ───────── 啟動與主迴圈 ───────── */
@@ -1219,7 +1212,6 @@ function begin(mute) {
 }
 $('#sw-go').addEventListener('click', () => begin(false));
 $('#sw-go-mute').addEventListener('click', () => begin(true));
-$('#sw-again').addEventListener('click', () => location.reload());
 $('#sw-mute').addEventListener('click', () => {
   isMuted = !isMuted; Snd.setMuted(isMuted); $('#sw-mute').textContent = '音效：' + (isMuted ? '關' : '開');
   if (!isMuted && Snd.on && !Snd.hasMusic && started && t < T.END) Snd.musicLoad(MUSIC_URL, MUSIC_OFFSET + t, () => Snd.musicPlay()); // 靜音進入後才開聲音：補載配樂
