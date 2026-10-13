@@ -21,6 +21,7 @@
     debris:    { file: 'debris.glb',    length: 3 },
     irontomb:  { file: 'irontomb.glb',  length: 248, axis: 'y' },   // 以高度（+Y）正規化
     fighter:   { file: 'fighter.glb',   length: 14, fpv: true },    // FPV 專用：預設 loadAll 不載入
+    sentinel:  { file: 'sentinel.glb',  length: 120, fpv: true },   // 預警機
     cockpit:   { file: 'cockpit.glb',   length: 1, raw: true, fpv: true }   // 駕駛艙內裝：不縮放，公尺為單位
   };
 

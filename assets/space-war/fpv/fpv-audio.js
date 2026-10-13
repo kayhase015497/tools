@@ -17,7 +17,7 @@
 (function (global) {
   'use strict';
   let ctx = null, master = null, sfxBus = null, rvSend = null, buffers = {}, loading = null, eng = null, mus = null;
-  let musicOn = true, muted = false, voices = 0;
+  let musicOn = true, muted = false, voices = 0, refScale = 1;
   const perName = {}, lastT = {};
   const L = { x: 0, y: 0, z: 0, q: null };
   const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
@@ -72,10 +72,10 @@
     if (voices > 40 || (perName[name] || 0) >= (o.max || 8)) return null;
     let gain = o.vol != null ? o.vol : 1, pan = o.pan || 0, cutoff = 20000, delay = 0, behind = false;
     if (o.pos) {
-      const sp = spatial(o.pos), ref = o.ref || 150;
+      const sp = spatial(o.pos), ref = (o.ref || 150) * refScale;
       gain *= 1 / (1 + Math.pow(sp.dist / ref, 1.15)); pan = sp.pan; behind = sp.behind;
       cutoff = clamp(16000 / (1 + sp.dist / (ref * 2.2)), 600, 16000); if (behind) cutoff *= 0.55;
-      if (o.delay !== false) delay = Math.min(1.8, Math.max(0, sp.dist - 60) / SPEED);
+      if (o.delay !== false && refScale === 1) delay = Math.min(1.8, Math.max(0, sp.dist - 60) / SPEED);
     }
     if (gain < 0.012) return null;
     const t0 = ctx.currentTime + delay, src = ctx.createBufferSource(); src.buffer = buf; src.playbackRate.value = (o.rate || 1) * (1 + (Math.random() - 0.5) * 0.08);
@@ -119,6 +119,8 @@
       eng.hiss.frequency.setTargetAtTime(900 + 1800 * speed01 + (boost ? 1400 : 0), t, 0.1);
       eng.o.frequency.setTargetAtTime(38 + 34 * speed01 + (boost ? 22 : 0), t, 0.15);
     },
+    setScale(k) { refScale = k; },
+    musicSeek(sec) { if (mus) { try { mus.currentTime = sec; } catch (e) {} } },
     music(on) { musicOn = on; if (mus) { if (on) mus.play().catch(() => {}); else mus.pause(); } },
     mute(m) { muted = m; if (master) master.gain.value = m ? 0 : 0.85; if (mus) mus.muted = m; },
     suspend(s) { if (!ctx) return; if (s) { ctx.suspend(); if (mus) mus.pause(); } else { ctx.resume(); if (mus && musicOn) mus.play().catch(() => {}); } },

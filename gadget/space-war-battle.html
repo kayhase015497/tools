@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<title>Amphoreus Finale · Battle</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"/>
+<style>
+  :root { --bg: #0b0f1a; --text: #e2e8f0; --dim: #94a3b8; --cyan: #8fe6ff; --gold: #ffd98a; --red: #ff4466; --green: #7dffb0; --line: rgba(143,230,255,.28); }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; background: var(--bg); color: var(--text); overflow: hidden; font-family: 'Noto Sans TC', sans-serif; }
+  .mono { font-family: 'Space Mono', monospace; }
+  #b-root { position: fixed; inset: 0; user-select: none; -webkit-user-select: none; }
+  body.role-pilot #b-root { cursor: crosshair; }
+  #b-canvas, #b-hud { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  #b-hud { pointer-events: none; }
+  #b-flash { position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity .35s; }
+  #b-veil { position: absolute; inset: 0; background: #000; opacity: 1; pointer-events: none; z-index: 20; }
+  /* 戰場播報、區域警告 */
+  #b-log { position: absolute; left: 16px; top: 70px; width: min(40vw, 400px); display: flex; flex-direction: column; gap: 6px; pointer-events: none; font-family: 'Space Mono', monospace; z-index: 5; }
+  #b-log div { border-left: 2px solid var(--cyan); padding: 2px 0 2px 9px; background: linear-gradient(90deg, rgba(10,20,40,.7), transparent); font-size: clamp(10px, 1.2vw, 12px); animation: b-in .4s ease-out; transition: opacity 1s; }
+  #b-log div.warn { border-color: var(--red); color: #ffd1da; }
+  #b-log div.out, #b-radio div.out { opacity: 0; }
+  @keyframes b-in { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: none; } }
+  #b-center { position: absolute; left: 0; right: 0; top: 22%; text-align: center; pointer-events: none; font-family: 'Space Mono', monospace; letter-spacing: .2em; font-size: clamp(12px, 2vw, 18px); color: var(--red); text-shadow: 0 0 14px rgba(255,68,102,.8); opacity: 0; transition: opacity .3s; z-index: 5; }
+  #b-center.on { opacity: 1; }
+  /* 頂部：Boss 血條、時鐘與統計 */
+  #b-boss { position: absolute; left: 50%; top: 12px; width: min(52vw, 520px); transform: translateX(-50%); pointer-events: none; z-index: 5; }
+  .b-boss-name { display: flex; justify-content: space-between; align-items: baseline; font-size: 13px; font-weight: 700; letter-spacing: .08em; text-shadow: 0 0 10px rgba(255,68,102,.6); }
+  .b-boss-name i { font-family: 'Space Mono', monospace; font-style: normal; font-size: 10px; color: var(--dim); margin-left: 6px; letter-spacing: .18em; }
+  .b-boss-name b { font-family: 'Space Mono', monospace; font-size: 14px; color: #ffd1da; }
+  .b-boss-bar { position: relative; height: 10px; margin-top: 4px; border: 1px solid rgba(255,68,102,.55); background: rgba(40,6,16,.7); clip-path: polygon(0 0, 100% 0, calc(100% - 8px) 100%, 8px 100%); }
+  #b-boss-ghost, #b-boss-fill { position: absolute; left: 0; top: 0; bottom: 0; }
+  #b-boss-ghost { background: rgba(255,255,255,.75); } #b-boss-fill { background: linear-gradient(90deg, #c01839, #ff5a7a); box-shadow: 0 0 12px rgba(255,68,102,.8); }
+  #b-top { position: absolute; right: 16px; top: 14px; text-align: right; pointer-events: none; font-family: 'Space Mono', monospace; font-size: 12px; color: var(--dim); line-height: 1.7; z-index: 5; display: none; }
+  #b-top b { color: var(--text); font-size: 15px; }
+  body.role-cmd #b-top { display: block; }
+  #b-clock-wrap { position: absolute; left: 50%; top: 56px; transform: translateX(-50%); font-family: 'Space Mono', monospace; font-size: 12px; color: var(--dim); pointer-events: none; z-index: 5; }
+  body.role-cmd #b-clock-wrap { top: 62px; }
+  /* 無線電（飛行員，右側） */
+  #b-radio { position: absolute; right: 16px; top: 214px; width: min(34vw, 310px); display: flex; flex-direction: column; gap: 5px; pointer-events: none; font-family: 'Space Mono', monospace; z-index: 5; }
+  #b-radio div { border-right: 2px solid var(--cyan); padding: 3px 9px 3px 0; text-align: right; font-size: clamp(10px, 1.15vw, 12px); background: linear-gradient(270deg, rgba(10,20,40,.72), transparent); animation: b-in-r .35s ease-out; transition: opacity 1.2s; }
+  #b-radio div b { color: var(--cyan); display: block; font-size: 10px; letter-spacing: .08em; }
+  #b-radio div span { color: #cfe3f5; }
+  #b-radio div.hit { border-color: #ffb04a; } #b-radio div.hit b { color: #ffb04a; }
+  #b-radio div.final { border-color: var(--red); } #b-radio div.final b { color: var(--red); } #b-radio div.final span { color: #ffd1da; }
+  #b-radio div.kill { border-color: var(--green); } #b-radio div.kill b { color: var(--green); }
+  body.role-cmd #b-radio { display: none; }
+  @keyframes b-in-r { from { opacity: 0; transform: translateX(10px); } to { opacity: 1; transform: none; } }
+  /* 字幕（劇本模式） */
+  .b-subbox { position: absolute; left: 50%; transform: translateX(-50%); width: min(92vw, 900px); text-align: center; pointer-events: none; opacity: 0; transition: opacity .6s; z-index: 25; }
+  .b-subbox.on { opacity: 1; }
+  #b-sub { bottom: clamp(70px, 14vh, 140px); padding: 8px 14px; background: linear-gradient(90deg, transparent, rgba(6,12,26,.75) 15%, rgba(6,12,26,.75) 85%, transparent); }
+  #b-cen { top: 50%; transform: translate(-50%, -50%); width: min(90vw, 980px); }
+  .b-who { font-family: 'Space Mono', monospace; font-size: 12px; letter-spacing: .14em; margin-bottom: 6px; }
+  #b-cen .b-who { font-size: 13px; margin-bottom: 14px; }
+  .b-txt { font-size: clamp(14px, 2.2vw, 22px); line-height: 1.6; } #b-cen .b-txt { font-size: clamp(18px, 3.2vw, 32px); }
+  .b-ghost { opacity: 0; }
+  /* 指揮列、提示、接管選單 */
+  #b-cmdbar { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); display: none; gap: 8px; z-index: 6; }
+  body.role-cmd #b-cmdbar { display: flex; }
+  .b-btn { white-space: nowrap; font-family: 'Space Mono', monospace; letter-spacing: .12em; font-size: 12px; color: var(--cyan); background: rgba(8,16,32,.8); border: 1px solid var(--line); padding: 10px 16px; cursor: pointer; clip-path: polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%); }
+  .b-btn:hover { background: rgba(20,50,90,.85); } .b-btn.red { color: #ffd1da; border-color: rgba(255,68,102,.6); } .b-btn.on { background: rgba(30,70,120,.9); color: #fff; } .b-btn:disabled { opacity: .45; cursor: default; }
+  #b-hint { position: absolute; left: 16px; bottom: 14px; font-family: 'Space Mono', monospace; font-size: 11px; color: var(--dim); pointer-events: none; z-index: 5; }
+  body.role-pilot #b-hint { left: 50%; transform: translateX(-50%); bottom: 8px; opacity: .75; } #b-hint b { color: var(--gold); }
+  #b-choose { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; flex-direction: column; gap: 14px; background: rgba(5,8,16,.78); z-index: 15; }
+  #b-choose.on { display: flex; }
+  #b-choose h2 { font-family: 'Space Mono', monospace; letter-spacing: .2em; font-size: 16px; color: var(--cyan); }
+  body.hud-off #b-log, body.hud-off #b-boss, body.hud-off #b-top, body.hud-off #b-radio, body.hud-off #b-cmdbar, body.hud-off #b-hint, body.hud-off #b-center, body.hud-off #b-clock-wrap { display: none !important; }
+  /* 結尾字卡 */
+  #b-end { position: absolute; inset: 0; z-index: 22; display: flex; align-items: center; justify-content: center; padding: 24px; text-align: center; pointer-events: none; opacity: 0; transition: opacity 1.6s; }
+  #b-end.on { opacity: 1; }
+  .b-end-line { opacity: 0; transform: translateY(8px); transition: opacity 1.6s, transform 1.6s; margin-bottom: 26px; font-size: clamp(16px, 2.6vw, 26px); }
+  .b-end-line.on { opacity: 1; transform: none; } .b-end-line:nth-child(2) { font-size: clamp(13px, 1.9vw, 18px); color: var(--dim); }
+  /* 標題／選單 */
+  #b-title { position: absolute; inset: 0; z-index: 30; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 22px; text-align: center; background: radial-gradient(ellipse at center, rgba(11,15,26,.8), rgba(5,7,14,.97)); cursor: default; transition: opacity .6s; overflow-y: auto; }
+  #b-title.off { opacity: 0; pointer-events: none; }
+  #b-title h1 { font-family: 'Space Mono', monospace; font-weight: 700; letter-spacing: .14em; font-size: clamp(18px, 4vw, 34px); color: var(--cyan); text-shadow: 0 0 20px rgba(143,230,255,.5); }
+  #b-title p { max-width: 660px; color: var(--dim); font-size: clamp(12px, 1.6vw, 14px); line-height: 1.8; }
+  .b-grp { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: center; } .b-grp label { font-family: 'Space Mono', monospace; font-size: 11px; letter-spacing: .2em; color: var(--dim); min-width: 56px; }
+  #b-keys { display: grid; grid-template-columns: auto auto; gap: 4px 22px; font-family: 'Space Mono', monospace; font-size: clamp(10px, 1.25vw, 12px); text-align: left; color: var(--text); max-width: 760px; } #b-keys b { color: var(--gold); }
+  #b-legal { font-size: 11px !important; opacity: .7; }
+  @media (max-width: 720px) { #b-keys { grid-template-columns: auto; } #b-radio { top: 150px; } }
+</style>
+</head>
+<body class="role-pilot">
+<div id="b-root">
+  <canvas id="b-canvas"></canvas>
+  <canvas id="b-hud"></canvas>
+  <div id="b-flash"></div>
+  <div id="b-log"></div>
+  <div id="b-center"></div>
+  <div id="b-boss"><div class="b-boss-name"><span>IRONTOMB<i>PLANETARY</i></span><b id="b-boss-pct">100.00%</b></div><div class="b-boss-bar"><div id="b-boss-ghost" style="width:100%"></div><div id="b-boss-fill" style="width:100%"></div></div></div>
+  <div id="b-clock-wrap" class="mono">T+ <span id="b-clock">00:00</span></div>
+  <div id="b-top"><span data-i="ships">Ships</span> <b id="b-n-ship">0</b> · <span data-i="kills">Kills</span> <b id="b-n-kill">0</b> · <span data-i="sel">Selected</span> <b id="b-n-sel">0</b></div>
+  <div id="b-radio"></div>
+  <div class="b-subbox" id="b-cen"><div class="b-who"></div><div class="b-txt"></div></div>
+  <div class="b-subbox" id="b-sub"><div class="b-who"></div><div class="b-txt"></div></div>
+  <div id="b-cmdbar">
+    <button class="b-btn" id="b-c-all" type="button" data-i="all">Select all</button>
+    <button class="b-btn" id="b-c-charge" type="button" data-i="charge">Charge</button>
+    <button class="b-btn" id="b-c-hold" type="button" data-i="hold">Hold</button>
+    <button class="b-btn red" id="b-c-tomb" type="button" data-i="tomb">Focus Tomb</button>
+    <button class="b-btn" id="b-c-pilot" type="button" data-i="toPilot">Pilot [Tab]</button>
+  </div>
+  <div id="b-hint"></div>
+  <div id="b-choose">
+    <h2 data-i="chooseTitle">Take the controls</h2>
+    <button class="b-btn" id="b-ch-orig" type="button">[1]</button>
+    <button class="b-btn" id="b-ch-hss" type="button"><span data-i="chooseHss">Launch from the HSS</span> [2]</button>
+  </div>
+  <div id="b-end"><div><div class="b-end-line"></div><div class="b-end-line"></div><div class="b-end-line"></div></div></div>
+  <div id="b-veil"></div>
+  <div id="b-title">
+    <h1 data-i="title">AMPHOREUS FINALE · BATTLE</h1>
+    <p id="b-sub-t"></p>
+    <div class="b-grp" id="b-mode"><label data-i="mode">MODE</label><button class="b-btn" data-v="script" type="button" data-i="script">Story · 5:00</button><button class="b-btn" data-v="free" type="button" data-i="free">Free · endless</button></div>
+    <div class="b-grp" id="b-rolesel"><label data-i="role">ROLE</label><button class="b-btn" data-v="pilot" type="button" data-i="pilot">Pilot</button><button class="b-btn" data-v="commander" type="button" data-i="commander">Commander</button></div>
+    <p id="b-hint-t"></p>
+    <div id="b-keys"></div>
+    <div class="b-grp"><button class="b-btn" id="b-go" type="button" disabled data-i="loading">LOADING…</button><button class="b-btn" id="b-lang" type="button" data-i="lang">中文</button><button class="b-btn" id="b-q" type="button"></button></div>
+    <p id="b-legal"></p>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../assets/space-war/vendor/GLTFLoader.js"></script>
+<script src="../assets/space-war/vendor/CopyShader.js"></script>
+<script src="../assets/space-war/vendor/LuminosityHighPassShader.js"></script>
+<script src="../assets/space-war/vendor/EffectComposer.js"></script>
+<script src="../assets/space-war/vendor/MaskPass.js"></script>
+<script src="../assets/space-war/vendor/ShaderPass.js"></script>
+<script src="../assets/space-war/vendor/RenderPass.js"></script>
+<script src="../assets/space-war/vendor/UnrealBloomPass.js"></script>
+<script src="../assets/space-war/js/sw-assets.js"></script>
+<script src="../assets/space-war/js/sw-env.js"></script>
+<script src="../assets/space-war/js/sw-fx.js"></script>
+<script src="../assets/space-war/js/sw-fleet.js"></script>
+<script src="../assets/space-war/fpv/fpv-audio.js"></script>
+<script src="../assets/space-war/fpv/fpv-post.js"></script>
+<script src="../assets/space-war/battle/battle-core.js"></script>
+<script src="../assets/space-war/battle/battle-render.js"></script>
+<script src="../assets/space-war/battle/battle-sim.js"></script>
+<script src="../assets/space-war/battle/battle-ui.js"></script>
+<script src="../assets/space-war/battle/battle-main.js"></script>
+</body>
+</html>

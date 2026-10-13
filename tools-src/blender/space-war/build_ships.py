@@ -678,7 +678,52 @@ def cockpit(out):
     sb.export(os.path.join(out, 'cockpit.glb'))
 
 
-BUILDERS = {'frigate': frigate, 'cruiser': cruiser, 'dread': dread, 'hss': hss, 'moon': moon, 'whale': whale, 'butterfly': butterfly, 'debris': debris, 'irontomb': irontomb, 'fighter': fighter, 'cockpit': cockpit}
+# ═════════════ FPV／統一版：Sentinel 預警機（雷達罩大型機，約 12 單位長） ═════════════
+def sentinel(out):
+    reset()
+    M = {
+        'hull': make_mat('hull', hexc('#1c2a54'), 0.6, 0.45),
+        'plate': make_mat('plate', hexc('#d5ddf7'), 0.35, 0.5),
+        'dark': make_mat('dark', hexc('#080c1a'), 0.3, 0.7),
+        'trim': make_mat('trim', hexc('#0a1830'), 0.2, 0.6, emit=hexc('#7fe9ff'), emit_strength=1.0),
+        'glow': make_mat('glow', hexc('#0a1830'), 0.2, 0.6, emit=hexc('#9fdcff'), emit_strength=1.0),
+        'nav': make_mat('nav', hexc('#300000'), 0.2, 0.6, emit=hexc('#ff4455'), emit_strength=1.0),
+        'win': make_mat('win', hexc('#1a1208'), 0.2, 0.6, emit=hexc('#ffd98a'), emit_strength=0.8),
+    }
+    sb = ShipBuilder('sentinel', M)
+    # 機身：圓潤的長筒，前端收尖、後段略粗
+    sb.loft([(6.0, 0.05, 0.05, 0.05, 0, 2.2), (5.0, 0.55, 0.5, 0.42, 0, 2.4), (3.0, 0.95, 0.8, 0.7, 0, 2.6), (0.0, 1.15, 0.9, 0.8, 0, 2.8),
+             (-3.0, 1.1, 0.9, 0.8, 0, 2.8), (-5.2, 0.8, 0.7, 0.6, 0, 2.4), (-6.0, 0.5, 0.4, 0.4, 0, 2.2)], 'hull', n=16)
+    sb.prism([(0.0, 5.0), (0.8, 2.5), (0.9, -4.5), (-0.9, -4.5), (-0.8, 2.5)], 0.12, 0.92, 'plate', scale_top=0.9)
+    sb.ribbon([(-0.98, 3.0, 0.25), (-1.02, -3.5, 0.25)], 0.16, 'win'); sb.ribbon([(0.98, 3.0, 0.25), (1.02, -3.5, 0.25)], 0.16, 'win')
+    sb.bar((0, 6.0, 0.0), (0, 7.4, 0.0), 0.07, 'plate', sides=5, r2=0.02)                       # 機鼻探針
+    # 雷達罩：圓盤＋穹頂，由雙立柱撐在機背
+    for sg in (1, -1):
+        sb.bar((sg * 0.5, -1.0, 0.85), (sg * 0.8, -1.3, 1.85), 0.16, 'plate', sides=6)
+        sb.bar((sg * 0.5, -2.4, 0.85), (sg * 0.8, -2.0, 1.85), 0.16, 'plate', sides=6)
+    sb.cyl((0, -1.6, 2.0), 3.5, 0.34, 'plate', axis='z', sides=32, r2=3.5)
+    sb.cyl((0, -1.6, 2.2), 3.1, 0.2, 'hull', axis='z', sides=32, r2=2.6)
+    sb.torus((0, -1.6, 2.0), 3.5, 0.07, 'trim', axis='z', major=48, minor=6)
+    sb.sphere((0, -1.6, 2.3), 1.0, 'glow', seg=16, rings=8, scale=(1.4, 1.4, 0.35))
+    for k in range(8):                                                                         # 圓盤上的感測鰭
+        a = 2 * math.pi * k / 8
+        sb.bar((math.cos(a) * 2.6, -1.6 + math.sin(a) * 2.6, 2.2), (math.cos(a) * 3.3, -1.6 + math.sin(a) * 3.3, 2.2), 0.05, 'trim', sides=4)
+    # 主翼與尾翼
+    for sg in (1, -1):
+        sb.prism([(sg * 0.9, 1.5), (sg * 5.6, -3.2), (sg * 5.2, -4.3), (sg * 1.0, -3.0)], 0.12, -0.05, 'hull')
+        sb.ribbon([(sg * 1.0, 1.45, 0.08), (sg * 5.55, -3.15, 0.08)], 0.1, 'trim')
+        sb.box((sg * 5.4, -3.8, 0.0), (0.14, 0.4, 0.14), 'nav')
+        sb.prism([(sg * 0.8, -4.6), (sg * 2.6, -6.2), (sg * 0.8, -6.0)], 0.1, 0.1, 'hull')      # 水平尾翼
+        sb.box((sg * 1.0, -5.2, 1.0), (0.1, 1.5, 1.3), 'plate', rot=(0, sg * 0.25, 0), taper=(1, 0.5))
+        for k, (xo, fo) in enumerate(((2.2, -1.4), (3.8, -2.6))):                                # 翼下兩具引擎吊艙
+            sb.cyl((sg * xo, fo, -0.55), 0.3, 1.8, 'dark', axis='f', sides=10)
+            sb.cyl((sg * xo, fo - 0.95, -0.55), 0.24, 0.1, 'glow', axis='f', sides=10)
+            sb.bar((sg * xo, fo, -0.2), (sg * xo, fo, -0.05), 0.1, 'hull', sides=4)
+            sb.anchor('HP_ENGINE_%d' % (1 + k * 2 + (0 if sg > 0 else 1)), (sg * xo, fo - 1.1, -0.55))
+    sb.export(os.path.join(out, 'sentinel.glb'))
+
+
+BUILDERS = {'frigate': frigate, 'cruiser': cruiser, 'dread': dread, 'hss': hss, 'moon': moon, 'whale': whale, 'butterfly': butterfly, 'debris': debris, 'irontomb': irontomb, 'fighter': fighter, 'cockpit': cockpit, 'sentinel': sentinel}
 
 if __name__ == '__main__':
     ap = argparse.ArgumentParser()
