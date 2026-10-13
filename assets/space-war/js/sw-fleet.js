@@ -13,12 +13,12 @@
 (function (global) {
   'use strict';
 
-  const KIND_MODEL = { frig: 'frigate', cruis: 'cruiser', cap: 'dread', hss: 'hss', moon: 'moon', whale: 'whale', fly: 'butterfly', fgt: 'fighter' };
-  const CAPACITY = { frig: 380, cruis: 80, cap: 12, hss: 2, moon: 4, whale: 100, fly: 1000, fgt: 400 };
+  const KIND_MODEL = { frig: 'frigate', cruis: 'cruiser', cap: 'dread', hss: 'hss', moon: 'moon', whale: 'whale', fly: 'butterfly', fgt: 'fighter', awacs: 'sentinel' };
+  const CAPACITY = { frig: 380, cruis: 80, cap: 12, hss: 2, moon: 4, whale: 100, fly: 1000, fgt: 400, awacs: 8 };
   // 引擎光暈：[大小, [r,g,b]]
   const ENGINE = {
     frig: [3.4, [0.55, 0.85, 1.0]], cruis: [5.5, [0.55, 0.85, 1.0]], cap: [10, [0.6, 0.88, 1.0]], hss: [15, [1.0, 0.85, 0.4]],
-    whale: [8, [0.7, 0.4, 1.0]], fgt: [2.6, [0.55, 0.85, 1.0]], fly: [2.6, [0.4, 0.7, 1.0]], moon: [0, [1, 1, 1]]
+    whale: [8, [0.7, 0.4, 1.0]], fgt: [2.6, [0.55, 0.85, 1.0]], awacs: [2.4, [0.6, 0.88, 1.0]], fly: [2.6, [0.4, 0.7, 1.0]], moon: [0, [1, 1, 1]]
   };
 
   const GLOW_VS = 'attribute float size; attribute vec3 aColor; uniform float scale; varying vec3 vC; void main(){ vC = aColor; vec4 mv = modelViewMatrix * vec4(position, 1.0); gl_PointSize = clamp(size * scale / max(1.0, -mv.z), 1.0, 160.0); gl_Position = projectionMatrix * mv; }';
