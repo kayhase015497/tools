@@ -28,9 +28,10 @@
     '}'
   ].join('\n');
 
-  function makeSky(radius) {
+  /** opts.linear：場景走線性色彩管線時，天空色從顯示色轉為線性（FPV 版使用） */
+  function makeSky(radius, opts) {
     const mat = new THREE.ShaderMaterial({
-      uniforms: { uTime: { value: 0 }, uDoom: { value: 0 } }, vertexShader: SKY_VS, fragmentShader: SKY_FS,
+      uniforms: { uTime: { value: 0 }, uDoom: { value: 0 } }, vertexShader: SKY_VS, fragmentShader: opts && opts.linear ? SKY_FS.replace('gl_FragColor = vec4(col, 1.0);', 'gl_FragColor = vec4(pow(col, vec3(2.2)) * 1.25, 1.0);') : SKY_FS,
       side: THREE.BackSide, depthWrite: false, fog: false
     });
     const m = new THREE.Mesh(new THREE.SphereGeometry(radius || 3200, 40, 28), mat);

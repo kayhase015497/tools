@@ -13,7 +13,7 @@
 ## 已知限制
 - 僅鍵鼠操作；手機未適配（需要雙搖桿＋按鈕）。
 - 真機效能未驗證：桌機預設開 bloom；`?q=low` 關閉。
-- 音效為程序化合成佔位，音樂沿用 `assets/irontomb-bgm.mp3`。
+- 音效由 `tools-src/audio/build_sfx.py`（numpy／scipy）合成的多層取樣（爆裂＋重擊＋雜訊主體＋殘響），音樂沿用 `assets/irontomb-bgm.mp3`。
 - 鐵墓在主場景內（遠平面 60 km）；若日後要更遠、更大，請改為「遠景場景＋獨立相機」兩階段渲染。
 
 ## 下一步建議
@@ -37,3 +37,10 @@
 - 製作與編輯：**Audacity**（剪輯）、**Ardour**（DAW）、**LMMS**、**Vital** 或 **Surge XT**（免費合成器，做引擎低頻與雷射音）、**VCV Rack**（模組合成，做外星感音效）、**sfxr／jsfxr／ChipTone**（快速產生音效）。
 - 免費素材：**Freesound.org**（CC0／CC-BY，需標示者要標示）、**Kenney.nl**（CC0，含 Sci-Fi 音效包）、**OpenGameArt.org**、**Sonniss GameAudioGDC**（歷年免費可商用大包）。
 - 遊戲內音訊中介：**FMOD**／**Wwise**（營收門檻以下免費）；Godot 與 UE5 內建音訊也夠用。空間音效可用 **Steam Audio**（免費）。
+
+## 畫面與音效管線（v2）
+- **線性色彩管線**：材質顏色載入時由 sRGB 轉線性，燈光在線性空間計算；`fpv-post.js` 的最終合成 pass 負責 ACES 色調映射、色彩分級（陰影偏青、高光偏暖）、暈邊、顆粒、徑向速度模糊、受傷色差，最後才編成 sRGB。低畫質（`?q=low`）改用 renderer 內建的 ACES＋sRGB，沒有 bloom 與最終 pass。
+- **頂點 AO**：Blender 腳本在匯出時以 BVH 光線投射把環境遮蔽烘進 `COLOR_0`，凹槽與接縫自然變暗（`shiplib.py: bake_ao`）。
+- **程序化面板接縫**：硬表面材質以模型空間座標在著色器裡畫出面板線與色差（`prepMaterial`），不需要貼圖。
+- **其他**：7000 顆星空、恆星鏡頭光暈與鬼影、爆炸瞬間的點光源閃光、戰機尾焰、加力時 FOV 拉伸＋徑向模糊。
+- **音效**：`fpv-audio.js` 取樣播放，3D 空間化（距離衰減、越遠越悶、聲速延遲、左右聲道依方向）、殘響匯流排、動態壓縮。想換成真實素材（Freesound、Sonniss…），以相同檔名覆蓋 `assets/space-war/fpv/sfx/*.mp3` 即可；重新合成執行 `python tools-src/audio/build_sfx.py --out assets/space-war/fpv/sfx`。
