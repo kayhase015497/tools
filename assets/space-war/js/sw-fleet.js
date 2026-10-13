@@ -13,12 +13,12 @@
 (function (global) {
   'use strict';
 
-  const KIND_MODEL = { frig: 'frigate', cruis: 'cruiser', cap: 'dread', hss: 'hss', moon: 'moon', whale: 'whale', fly: 'butterfly' };
-  const CAPACITY = { frig: 380, cruis: 80, cap: 12, hss: 2, moon: 4, whale: 100, fly: 1000 };
+  const KIND_MODEL = { frig: 'frigate', cruis: 'cruiser', cap: 'dread', hss: 'hss', moon: 'moon', whale: 'whale', fly: 'butterfly', fgt: 'fighter' };
+  const CAPACITY = { frig: 380, cruis: 80, cap: 12, hss: 2, moon: 4, whale: 100, fly: 1000, fgt: 400 };
   // 引擎光暈：[大小, [r,g,b]]
   const ENGINE = {
     frig: [3.4, [0.55, 0.85, 1.0]], cruis: [5.5, [0.55, 0.85, 1.0]], cap: [10, [0.6, 0.88, 1.0]], hss: [15, [1.0, 0.85, 0.4]],
-    whale: [8, [0.7, 0.4, 1.0]], fly: [2.6, [0.4, 0.7, 1.0]], moon: [0, [1, 1, 1]]
+    whale: [8, [0.7, 0.4, 1.0]], fgt: [2.6, [0.55, 0.85, 1.0]], fly: [2.6, [0.4, 0.7, 1.0]], moon: [0, [1, 1, 1]]
   };
 
   const GLOW_VS = 'attribute float size; attribute vec3 aColor; uniform float scale; varying vec3 vC; void main(){ vC = aColor; vec4 mv = modelViewMatrix * vec4(position, 1.0); gl_PointSize = clamp(size * scale / max(1.0, -mv.z), 1.0, 160.0); gl_Position = projectionMatrix * mv; }';
@@ -39,6 +39,23 @@
     arr[o + 12] = x; arr[o + 13] = y; arr[o + 14] = z; arr[o + 15] = 1;
   }
 
+  /** 以四元數 (qx,qy,qz,qw) 寫入矩陣（FPV 的 6 自由度戰機用，不受歐拉角萬向鎖影響） */
+  function writeQuat(arr, o, x, y, z, qx, qy, qz, qw, sc) {
+    const x2 = qx + qx, y2 = qy + qy, z2 = qz + qz, xx = qx * x2, xy = qx * y2, xz = qx * z2, yy = qy * y2, yz = qy * z2, zz = qz * z2, wx = qw * x2, wy = qw * y2, wz = qw * z2;
+    arr[o] = (1 - (yy + zz)) * sc; arr[o + 1] = (xy + wz) * sc; arr[o + 2] = (xz - wy) * sc; arr[o + 3] = 0;
+    arr[o + 4] = (xy - wz) * sc; arr[o + 5] = (1 - (xx + zz)) * sc; arr[o + 6] = (yz + wx) * sc; arr[o + 7] = 0;
+    arr[o + 8] = (xz + wy) * sc; arr[o + 9] = (yz - wx) * sc; arr[o + 10] = (1 - (xx + yy)) * sc; arr[o + 11] = 0;
+    arr[o + 12] = x; arr[o + 13] = y; arr[o + 14] = z; arr[o + 15] = 1;
+  }
+  const _v = typeof THREE !== 'undefined' ? new THREE.Vector3() : null;
+  /** 把艦上局部座標點轉成世界座標（支援 s.q 四元數或 h/p/roll 歐拉） */
+  function localToWorld(s, a, out) {
+    const sc = s.scale || 1, ax = a.x * sc, ay = a.y * sc, az = a.z * sc;
+    if (s.q) { _v.set(ax, ay, az).applyQuaternion(s.q); return out.set(s.x + _v.x, s.y + _v.y, s.z + _v.z); }
+    const cy = Math.cos(s.h), sn = Math.sin(s.h), cp = Math.cos(s.p), sp = Math.sin(s.p);
+    return out.set(s.x + cy * ax - sn * sp * ay + sn * cp * az, s.y + cp * ay + sp * az, s.z - sn * ax - cy * sp * ay + cy * cp * az);
+  }
+
   /** 模型載入失敗時的備援：用簡單幾何代替，讓遊戲仍可進行 */
   function fallbackAssets() {
     const out = {}, mats = {};
@@ -54,7 +71,7 @@
 
   function create(opts) {
     const scene = opts.scene, assets = opts.assets;
-    const fleet = { kinds: {} };
+    const fleet = { kinds: {} }, _o = new THREE.Vector3();
 
     Object.keys(KIND_MODEL).forEach((kind) => {
       const a = assets[KIND_MODEL[kind]]; if (!a) return;
@@ -101,17 +118,14 @@
           const s = ships[i]; if (s.dead || s.hidden) continue;
           const K = ks[s.kind]; if (!K || K.n >= K.cap) continue;
           const sc = s.scale || 1;
-          writeMat(K.attr.array, K.n * 16, s.x, s.y, s.z, s.h, s.p, s.roll || 0, (s.sx || 1) * sc, sc, sc);
+          if (s.q) writeQuat(K.attr.array, K.n * 16, s.x, s.y, s.z, s.q.x, s.q.y, s.q.z, s.q.w, sc); else writeMat(K.attr.array, K.n * 16, s.x, s.y, s.z, s.h, s.p, s.roll || 0, (s.sx || 1) * sc, sc, sc);
           K.n++;
           const en = ENGINE[s.kind];
           if (en && en[0] > 0 && K.engines.length) {
-            const cy = Math.cos(s.h), sn = Math.sin(s.h), cp = Math.cos(s.p), sp = Math.sin(s.p);
             for (let e = 0; e < K.engines.length && ne < EN; e++) {
-              const a = K.engines[e], ax = a.x * sc, ay = a.y * sc, az = a.z * sc;
-              ePos[ne * 3] = s.x + cy * ax - sn * sp * ay + sn * cp * az;
-              ePos[ne * 3 + 1] = s.y + cp * ay + sp * az;
-              ePos[ne * 3 + 2] = s.z - sn * ax - cy * sp * ay + cy * cp * az;
-              eSize[ne] = en[0] * sc * (0.85 + 0.3 * Math.sin(s.ph * 3 + s.x * 0.05));
+              localToWorld(s, K.engines[e], _o);
+              ePos[ne * 3] = _o.x; ePos[ne * 3 + 1] = _o.y; ePos[ne * 3 + 2] = _o.z;
+              eSize[ne] = en[0] * sc * (s.thr != null ? 0.35 + 0.9 * s.thr : 1) * (0.85 + 0.3 * Math.sin((s.ph || 0) * 3 + s.x * 0.05));
               eCol[ne * 3] = en[1][0]; eCol[ne * 3 + 1] = en[1][1]; eCol[ne * 3 + 2] = en[1][2];
               ne++;
             }
@@ -131,15 +145,13 @@
     fleet.anchorWorld = function (s, name, out) {
       const K = fleet.kinds[s.kind], a = K && K.anchors[name]; out = out || new THREE.Vector3();
       if (!a) return out.set(s.x, s.y, s.z);
-      const sc = s.scale || 1, cy = Math.cos(s.h), sn = Math.sin(s.h), cp = Math.cos(s.p), sp = Math.sin(s.p), ax = a.x * sc, ay = a.y * sc, az = a.z * sc;
-      return out.set(s.x + cy * ax - sn * sp * ay + sn * cp * az, s.y + cp * ay + sp * az, s.z - sn * ax - cy * sp * ay + cy * cp * az);
+      return localToWorld(s, a, out);
     };
     fleet.gunWorld = function (s, out) {
       const K = fleet.kinds[s.kind]; out = out || new THREE.Vector3();
       if (!K || !K.guns.length) return out.set(s.x, s.y, s.z);
-      s.gi = ((s.gi || 0) + 1) % K.guns.length; const a = K.guns[s.gi];
-      const sc = s.scale || 1, cy = Math.cos(s.h), sn = Math.sin(s.h), cp = Math.cos(s.p), sp = Math.sin(s.p), ax = a.x * sc, ay = a.y * sc, az = a.z * sc;
-      return out.set(s.x + cy * ax - sn * sp * ay + sn * cp * az, s.y + cp * ay + sp * az, s.z - sn * ax - cy * sp * ay + cy * cp * az);
+      s.gi = ((s.gi || 0) + 1) % K.guns.length;
+      return localToWorld(s, K.guns[s.gi], out);
     };
     return fleet;
   }

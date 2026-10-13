@@ -19,7 +19,9 @@
     whale:     { file: 'whale.glb',     length: 27 },
     butterfly: { file: 'butterfly.glb', length: 8 },
     debris:    { file: 'debris.glb',    length: 3 },
-    irontomb:  { file: 'irontomb.glb',  length: 248, axis: 'y' }   // 以高度（+Y）正規化
+    irontomb:  { file: 'irontomb.glb',  length: 248, axis: 'y' },   // 以高度（+Y）正規化
+    fighter:   { file: 'fighter.glb',   length: 14, fpv: true },    // FPV 專用：預設 loadAll 不載入
+    cockpit:   { file: 'cockpit.glb',   length: 1, raw: true, fpv: true }   // 駕駛艙內裝：不縮放，公尺為單位
   };
 
   function loadOne(loader, base, key) {
@@ -41,10 +43,10 @@
           }
         });
         const size = box.getSize(new THREE.Vector3());
-        const s = m.length / Math.max(m.axis === 'y' ? size.y : size.z, 1e-4);
+        const s = m.raw ? 1 : m.length / Math.max(m.axis === 'y' ? size.y : size.z, 1e-4);
         parts.forEach((p) => { p.geometry.scale(s, s, s); p.geometry.computeBoundingSphere(); });
         Object.keys(anchors).forEach((k) => anchors[k].multiplyScalar(s));
-        resolve({ parts, anchors, size: size.multiplyScalar(s), length: m.length });
+        resolve({ parts, anchors, size: size.multiplyScalar(s), length: m.raw ? size.z : m.length });
       }, undefined, reject);
     });
   }
@@ -52,7 +54,7 @@
   function loadAll(base, onProgress, only) {
     base = base || '../assets/space-war/models/';
     const loader = new THREE.GLTFLoader();
-    const keys = only || Object.keys(MANIFEST);
+    const keys = only || Object.keys(MANIFEST).filter((k) => !MANIFEST[k].fpv);
     const out = {};
     let done = 0;
     return Promise.all(keys.map((k) => loadOne(loader, base, k).then((r) => {

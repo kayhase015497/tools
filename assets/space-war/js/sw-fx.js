@@ -173,31 +173,32 @@
     fx.later = function (delay, fn) { queue.push({ t: fx.time + delay, fn }); };
 
     /* ── 爆炸：星芒＋火球＋火花＋衝擊環＋碎片 ── */
-    fx.explode = function (x, y, z, k, enemy) {
+    fx.explode = function (x, y, z, k, enemy, U) {
+      U = U || 1;   // 單位倍率：FPV 以公尺計，爆炸的尺寸與速度整體放大
       const kk = Math.max(0.3, k);
       // 十字星芒與核心閃光
-      fx.emit(x, y, z, 0, 0, 0, 1, 0.95, 0.8, 26 * kk + 8, 0.26, 0, 1);
-      fx.emit(x, y, z, 0, 0, 0, 1, 1, 1, 10 * kk + 4, 0.18, 0, 0, 1.2);
+      fx.emit(x, y, z, 0, 0, 0, 1, 0.95, 0.8, (26 * kk + 8) * U, 0.26, 0, 1);
+      fx.emit(x, y, z, 0, 0, 0, 1, 1, 1, (10 * kk + 4) * U, 0.18, 0, 0, 1.2);
       // 火球（會膨脹的柔光團）
       const nb = Math.min(10, Math.floor(2 + 2.2 * kk));
       for (let i = 0; i < nb; i++) {
-        const a = rnd(0, 6.28), u = rnd(-1, 1), c = Math.sqrt(1 - u * u), s = rnd(1, 5) * Math.sqrt(kk);
+        const a = rnd(0, 6.28), u = rnd(-1, 1), c = Math.sqrt(1 - u * u), s = rnd(1, 5) * Math.sqrt(kk) * U;
         const hot = Math.random() < 0.6;
-        fx.emit(x + rnd(-1, 1) * kk, y + rnd(-1, 1) * kk, z + rnd(-1, 1) * kk, Math.cos(a) * c * s, u * s, Math.sin(a) * c * s,
-          hot ? 1 : (enemy ? 0.7 : 0.5), hot ? rnd(0.45, 0.8) : (enemy ? 0.3 : 0.7), hot ? rnd(0.1, 0.3) : 1, rnd(5, 9) * (0.6 + 0.5 * kk), rnd(0.5, 1.0), 1.2, 0, 1.8);
+        fx.emit(x + rnd(-1, 1) * kk * U, y + rnd(-1, 1) * kk * U, z + rnd(-1, 1) * kk * U, Math.cos(a) * c * s, u * s, Math.sin(a) * c * s,
+          hot ? 1 : (enemy ? 0.7 : 0.5), hot ? rnd(0.45, 0.8) : (enemy ? 0.3 : 0.7), hot ? rnd(0.1, 0.3) : 1, rnd(5, 9) * (0.6 + 0.5 * kk) * U, rnd(0.5, 1.0), 1.2, 0, 1.8);
       }
       // 火花（像煙火般迸射、拖曳）
       const ns = Math.min(60, Math.floor(10 + 12 * kk));
       for (let i = 0; i < ns; i++) {
-        const a = rnd(0, 6.28), u = rnd(-1, 1), c = Math.sqrt(1 - u * u), s = rnd(8, 34) * Math.sqrt(kk + 0.4);
+        const a = rnd(0, 6.28), u = rnd(-1, 1), c = Math.sqrt(1 - u * u), s = rnd(8, 34) * Math.sqrt(kk + 0.4) * U;
         const hot = Math.random() < 0.7;
         fx.emit(x, y, z, Math.cos(a) * c * s, u * s, Math.sin(a) * c * s,
-          hot ? 1 : (enemy ? 0.78 : 0.6), hot ? rnd(0.55, 0.9) : (enemy ? 0.4 : 0.85), hot ? rnd(0.15, 0.4) : 1, rnd(1.2, 2.8), rnd(0.5, 1.5), 1.5);
+          hot ? 1 : (enemy ? 0.78 : 0.6), hot ? rnd(0.55, 0.9) : (enemy ? 0.4 : 0.85), hot ? rnd(0.15, 0.4) : 1, rnd(1.2, 2.8) * Math.sqrt(U), rnd(0.5, 1.5), 1.5);
       }
       // 衝擊波環（較大的爆炸才有）
-      if (kk >= 1.8) fx.emit(x, y, z, 0, 0, 0, enemy ? 0.8 : 1, enemy ? 0.5 : 0.8, enemy ? 1 : 0.6, 18 * kk, 0.6, 0, 2, 5.5);
+      if (kk >= 1.8) fx.emit(x, y, z, 0, 0, 0, enemy ? 0.8 : 1, enemy ? 0.5 : 0.8, enemy ? 1 : 0.6, 18 * kk * U, 0.6, 0, 2, 5.5);
       // 實體碎片
-      if (kk >= 0.9) fx.debris(x, y, z, Math.min(14, Math.floor(2 + 2.2 * kk)), 10 + 6 * Math.sqrt(kk), 0.6 + 0.35 * Math.sqrt(kk));
+      if (kk >= 0.9) fx.debris(x, y, z, Math.min(14, Math.floor(2 + 2.2 * kk)), (10 + 6 * Math.sqrt(kk)) * U, (0.6 + 0.35 * Math.sqrt(kk)) * U);
     };
 
     /* ── 每幀 ── */
