@@ -96,7 +96,7 @@
     '  float dens = smoothstep(0.05, 0.6, n * 0.9 + n2 * 0.35 + (1.0 - r) * 0.9 - 0.62);',
     '  if (dens < 0.01) discard;',
     '  float lit = 0.6 + 0.8 * n2;',
-    '  vec3 col = mix(vec3(0.028, 0.026, 0.025) * lit, vC * 0.32, pow(1.0 - age, 3.0) * (1.0 - r));',
+    '  vec3 col = mix(vec3(0.075, 0.07, 0.068) * lit, vC * 0.42, pow(1.0 - age, 2.2) * (1.0 - r * 0.6));',
     '  gl_FragColor = vec4(col, dens * 0.78 * pow(1.0 - age, 0.7) * vD.w);',
     '}'
   ].join('\n');

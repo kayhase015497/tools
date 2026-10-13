@@ -45,3 +45,9 @@ Tab 隨時切換：指揮官 → 飛行員時可選「回原機」或「從 HSS 
 - **Weapons**: main firepower is blue (allied) / red (Legion) beam cannons (`d.beam`, `fireBeamCannon`); rapid-fire guns remain as anti-fighter flak (`d.flak`). Screwllum moons launch area-bombardment bubbles (`launchBubble` / `detonateBubble` / `stepBubbles`).
 - **FX**: `SWFx.create({pro:true})` enables noise-shader billboard fire/smoke, spark streaks and small debris (`proExplode` in sw-fx.js). Classic pages keep the old behaviour.
 - **Lighting**: stronger key/rim contrast; tomb albedo darkened with a Fresnel red rim (`darkenTomb`) and a red point light at its centre.
+
+## v3 tweaks
+
+- **Formation**: allies hold one side of the tomb as a spherical cap (`SIDE_AZ`, mixed pitch layers) so the fleet spreads across X/Y/Z; waves emerge from the ally-facing side.
+- **Beam cannons**: sustained ~2 s (`beams[]`, `fireBeamCannon`/`stepBeams`), damage ticks every 0.2 s, impact point emits coloured sparks, orange fire and smoke.
+- **Gun hits** (`impact`): flash, spark fan and small fire puff. **Missile hits** add a smoke cloud (`smokeCloud`).
