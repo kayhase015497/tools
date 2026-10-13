@@ -63,8 +63,8 @@ function glowSprite(color, size, op) { const s = new THREE.Sprite(new THREE.Spri
 const sun = glowSprite(0xfff1d6, 5200, 0.95); sun.position.set(26000 * 0.55, 26000 * 0.7, 26000 * 0.4).normalize().multiplyScalar(26000); scene.add(sun);
 const sunCore = glowSprite(0xffffff, 1500, 1); sunCore.position.copy(sun.position); scene.add(sunCore);
 lights.key.position.copy(sun.position).normalize().multiplyScalar(500);
-const tombGlow = glowSprite(0xb02850, 14000, 0.32); tombGlow.position.copy(TOMB_POS).add(new THREE.Vector3(0, 300, -400)); scene.add(tombGlow);
-const tombLight = new THREE.PointLight(0xc8aaff, 1.5, 22000, 1.2); tombLight.position.copy(TOMB_POS).add(new THREE.Vector3(0, 0, 3000)); scene.add(tombLight);
+const tombGlow = glowSprite(0xff2a4a, 15000, 0.55); tombGlow.position.copy(TOMB_POS).add(new THREE.Vector3(0, 300, -400)); scene.add(tombGlow);
+const tombLight = new THREE.PointLight(0xff3050, 2.2, 22000, 1.2); tombLight.position.copy(TOMB_POS).add(new THREE.Vector3(0, 0, 3000)); scene.add(tombLight);
 
 // 太空塵：以視差表現速度感（著色器內以相機位置取模，永遠包圍玩家）
 const DUST = 900;
