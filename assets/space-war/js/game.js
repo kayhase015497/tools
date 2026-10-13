@@ -594,25 +594,10 @@ function separate(arr, ally) {
   }
 }
 
-/* 鐵墓的反擊 */
-let lanceT = 0, ringT = 0;
-function lanceTarget(t) {
-  const pool = allies.filter((s) => !s.dead && (t > 120 || (s.kind !== 'cap' && s.kind !== 'hss' && s.kind !== 'moon')));
-  return pool.length ? pool[Math.floor(Math.random() * pool.length)] : null;
-}
-function tombAct(dt, t) {
-  lanceT -= dt; ringT -= dt;
-  if (t > 22 && lanceT <= 0) {
-    lanceT = lerp(2.6, 0.8, clamp((t - 22) / 115, 0, 1)) * rnd(0.7, 1.3);
-    for (let k = t > 115 ? 2 : 1; k > 0; k--) {
-      const s = lanceTarget(t);
-      if (s) {
-        const q = tombPoint(s.x, s.y, s.z); fireBeam(q[0], q[1], q[2], s.x, s.y, s.z, 'red', 2.4, 0.5);
-        s.hp = 0; killShip(s); Snd.boom(1.5);
-        cam.shake = Math.max(cam.shake, 0.35);
-      }
-    }
-  }
+/* 鐵墓的威壓環 */
+let ringT = 0;
+function tombAct(dt, t) {   // 鐵墓不攻擊聯軍艦艇，只有腳下規律擴散的威壓環
+  ringT -= dt;
   if (ringT <= 0) { ringT = 5.5; pulses.push({ age: 0 }); }
 }
 const pulses = [];
