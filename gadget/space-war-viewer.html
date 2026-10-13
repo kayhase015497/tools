@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Space War · Model Viewer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"/>
+<style>
+  :root { --bg: #0b0f1a; --text: #e2e8f0; --dim: #94a3b8; --cyan: #8fe6ff; --line: rgba(143,230,255,.28); }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; background: var(--bg); color: var(--text); font-family: 'Noto Sans TC', sans-serif; overflow: hidden; }
+  .smv-canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+  .smv-bar { position: fixed; left: 12px; top: 12px; right: 12px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+    font-family: 'Space Mono', monospace; font-size: 12px; pointer-events: none; }
+  .smv-bar > * { pointer-events: auto; }
+  .smv-bar select, .smv-bar button { font: inherit; color: var(--cyan); background: rgba(8,16,32,.8); border: 1px solid var(--line); padding: 6px 10px; }
+  .smv-bar label { color: var(--dim); display: flex; gap: 6px; align-items: center; cursor: pointer; }
+  .smv-info { position: fixed; left: 12px; bottom: 12px; font-family: 'Space Mono', monospace; font-size: 11px; color: var(--dim); line-height: 1.7; white-space: pre; pointer-events: none; }
+  .smv-title { font-weight: 700; letter-spacing: .12em; color: var(--text); }
+</style>
+</head>
+<body>
+<canvas class="smv-canvas" id="smv-canvas"></canvas>
+<div class="smv-bar">
+  <span class="smv-title">SPACE WAR · MODEL VIEWER</span>
+  <select id="smv-model"></select>
+  <label><input type="checkbox" id="smv-bloom" checked/> bloom</label>
+  <label><input type="checkbox" id="smv-anchors" checked/> hardpoints</label>
+  <label><input type="checkbox" id="smv-grid" checked/> grid</label>
+  <button id="smv-spin" type="button">auto-rotate: off</button>
+</div>
+<div class="smv-info" id="smv-info"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../assets/space-war/vendor/GLTFLoader.js"></script>
+<script src="../assets/space-war/vendor/OrbitControls.js"></script>
+<script src="../assets/space-war/vendor/CopyShader.js"></script>
+<script src="../assets/space-war/vendor/LuminosityHighPassShader.js"></script>
+<script src="../assets/space-war/vendor/EffectComposer.js"></script>
+<script src="../assets/space-war/vendor/MaskPass.js"></script>
+<script src="../assets/space-war/vendor/ShaderPass.js"></script>
+<script src="../assets/space-war/vendor/RenderPass.js"></script>
+<script src="../assets/space-war/vendor/UnrealBloomPass.js"></script>
+<script src="../assets/space-war/js/sw-assets.js"></script>
+<script src="../assets/space-war/js/sw-env.js"></script>
+<script>
+(function () {
+'use strict';
+const $ = (s) => document.querySelector(s), Q = new URLSearchParams(location.search);
+const cv = $('#smv-canvas');
+const renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x05070f);
+const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 6000);
+const controls = new THREE.OrbitControls(camera, cv); controls.enableDamping = true;
+const sky = SWEnv.makeSky(3000); scene.add(sky);
+if (Q.get('env') !== '0') SWEnv.makeEnvironment(renderer, scene);
+SWEnv.addLights(scene, { tombLight: false });
+const grid = new THREE.GridHelper(200, 40, 0x2a3f7a, 0x1a2a55); grid.position.y = -12; scene.add(grid);
+let fx = null, view = new THREE.Group(), anchorGroup = new THREE.Group(); scene.add(view);
+let assets = null, spin = false;
+
+function frame() {
+  const w = innerWidth, h = innerHeight;
+  renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
+  if (fx) fx.setSize(w, h);
+}
+addEventListener('resize', frame);
+
+function show(name) {
+  view.clear(); anchorGroup = new THREE.Group(); view.add(anchorGroup);
+  const a = assets[name]; if (!a) return;
+  let tris = 0;
+  a.parts.forEach((p) => { const m = new THREE.Mesh(p.geometry, p.material); view.add(m); tris += (p.geometry.index ? p.geometry.index.count : p.geometry.attributes.position.count) / 3; });
+  Object.keys(a.anchors).forEach((k) => {
+    const s = new THREE.Mesh(new THREE.SphereGeometry(a.length * 0.012, 8, 6), new THREE.MeshBasicMaterial({ color: k.indexOf('COCKPIT') >= 0 ? 0xffe14a : k.indexOf('ENGINE') >= 0 ? 0xff7a3a : k.indexOf('GUN') >= 0 ? 0x66ffcc : 0xff4466 }));
+    s.position.copy(a.anchors[k]); anchorGroup.add(s);
+  });
+  anchorGroup.visible = $('#smv-anchors').checked;
+  const d = a.length * 1.7;
+  controls.target.set(0, 0, 0);
+  const az = parseFloat(Q.get('az') || '0.9'), pol = parseFloat(Q.get('pol') || '1.15'), dist = parseFloat(Q.get('d') || d);
+  camera.position.set(dist * Math.sin(pol) * Math.sin(az), dist * Math.cos(pol), dist * Math.sin(pol) * Math.cos(az));
+  controls.update();
+  grid.position.y = -a.size.y * 0.8;
+  $('#smv-info').textContent = name + '\nlength ' + a.length + '  w ' + a.size.x.toFixed(1) + '  h ' + a.size.y.toFixed(1) + '\ntris ' + Math.round(tris) + '\nparts ' + a.parts.length + '\nhardpoints ' + Object.keys(a.anchors).join(', ');
+}
+
+function loadSafe() {
+  // 逐一載入，缺檔不影響其他模型
+  const out = {}; const keys = Object.keys(SWAssets.MANIFEST);
+  return Promise.all(keys.map((k) => SWAssets.loadAll('../assets/space-war/models/', null, [k]).then((r) => { Object.assign(out, r); }).catch(() => {})))
+    .then(() => out);
+}
+loadSafe().then((all) => { assets = all; init(); });
+
+let inited = false;
+function init() {
+  if (inited) return; inited = true;
+  const sel = $('#smv-model'); Object.keys(assets).forEach((k) => { const o = document.createElement('option'); o.value = k; o.textContent = k; sel.appendChild(o); });
+  sel.value = Q.get('m') && assets[Q.get('m')] ? Q.get('m') : Object.keys(assets)[0];
+  sel.onchange = () => show(sel.value);
+  if (Q.get('bloom') === '0') $('#smv-bloom').checked = false;
+  if (Q.get('anchors') === '0') $('#smv-anchors').checked = false;
+  $('#smv-bloom').onchange = () => { };
+  $('#smv-anchors').onchange = () => { anchorGroup.visible = $('#smv-anchors').checked; };
+  $('#smv-grid').onchange = () => { grid.visible = $('#smv-grid').checked; };
+  $('#smv-spin').onclick = () => { spin = !spin; $('#smv-spin').textContent = 'auto-rotate: ' + (spin ? 'on' : 'off'); };
+  fx = SWEnv.makeComposer(renderer, scene, camera, { width: innerWidth, height: innerHeight, strength: 0.7 });
+  frame(); show(sel.value);
+  window.__ready = true;
+  requestAnimationFrame(loop);
+}
+function loop(now) {
+  requestAnimationFrame(loop);
+  sky.material.uniforms.uTime.value = now / 1000;
+  if (spin) view.rotation.y += 0.006;
+  controls.update();
+  if ($('#smv-bloom').checked && fx) fx.composer.render(); else renderer.render(scene, camera);
+}
+})();
+</script>
+</body>
+</html>
