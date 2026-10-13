@@ -43,27 +43,32 @@ const renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: QUALITY === 'h
 renderer.setPixelRatio(Math.min(devicePixelRatio || 1, QUALITY === 'high' ? 2 : 1.25));
 const scene = new THREE.Scene(); scene.background = new THREE.Color(0x03050c);
 const camera = new THREE.PerspectiveCamera(FOV, 1, 1, 60000);
-const sky = SWEnv.makeSky(30000); scene.add(sky);
+const sky = SWEnv.makeSky(30000, { linear: true }); scene.add(sky);
 SWEnv.makeEnvironment(renderer, scene);
-const lights = SWEnv.addLights(scene, { hemi: 0.45, key: 1.15, rim: 0.45 });
-let W = 1, H = 1, composer = null;
+const lights = SWEnv.addLights(scene, { hemi: 0.85, key: 3.4, rim: 1.1 });
+let W = 1, H = 1, post = null, hurtK = 0, fovCur = FOV, speedFx = 0;
 
 // 駕駛艙疊加層：獨立的場景＋相機（近平面極近），畫在主場景之後，不會被艦艇穿插
 const cockScene = new THREE.Scene(), cockCam = new THREE.PerspectiveCamera(FOV, 1, 0.05, 20);
 cockCam.rotation.y = Math.PI;
 const cockRoot = new THREE.Group(); cockScene.add(cockRoot);
-cockScene.add(new THREE.HemisphereLight(0x9fb4ff, 0x1a1030, 0.9));
-const cockKey = new THREE.DirectionalLight(0xd8e8ff, 0.9); cockKey.position.set(0.4, 1, -0.6); cockScene.add(cockKey);
+cockScene.add(new THREE.HemisphereLight(0x9fb4ff, 0x1a1030, 1.5));
+const cockKey = new THREE.DirectionalLight(0xd8e8ff, 2.2); cockKey.position.set(0.4, 1, -0.6); cockScene.add(cockKey);
 
 // 恆星與鐵墓背光
-function glowTex() { const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d'), gr = g.createRadialGradient(64, 64, 0, 64, 64, 64);
-  gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.2, 'rgba(255,255,255,.55)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, 128, 128); return new THREE.CanvasTexture(c); }
+function glowTex() {   // 高斯式平滑衰減：線性管線下，邊緣必須平順歸零，否則提亮後會出現可見的圓盤邊界
+  const c = document.createElement('canvas'); c.width = c.height = 256; const g = c.getContext('2d'), gr = g.createRadialGradient(128, 128, 0, 128, 128, 128);
+  const e0 = Math.exp(-6.5);
+  for (let i = 0; i <= 16; i++) { const r = i / 16, a = Math.max(0, (Math.exp(-6.5 * r * r) - e0) / (1 - e0)); gr.addColorStop(r, 'rgba(255,255,255,' + a.toFixed(4) + ')'); }
+  g.fillStyle = gr; g.fillRect(0, 0, 256, 256); return new THREE.CanvasTexture(c);
+}
 const GT = glowTex();
-function glowSprite(color, size, op) { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: GT, color, transparent: true, opacity: op, blending: THREE.AdditiveBlending, depthWrite: false, fog: false })); s.scale.set(size, size, 1); return s; }
-const sun = glowSprite(0xfff1d6, 5200, 0.95); sun.position.set(26000 * 0.55, 26000 * 0.7, 26000 * 0.4).normalize().multiplyScalar(26000); scene.add(sun);
-const sunCore = glowSprite(0xffffff, 1500, 1); sunCore.position.copy(sun.position); scene.add(sunCore);
+function glowSprite(color, size, op, gain) { const c = new THREE.Color(color); if (gain) c.multiplyScalar(gain); const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: GT, color: c, transparent: true, opacity: op, blending: THREE.AdditiveBlending, depthWrite: false, fog: false })); s.scale.set(size, size, 1); return s; }
+const sun = glowSprite(0xfff1d6, 5200, 0.95, 2.6); sun.position.set(26000 * 0.55, 26000 * 0.7, 26000 * 0.4).normalize().multiplyScalar(26000); scene.add(sun);
+const sunCore = glowSprite(0xffffff, 1500, 1, 9); sunCore.position.copy(sun.position); scene.add(sunCore);
 lights.key.position.copy(sun.position).normalize().multiplyScalar(500);
-const tombGlow = glowSprite(0xff2a4a, 15000, 0.55); tombGlow.position.copy(TOMB_POS).add(new THREE.Vector3(0, 300, -400)); scene.add(tombGlow);
+const SUN_DIR = sun.position.clone().normalize();
+const tombGlow = glowSprite(0xff2a4a, 16000, 0.6, 1.1); tombGlow.position.copy(TOMB_POS).add(new THREE.Vector3(0, 300, -400)); scene.add(tombGlow);
 const tombLight = new THREE.PointLight(0xff3050, 2.2, 22000, 1.2); tombLight.position.copy(TOMB_POS).add(new THREE.Vector3(0, 0, 3000)); scene.add(tombLight);
 
 // 太空塵：以視差表現速度感（著色器內以相機位置取模，永遠包圍玩家）
@@ -76,6 +81,49 @@ const dustMat = new THREE.ShaderMaterial({ transparent: true, depthWrite: false,
   fragmentShader: 'varying float vA; void main(){ float d = length(gl_PointCoord - 0.5); gl_FragColor = vec4(vec3(0.75,0.85,1.0) * smoothstep(0.5, 0.1, d) * vA * 0.8, 1.0); }' });
 const dust = new THREE.Points(dustGeo, dustMat); dust.frustumCulled = false; scene.add(dust);
 
+// 星空：數千顆不同色溫與亮度的恆星（亮星為 HDR，會帶出 bloom 星芒）
+const STARS = 7000, stP = new Float32Array(STARS * 3), stC = new Float32Array(STARS * 3), stS = new Float32Array(STARS);
+const STAR_TINT = [[1, 0.82, 0.66], [0.78, 0.86, 1], [1, 1, 1], [1, 0.66, 0.5], [0.7, 0.8, 1]];
+for (let i = 0; i < STARS; i++) {
+  const u = Math.random() * 2 - 1, a = Math.random() * TAU, r = Math.sqrt(1 - u * u), b = Math.pow(Math.random(), 7) * 6 + 0.18, c = pick(STAR_TINT);
+  stP[i * 3] = Math.cos(a) * r * 24000; stP[i * 3 + 1] = u * 24000; stP[i * 3 + 2] = Math.sin(a) * r * 24000;
+  stC[i * 3] = c[0] * b; stC[i * 3 + 1] = c[1] * b; stC[i * 3 + 2] = c[2] * b; stS[i] = 1 + Math.min(4, b) * 0.9;
+}
+const starGeo = new THREE.BufferGeometry(); starGeo.setAttribute('position', new THREE.BufferAttribute(stP, 3)); starGeo.setAttribute('aCol', new THREE.BufferAttribute(stC, 3)); starGeo.setAttribute('aSize', new THREE.BufferAttribute(stS, 1));
+const starMat = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending, uniforms: { uPR: { value: 1 } },
+  vertexShader: 'attribute vec3 aCol; attribute float aSize; uniform float uPR; varying vec3 vC; void main(){ vC = aCol; gl_PointSize = aSize * uPR; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+  fragmentShader: 'varying vec3 vC; void main(){ float d = length(gl_PointCoord - 0.5); float a = smoothstep(0.5, 0.0, d); gl_FragColor = vec4(vC * a * a, 1.0); }' });
+const stars = new THREE.Points(starGeo, starMat); stars.frustumCulled = false; stars.renderOrder = -9; scene.add(stars);
+
+// 爆炸瞬間的閃光：3 盞循環使用的點光源（數量固定，避免著色器重新編譯）
+const BL = []; for (let i = 0; i < 3; i++) { const l = new THREE.PointLight(0xffaa66, 0, 1500, 1.4); scene.add(l); BL.push({ l, k: 0, size: 1 }); }
+let bli = 0;
+function boomLight(x, y, z, size, col) { const p = BL[bli++ % 3]; p.l.position.set(x, y, z); p.l.color.setRGB(col[0], col[1], col[2]); p.k = 1; p.size = size; p.l.distance = 300 + size * 240; }
+function updateBoomLights(dt) { for (const p of BL) { p.k *= Math.exp(-dt * 4.2); p.l.intensity = p.k * (4 + p.size * 7); } }
+
+// 材質：sRGB 顯示色 → 線性；硬表面加上程序化面板接縫（以模型空間座標計算，不需要貼圖）
+const LINEARIZED = new Set();
+function prepMaterial(m, panelK) {
+  if (LINEARIZED.has(m)) return; LINEARIZED.add(m);
+  if (m.color) m.color.convertSRGBToLinear();
+  const emissive = m.emissive && (m.emissive.r + m.emissive.g + m.emissive.b) > 0.01;
+  if (m.emissive) m.emissive.convertSRGBToLinear();
+  if (!panelK || emissive) return;
+  m.onBeforeCompile = (sh) => {
+    sh.vertexShader = 'varying vec3 vLoc;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vLoc = position;');
+    sh.fragmentShader = ('varying vec3 vLoc;\nfloat ph3(vec3 p){ p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }\n' + sh.fragmentShader).replace('#include <color_fragment>', `#include <color_fragment>
+      vec3 pq = vLoc * ${panelK.toFixed(4)};
+      vec3 pd = 0.5 - abs(fract(pq) - 0.5);
+      vec3 pw = fwidth(pq);
+      vec3 pm = 1.0 - smoothstep(vec3(0.0), vec3(0.03) + pw * 1.5, pd);
+      float pl = max(pm.x, max(pm.y, pm.z)) * (1.0 - smoothstep(0.25, 0.55, max(pw.x, max(pw.y, pw.z))));
+      float ph = ph3(floor(pq + 0.001));
+      diffuseColor.rgb *= (0.86 + 0.28 * ph) * (1.0 - 0.5 * pl);`);
+  };
+  m.customProgramCacheKey = () => 'panel' + panelK.toFixed(3);
+}
+function prepAsset(a, panelK) { a.parts.forEach((p) => prepMaterial(p.material, panelK)); }
+
 let fx = null, fleet = null, assets = null, tombMeshes = null;
 const sw = { assetsReady: false };
 
@@ -85,7 +133,7 @@ function resize() {
   const pr = renderer.getPixelRatio(); hudCv.width = W * pr; hudCv.height = H * pr; hx.setTransform(pr, 0, 0, pr, 0, 0);
   const ps = (H * pr) / (2 * Math.tan(THREE.MathUtils.degToRad(FOV) / 2)); dustMat.uniforms.uScale.value = ps;
   if (fx) fx.setPixelScale(ps); if (fleet) fleet.setPixelScale(ps);
-  if (composer) composer.setSize(W, H);
+  if (post) post.setSize(W, H); starMat.uniforms.uPR.value = renderer.getPixelRatio() * 1.0;
 }
 addEventListener('resize', resize);
 
@@ -148,13 +196,14 @@ function killShip(s, src) {
   if (s.side === 'e' && src && src.side === 'a') { kills++; if (src === player.ship) player.kills++; }
   const U = big ? clamp(s.scale * 0.55, 3, 22) : 0.8;
   fx.explode(s.x, s.y, s.z, d.boom, s.side === 'e', U);
+  boomLight(s.x, s.y, s.z, d.boom, s.side === 'e' ? [1, 0.55, 0.3] : [0.55, 0.8, 1]);
   if (big) {
     const n = Math.min(14, 3 + Math.floor(d.boom / 2));
     for (let i = 0; i < n; i++) { const dx = rnd(-1, 1) * s.rad, dy = rnd(-0.5, 0.5) * s.rad, dz = rnd(-1, 1) * s.rad; fx.later(0.2 + i * rnd(0.15, 0.4), () => fx.explode(s.x + dx, s.y + dy, s.z + dz, d.boom * rnd(0.3, 0.8), s.side === 'e', U * 0.7)); }
     log(d.name + ' destroyed', s.side === 'a');
   }
   const dist = Math.hypot(s.x - cam.x, s.y - cam.y, s.z - cam.z);
-  FPVAudio.sfx.boom(d.boom, dist);
+  FPVAudio.explode(d.boom, s);
   if (s === player.ship) return;
   if (player.target === s) player.target = null;
 }
@@ -212,7 +261,7 @@ function stepMissile(m, dt) {
     V.set(tg.x - m.x, tg.y - m.y, tg.z - m.z); const dist = V.length(); V.divideScalar(dist || 1);
     V2.set(m.vx, m.vy, m.vz); const sp = Math.min(m.spd + 330 * dt, 340); V2.normalize();
     V2.lerp(V, Math.min(1, 2.6 * dt)).normalize(); m.spd = sp; m.vx = V2.x * sp; m.vy = V2.y * sp; m.vz = V2.z * sp;
-    if (dist < tg.rad + 14) { impact(m.x, m.y, m.z, 8, [1, 0.8, 0.4]); fx.explode(m.x, m.y, m.z, 1.4, true, 1); damage(tg, m.dmg, m.x, m.y, m.z, m.src); return false; }
+    if (dist < tg.rad + 14) { impact(m.x, m.y, m.z, 8, [1, 0.8, 0.4]); fx.explode(m.x, m.y, m.z, 1.4, true, 1); boomLight(m.x, m.y, m.z, 1.4, [1, 0.7, 0.4]); FPVAudio.explode(1.4, m); damage(tg, m.dmg, m.x, m.y, m.z, m.src); return false; }
   } else { m.spd = Math.min(m.spd + 330 * dt, 340); m.vx = m.fx * m.spd; m.vy = m.fy * m.spd; m.vz = m.fz * m.spd; }
   m.x += m.vx * dt; m.y += m.vy * dt; m.z += m.vz * dt; m.life -= dt;
   fx.emit(m.x, m.y, m.z, rnd(-2, 2), rnd(-2, 2), rnd(-2, 2), 1, 0.7, 0.35, 5, 0.7, 1.5);
@@ -266,6 +315,7 @@ function aiFighter(s, dt) {
     s.cd = s.side === 'a' ? 0.18 : 0.32; FWD(s, V2);
     const gun = fleet.gunWorld(s, V); const dmg = s.side === 'a' ? 10 : (tg === player.ship ? 7 : 9);
     fire(s, gun.x, gun.y, gun.z, V2.x + rnd(-0.012, 0.012), V2.y + rnd(-0.012, 0.012), V2.z + rnd(-0.012, 0.012), 1300, dmg, 0.35, 28, s.side === 'a' ? [0.4, 0.9, 1] : [1, 0.35, 0.8], 1.6);
+    FPVAudio.fire(s.side === 'a' ? 'ally' : 'enemy', gun);
   }
   if (dist < (big ? tg.rad * 0.7 + 90 : 120)) { s.mode = 1; s.bx = s.x + rnd(-1, 1) * 900 + V2.x * 500; s.by = s.y + rnd(-1, 1) * 500; s.bz = s.z + rnd(-1, 1) * 900; s.mt = 0; }
 }
@@ -297,15 +347,16 @@ function aiCapital(s, dt) {
     aim.x += rnd(-1, 1) * tg.rad * 0.5; aim.y += rnd(-1, 1) * tg.rad * 0.4; aim.z += rnd(-1, 1) * tg.rad * 0.5;
     V2.set(aim.x - gun.x, aim.y - gun.y, aim.z - gun.z).normalize();
     fire(s, gun.x, gun.y, gun.z, V2.x, V2.y, V2.z, d.bs, d.dmg, d.w, d.len, d.col, d.range / d.bs + 0.5);
+    FPVAudio.cannon(gun);
   }
 }
 const _g2 = { x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0 }; function gun2(g) { _g2.x = g.x; _g2.y = g.y; _g2.z = g.z; return _g2; }
 function launchBubble(s, tg) {   // 螺絲咕姆月球艦：巨型光束泡，抵達後範圍爆炸
   const gx = s.x + rnd(-1, 1) * 200, gy = s.y + rnd(-1, 1) * 200, gz = s.z + rnd(-1, 1) * 200, aim = leadPoint({ x: gx, y: gy, z: gz }, tg, s.d.bs, V3), ax = aim.x, ay = aim.y, az = aim.z;
   const dist = Math.hypot(ax - gx, ay - gy, az - gz), T = dist / s.d.bs;
-  fx.beam(gx, gy, gz, ax, ay, az, { color: [1, 0.85, 0.35], width: 90, dur: T, len: 260 });
+  fx.beam(gx, gy, gz, ax, ay, az, { color: [1, 0.85, 0.35], width: 90, dur: T, len: 260 }); FPVAudio.cannon({ x: gx, y: gy, z: gz });
   fx.later(T, () => {
-    fx.explode(ax, ay, az, 5, true, 14); FPVAudio.sfx.boom(10, Math.hypot(ax - cam.x, ay - cam.y, az - cam.z));
+    fx.explode(ax, ay, az, 5, true, 14); boomLight(ax, ay, az, 6, [1, 0.8, 0.4]); FPVAudio.explode(10, { x: ax, y: ay, z: az });
     for (let i = 0; i < enemies.length; i++) { const e = enemies[i]; if (e.dead) continue; const dd = Math.hypot(e.x - ax, e.y - ay, e.z - az); if (dd < 520 + e.rad) damage(e, 9000 * (1 - dd / (700 + e.rad)) + 800, e.x, e.y, e.z, s); }
   });
 }
@@ -321,19 +372,19 @@ const input = { keys: {}, mx: 0, my: 0, lmb: false, rmb: false };
 function spawnPlayer() {
   player.pos.set(1900 + rnd(-100, 100), 380, 2900); player.vel.set(0, 0, -50); player.w.set(0, 0, 0);
   player.q.setFromAxisAngle(AXY, Math.PI); player.thr = 0.45; player.shield = player.shieldMax; player.hull = player.hullMax; player.energy = 100; player.heat = 100; player.missiles = 8;
-  player.dead = false; player.target = null;
+  player.dead = false; player.target = null; if (deaths > 0) FPVAudio.respawn();
   if (!player.ship) { player.ship = mkShip('fgt', 0, 0, 0, 0); player.ship.isPlayer = true; player.ship.q = player.q; }
   const s = player.ship; s.dead = false; s.hidden = cam.mode === 'cockpit'; s.hp = s.hpMax;
   if (allies.indexOf(s) < 0) allies.push(s);
 }
 function hurtPlayer(dmg) {
   if (player.dead) return; player.lastHit = t; cam.shake = Math.min(1.6, cam.shake + dmg * 0.02 + 0.2);
-  if (player.shield > 0) { const a = Math.min(player.shield, dmg); player.shield -= a; dmg -= a; FPVAudio.sfx.shield(); flash(0.35, true); }
-  if (dmg > 0) { player.hull -= dmg; FPVAudio.sfx.hit(); flash(0.9); if (player.hull <= 0) playerDie(); }
+  if (player.shield > 0) { const a = Math.min(player.shield, dmg); player.shield -= a; dmg -= a; FPVAudio.shield(); flash(0.35, true); hurtK = Math.min(1, hurtK + 0.06); }
+  if (dmg > 0) { player.hull -= dmg; hurtK = Math.min(1, hurtK + 0.3 + dmg * 0.01); FPVAudio.hit(); flash(0.9); if (player.hull <= 0) playerDie(); }
 }
 function playerDie() {
   player.dead = true; player.respawn = 5; const s = player.ship; s.dead = true; s.hidden = true; deaths++;
-  fx.explode(s.x, s.y, s.z, 1.6, false, 1.3); FPVAudio.sfx.boom(3, 0); log('Pilot lost. Re-deploying from the HSS hangar…', true);
+  fx.explode(s.x, s.y, s.z, 1.6, false, 1.3); FPVAudio.explode(3); log('Pilot lost. Re-deploying from the HSS hangar…', true);
   const i = allies.indexOf(s); if (i >= 0) allies.splice(i, 1);
 }
 function stepPlayer(dt) {
@@ -350,7 +401,7 @@ function stepPlayer(dt) {
   // 推力
   if (k.KeyW) P.thr = Math.min(1, P.thr + dt * 0.5); if (k.KeyS) P.thr = Math.max(0, P.thr - dt * 0.5);
   if (k.KeyX) P.thr = Math.max(0, P.thr - dt * 2.5);
-  P.boost = !!k.ShiftLeft && P.energy > 4 && P.thr > 0.05; P.energy = clamp(P.energy + (P.boost ? -26 : 11) * dt, 0, 100);
+  const wasBoost = P.boost; P.boost = !!k.ShiftLeft && P.energy > 4 && P.thr > 0.05; if (P.boost && !wasBoost) FPVAudio.boost(); P.energy = clamp(P.energy + (P.boost ? -26 : 11) * dt, 0, 100);
   const vmax = 170, vt = P.thr * vmax * (P.boost ? 2.4 : 1);
   const sx = ((k.KeyA ? 1 : 0) - (k.KeyD ? 1 : 0)) * 55, sy = ((k.KeyR ? 1 : 0) - (k.KeyF ? 1 : 0)) * 55;   // 本地 +X 為艦左
   V.set(sx, sy, vt).applyQuaternion(P.q);
@@ -364,6 +415,7 @@ function stepPlayer(dt) {
   if (dt_ < TOMB_AURA) { P.vel.addScaledVector(V.copy(P.pos).sub(TOMB_POS).normalize(), 220 * dt); hurtPlayerSoft(dt * 35); setCenter('IRONTOMB PRESSURE · BACK OFF', true); } else if (dc <= ARENA_R) setCenter('', false);
   // 護盾再生與武器
   if (t - P.lastHit > 4) P.shield = Math.min(P.shieldMax, P.shield + 55 * dt);
+  if (P.hull < P.hullMax * 0.35) FPVAudio.alarm();
   P.heat = clamp(P.heat + 24 * dt, 0, 100); P.fireCd -= dt; P.mslCd -= dt; P.mslT += dt; if (P.mslT > 14 && P.missiles < 8) { P.missiles++; P.mslT = 0; }
   const s = P.ship; s.x = P.pos.x; s.y = P.pos.y; s.z = P.pos.z; s.vx = P.vel.x; s.vy = P.vel.y; s.vz = P.vel.z; s.thr = P.thr + (P.boost ? 0.5 : 0); s.q = P.q;
   if ((input.lmb || k.Space) && P.fireCd <= 0 && P.heat > 8) playerFire();
@@ -382,28 +434,50 @@ function playerFire() {
   if (T_ && !T_.dead) { const l = leadPoint({ x: gun.x, y: gun.y, z: gun.z }, T_, 1900, V3); const ang = V3.clone().sub(P.pos).normalize().dot(V2); if (ang > 0.985) { tx_ = l.x; ty_ = l.y; tz_ = l.z; } }
   V3.set(tx_ - gun.x, ty_ - gun.y, tz_ - gun.z).normalize();
   fire(s, gun.x, gun.y, gun.z, V3.x, V3.y, V3.z, 1900 + P.vel.length() * 0.3, 16, 0.5, 34, [0.45, 0.95, 1], 2.1);
-  FPVAudio.sfx.laser(gunSide < 2 ? -0.4 : 0.4);
+  FPVAudio.fire('player', { pan: gunSide < 2 ? -0.35 : 0.35 });
 }
 function playerMissile() {
   const P = player; if (P.missiles <= 0 || !P.target || P.target.dead) return;
   P.mslCd = 0.8; P.missiles--; V2.set(0, 0, 1).applyQuaternion(P.q); fleet.anchorWorld(P.ship, 'HP_ENGINE_1', V);
   shots.push({ homing: true, x: P.pos.x + V2.x * 12, y: P.pos.y - 3, z: P.pos.z + V2.z * 12, vx: P.vel.x, vy: P.vel.y, vz: P.vel.z, fx: V2.x, fy: V2.y, fz: V2.z, spd: Math.max(150, P.vel.length()), life: 9, dmg: 420, side: 'a', src: P.ship, tgt: P.target });
-  FPVAudio.sfx.missile();
+  FPVAudio.missile();
 }
 function cycleTarget(mode) {
-  const P = player, list = enemies.filter((e) => !e.dead && Math.hypot(e.x - P.pos.x, e.y - P.pos.y, e.z - P.pos.z) < 6000); if (!list.length) { P.target = null; return; }
+  const prev = player.target; const P = player, list = enemies.filter((e) => !e.dead && Math.hypot(e.x - P.pos.x, e.y - P.pos.y, e.z - P.pos.z) < 6000); if (!list.length) { P.target = null; return; }
   V2.set(0, 0, 1).applyQuaternion(P.q);
   if (mode === 'reticle') { let b = null, bs = -2; list.forEach((e) => { V.set(e.x - P.pos.x, e.y - P.pos.y, e.z - P.pos.z); const dist = V.length(); const sc = V.normalize().dot(V2) - dist * 0.00002 + (e.d.hp > 1000 ? 0.0 : 0.02); if (sc > bs) { bs = sc; b = e; } }); P.target = b; }
   else { list.sort((a, b) => Math.hypot(a.x - P.pos.x, a.y - P.pos.y, a.z - P.pos.z) - Math.hypot(b.x - P.pos.x, b.y - P.pos.y, b.z - P.pos.z)); const i = list.indexOf(P.target); P.target = list[(i + 1) % list.length]; }
+  FPVAudio.lock(P.target && P.target !== prev);
 }
 
+let trT = 0;
+function trails(dt) {   // 戰機尾焰：鏡頭附近的戰機每 0.05 秒在引擎噴口留下一顆會擴散的光點
+  trT -= dt; if (trT > 0) return; trT = 0.05;
+  const lists = [allies, enemies];
+  for (let L = 0; L < 2; L++) {
+    const arr = lists[L], col = L === 0 ? [0.35, 0.75, 1.0] : [1.0, 0.35, 0.85];
+    for (let i = 0; i < arr.length; i++) {
+      const s = arr[i]; if (s.dead || s.hidden || (s.kind !== 'fgt' && s.kind !== 'fly')) continue;
+      if (Math.abs(s.x - cam.x) > 2400 || Math.abs(s.z - cam.z) > 2400 || Math.abs(s.y - cam.y) > 2400) continue;
+      for (let e = 1; e <= 2; e++) { fleet.anchorWorld(s, 'HP_ENGINE_' + e, V); fx.emit(V.x, V.y, V.z, -s.vx * 0.04 + rnd(-1, 1), -s.vy * 0.04 + rnd(-1, 1), -s.vz * 0.04 + rnd(-1, 1), col[0], col[1], col[2], s.kind === 'fgt' ? 2.6 : 2.2, 0.6, 1.4, 0, 0.6); }
+    }
+  }
+}
+function flybys() {   // 敵機貼近玩家高速掠過時的「咻」聲
+  const P = player; if (P.dead) return;
+  for (let i = 0; i < enemies.length; i++) {
+    const e = enemies[i]; if (e.dead || e.kind !== 'fly' || (e.flyT || 0) > t) continue;
+    const dx = e.x - P.pos.x, dy = e.y - P.pos.y, dz = e.z - P.pos.z, d2 = dx * dx + dy * dy + dz * dz;
+    if (d2 < 130 * 130) { e.flyT = t + 4; FPVAudio.flyby(e); }
+  }
+}
 /* ═════════ 7. 鐵墓與事件 ═════════ */
 function lanceStrike() {
   const tg = pick(allies.filter((s) => s.d.hp >= 3000 && s.d.hp < 100000 && !s.dead)); if (!tg) return;
   const ox = TOMB_POS.x + rnd(-1, 1) * 600, oy = TOMB_POS.y + 700, oz = TOMB_POS.z + 800;
   const dist = Math.hypot(tg.x - ox, tg.y - oy, tg.z - oz), T = dist / 3200;
   fx.beam(ox, oy, oz, tg.x, tg.y, tg.z, { color: [1, 0.2, 0.3], width: 120, dur: T + 1.2, len: 1800 });
-  FPVAudio.sfx.lance(); log('Irontomb lance fired · ' + tg.d.name + ' targeted', true);
+  FPVAudio.lance(); log('Irontomb lance fired · ' + tg.d.name + ' targeted', true);
   fx.later(T + 0.3, () => { if (tg.dead) return; fx.explode(tg.x, tg.y, tg.z, 4, true, 12); damage(tg, 28000, tg.x, tg.y, tg.z, null); });
 }
 function reinforce() {
@@ -418,7 +492,7 @@ function stepWorld(dt) {
   if (t >= nextReinf) { nextReinf = t + 20; reinforce(); }
   for (let i = 0; i < allies.length; i++) { const s = allies[i]; if (s.dead || s.isPlayer) continue; if (s.kind === 'fgt') aiFighter(s, dt); else if (s.d.hp > 1000) aiCapital(s, dt); }
   for (let i = 0; i < enemies.length; i++) { const s = enemies[i]; if (s.dead) continue; if (s.kind === 'fly') aiFighter(s, dt); else aiCapital(s, dt); }
-  stepPlayer(dt); stepShots(dt);
+  stepPlayer(dt); stepShots(dt); flybys(); trails(dt);
   // 艦艇互撞的簡易排斥（只處理大艦與戰機）
   for (let i = allies.length - 1; i >= 0; i--) if (allies[i].dead && !allies[i].isPlayer) allies.splice(i, 1);
   for (let i = enemies.length - 1; i >= 0; i--) if (enemies[i].dead) enemies.splice(i, 1);
@@ -442,8 +516,19 @@ function bracket(x, y, r, col, lw) { hx.strokeStyle = col; hx.lineWidth = lw || 
 function fmtD(m) { return m >= 1000 ? (m / 1000).toFixed(1) + ' km' : Math.round(m) + ' m'; }
 function bar(x, y, w, h, v, col, label) { hx.fillStyle = 'rgba(8,16,32,.7)'; hx.fillRect(x, y, w, h); hx.fillStyle = col; hx.fillRect(x + 1, y + 1, (w - 2) * clamp(v, 0, 1), h - 2); hx.strokeStyle = 'rgba(143,230,255,.35)'; hx.strokeRect(x, y, w, h); hx.fillStyle = '#9fb4cc'; hx.font = '10px "Space Mono", monospace'; hx.textAlign = 'left'; hx.fillText(label, x, y - 4); }
 
+function drawFlare() {   // 恆星的鏡頭光暈與鬼影（在 HUD 畫布上以加色疊合）
+  camera.getWorldDirection(V); const d = V.dot(SUN_DIR); if (d < 0.25) return;
+  const sp = toScreen(cam.x + SUN_DIR.x * 20000, cam.y + SUN_DIR.y * 20000, cam.z + SUN_DIR.z * 20000); if (!sp.ok) return;
+  const k = clamp((d - 0.25) / 0.75, 0, 1), cx = W / 2, cy = H / 2, R = Math.min(W, H);
+  hx.save(); hx.globalCompositeOperation = 'lighter';
+  const g = hx.createRadialGradient(sp.x, sp.y, 0, sp.x, sp.y, R * 0.45); g.addColorStop(0, 'rgba(255,240,215,' + (0.55 * k) + ')'); g.addColorStop(0.25, 'rgba(255,200,150,' + (0.14 * k) + ')'); g.addColorStop(1, 'rgba(255,170,120,0)'); hx.fillStyle = g; hx.fillRect(0, 0, W, H);
+  const ghosts = [[-0.35, 0.05, '120,170,255', 0.10], [0.45, 0.09, '255,170,110', 0.08], [0.9, 0.03, '150,255,200', 0.10], [1.35, 0.16, '255,120,170', 0.05], [-0.8, 0.07, '255,230,150', 0.06]];
+  for (const q of ghosts) { const x = sp.x + (cx - sp.x) * (1 + q[0]) , y = sp.y + (cy - sp.y) * (1 + q[0]), r = R * q[1], gg = hx.createRadialGradient(x, y, 0, x, y, r); gg.addColorStop(0, 'rgba(' + q[2] + ',' + (q[3] * k) + ')'); gg.addColorStop(0.7, 'rgba(' + q[2] + ',' + (q[3] * k * 0.5) + ')'); gg.addColorStop(1, 'rgba(' + q[2] + ',0)'); hx.fillStyle = gg; hx.beginPath(); hx.arc(x, y, r, 0, TAU); hx.fill(); }
+  hx.restore();
+}
 function drawHud() {
   hx.clearRect(0, 0, W, H); if (!started) return;
+  drawFlare();
   const P = player, cx = W / 2, cy = H / 2, sc = Math.min(W, H) / 720;
   hx.font = '11px "Space Mono", monospace'; hx.textBaseline = 'middle';
   if (P.dead) { hx.fillStyle = 'rgba(255,255,255,.8)'; hx.textAlign = 'center'; hx.font = '16px "Space Mono"'; hx.fillText('PILOT LOST · REDEPLOY IN ' + Math.ceil(P.respawn), cx, cy); return; }
@@ -518,12 +603,15 @@ const clock = new THREE.Clock(); let last = 0, chasePos = new THREE.Vector3(), c
 function placeCamera(dt) {
   const P = player, s = P.ship;
   if (!s) return;
+  const sp01 = clamp(P.vel.length() / 300, 0, 1), tf = FOV + (P.boost ? 9 : 0) + sp01 * 3;
+  fovCur += (tf - fovCur) * Math.min(1, dt * 4); speedFx += ((P.boost ? 1 : sp01 * 0.22) - speedFx) * Math.min(1, dt * 3);
+  if (Math.abs(camera.fov - fovCur) > 0.05) { camera.fov = fovCur; camera.updateProjectionMatrix(); }
   if (cam.mode === 'cockpit' && !P.dead) {
     fleet.anchorWorld(s, 'HP_COCKPIT', V); camera.position.copy(V);
     QT.copy(P.q).multiply(QT2.setFromAxisAngle(AXY, Math.PI)); camera.quaternion.copy(QT);
     // 駕駛艙隨角速度與過載微晃，帶出重量感
     cockRoot.rotation.set(-P.w.x * 0.012, -P.w.y * 0.012, -P.w.z * 0.01); cockRoot.position.set(P.w.y * 0.004, -P.w.x * 0.004, 0);
-    cockCam.fov = camera.fov; cockCam.updateProjectionMatrix();
+    if (Math.abs(cockCam.fov - camera.fov) > 0.05) { cockCam.fov = camera.fov; cockCam.updateProjectionMatrix(); }
   } else {
     V2.set(0, 0, 1).applyQuaternion(P.q); V3.set(0, 1, 0).applyQuaternion(P.q);
     V.copy(P.pos).addScaledVector(V2, -42).addScaledVector(V3, 11);
@@ -538,31 +626,40 @@ function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000 || 0.016); last = now;
   if (!sw.assetsReady) return;
   if (started && !paused) { stepWorld(dt); FPVAudio.engine(clamp(player.vel.length() / 300, 0, 1), player.boost); }
-  placeCamera(dt);
-  sky.position.copy(camera.position); sky.material.uniforms.uTime.value = t; dustMat.uniforms.uCam.value.copy(camera.position);
+  placeCamera(dt); FPVAudio.listener(camera);
+  sky.position.copy(camera.position); stars.position.copy(camera.position); sky.material.uniforms.uTime.value = t; hurtK *= Math.exp(-dt * 2.6); updateBoomLights(dt); dustMat.uniforms.uCam.value.copy(camera.position);
   fleet.update(allies, enemies);
   if (tombMeshes) tombMeshes.rotation.y = Math.sin(t * 0.05) * 0.03;
   fx.update(started && !paused ? dt : 0);
   render(); drawHud();
 }
 function render() {
-  if (composer) composer.composer.render(); else renderer.render(scene, camera);
-  if (cam.mode === 'cockpit' && !player.dead && started) { renderer.autoClear = false; renderer.clearDepth(); renderer.render(cockScene, cockCam); renderer.autoClear = true; }
+  const cockOn = cam.mode === 'cockpit' && !player.dead && started;
+  if (post) {
+    post.cockpit.enabled = cockOn; const u = post.u; u.uTime.value = performance.now() / 1000; u.uSpeed.value = speedFx; u.uHurt.value = hurtK;
+    post.composer.render();
+  } else {
+    renderer.render(scene, camera);
+    if (cockOn) { renderer.autoClear = false; renderer.clearDepth(); renderer.render(cockScene, cockCam); renderer.autoClear = true; }
+  }
 }
 
 /* ═════════ 11. 啟動 ═════════ */
 function setup(a) {
   assets = a;
+  Object.keys(a).forEach((k) => { if (k === 'debris') return; prepAsset(a[k], k === 'cockpit' || k === 'moon' ? 0 : 18 / Math.max(a[k].length, 1)); });
   fx = SWFx.create({ scene, debrisParts: a.debris && a.debris.parts });
   fleet = SWFleet.create({ scene, assets: a });
   // 鐵墓：遠方背景巨人（只有視覺與命中球，沒有生命值概念）
   if (a.irontomb) {
     tombMeshes = new THREE.Group();
-    a.irontomb.parts.forEach((p) => { const m = p.material; if (m.emissive) m.emissiveIntensity = 1.6; m.envMapIntensity = 0.7; const me = new THREE.Mesh(p.geometry, m); me.frustumCulled = false; tombMeshes.add(me); });
+    a.irontomb.parts.forEach((p) => { const m = p.material; if (m.emissive && m.emissive.r + m.emissive.g + m.emissive.b > 0.01) m.emissiveIntensity = 2.4; m.envMapIntensity = 0.9; const me = new THREE.Mesh(p.geometry, m); me.frustumCulled = false; tombMeshes.add(me); });
     tombMeshes.position.copy(TOMB_POS); tombMeshes.scale.setScalar(TOMB_SCALE); scene.add(tombMeshes);
   }
-  if (a.cockpit) a.cockpit.parts.forEach((p) => { const m = p.material; if (m.emissive) m.emissiveIntensity = 1.4; const me = new THREE.Mesh(p.geometry, m); me.frustumCulled = false; cockRoot.add(me); });
-  if (QUALITY === 'high') composer = SWEnv.makeComposer(renderer, scene, camera, { width: innerWidth, height: innerHeight, strength: 0.8 });
+  if (a.cockpit) a.cockpit.parts.forEach((p) => { const m = p.material; if (m.emissive && m.emissive.r + m.emissive.g + m.emissive.b > 0.01) m.emissiveIntensity = 2.2; const me = new THREE.Mesh(p.geometry, m); me.frustumCulled = false; cockRoot.add(me); });
+  Object.keys(fleet.kinds).forEach((k) => fleet.kinds[k].meshes.forEach((me) => { if (me.material.emissive && me.material.emissive.r + me.material.emissive.g + me.material.emissive.b > 0.01) me.material.emissiveIntensity = 2.6; me.material.envMapIntensity = 1.1; }));
+  if (QUALITY === 'high') post = FPVPost.create(renderer, scene, camera, cockScene, cockCam, { width: innerWidth, height: innerHeight, strength: 0.85, threshold: 1.35, radius: 0.7 });
+  else { renderer.outputEncoding = THREE.sRGBEncoding; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.0; }
   resize(); spawnFleet(); spawnPlayer(); for (let i = 0; i < 2; i++) { nextWave = 0; stepWorldSetup(); }
   fleet.update(allies, enemies); sw.assetsReady = true;
   const go = $('#fpv-go'); go.disabled = false; go.textContent = 'ENGAGE'; $('#fpv-load').textContent = '';

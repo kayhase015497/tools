@@ -299,6 +299,33 @@ class ShipBuilder:
     def anchor(self, name, loc):
         self.anchors.append((name, Vector(loc)))
 
+    # ── 頂點環境遮蔽（AO）：烘進頂點色，遊戲端以 COLOR_0 乘在底色上，凹槽與接縫自然變暗 ──
+    @staticmethod
+    def bake_ao(obj, rays=26, strength=0.6, radius=0.16):
+        from mathutils.bvhtree import BVHTree
+        bpy.context.view_layer.update()
+        bvh = BVHTree.FromObject(obj, bpy.context.evaluated_depsgraph_get())
+        me = obj.data
+        size = max(obj.dimensions) or 1.0
+        R, bias = size * radius, size * 0.004
+        attr = me.color_attributes.new('Color', 'FLOAT_COLOR', 'POINT')
+        for v in me.vertices:
+            n = v.normal.normalized()
+            o = v.co + n * bias
+            t = n.cross(Vector((0, 0, 1)) if abs(n.z) < 0.9 else Vector((1, 0, 0))).normalized()
+            b = n.cross(t)
+            occ = 0.0
+            for i in range(rays):
+                u1 = (i + 0.5) / rays
+                phi = 2 * math.pi * ((i * 0.6180339887) % 1.0)
+                r = math.sqrt(u1)
+                d = t * (r * math.cos(phi)) + b * (r * math.sin(phi)) + n * math.sqrt(1.0 - u1)
+                hit = bvh.ray_cast(o, d, R)
+                if hit[0] is not None and hit[3] > bias:
+                    occ += 1.0 - hit[3] / R
+            ao = max(0.35, 1.0 - strength * occ / rays * 1.6)
+            attr.data[v.index].color = (ao, ao, ao, 1.0)
+
     # ── 完成：轉向、建立物件、匯出 GLB ──
     def build_object(self):
         bmesh.ops.rotate(self.bm, verts=self.bm.verts, cent=(0, 0, 0), matrix=Matrix.Rotation(math.pi, 3, 'Z'))
@@ -312,6 +339,8 @@ class ShipBuilder:
         obj = bpy.data.objects.new(self.name, mesh)
         bpy.context.scene.collection.objects.link(obj)
         objs = [obj]
+        if getattr(self, 'ao', True):
+            self.bake_ao(obj)
         for (nm, loc) in self.anchors:
             e = bpy.data.objects.new(nm, None)
             e.empty_display_type = 'PLAIN_AXES'
@@ -329,7 +358,7 @@ class ShipBuilder:
         bpy.context.view_layer.objects.active = objs[0]
         bpy.ops.export_scene.gltf(filepath=path, export_format='GLB', use_selection=True,
                                   export_apply=True, export_yup=True, export_materials='EXPORT',
-                                  export_cameras=False, export_lights=False, export_texcoords=False,
+                                  export_cameras=False, export_lights=False, export_texcoords=False, export_vertex_color='ACTIVE',
                                   export_normals=True, export_extras=False, export_animations=False)
         tris = sum(len(p.vertices) - 2 for p in objs[0].data.polygons)
         print('[export] %s  tris=%d  -> %s' % (self.name, tris, path))
