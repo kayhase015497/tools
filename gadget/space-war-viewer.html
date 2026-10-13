@@ -52,7 +52,7 @@ const cv = $('#smv-canvas');
 const renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true });
 renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
 const scene = new THREE.Scene(); scene.background = new THREE.Color(0x05070f);
-const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 6000);
+const camera = new THREE.PerspectiveCamera(parseFloat(Q.get('fov') || '40'), 1, 0.1, 6000);
 const controls = new THREE.OrbitControls(camera, cv); controls.enableDamping = true;
 const sky = SWEnv.makeSky(3000); scene.add(sky);
 if (Q.get('env') !== '0') SWEnv.makeEnvironment(renderer, scene);

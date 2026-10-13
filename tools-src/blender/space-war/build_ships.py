@@ -559,7 +559,105 @@ def irontomb(out):
     sb.export(os.path.join(out, 'irontomb.glb'))
 
 
-BUILDERS = {'frigate': frigate, 'cruiser': cruiser, 'dread': dread, 'hss': hss, 'moon': moon, 'whale': whale, 'butterfly': butterfly, 'debris': debris, 'irontomb': irontomb}
+# ═════════════════ FPV：聯軍截擊機（玩家／友軍戰機，約 12 單位長） ═════════════════
+def fighter(out):
+    reset()
+    M = {
+        'hull': make_mat('hull', hexc('#1c2a54'), 0.6, 0.45),
+        'plate': make_mat('plate', hexc('#d5ddf7'), 0.35, 0.5),
+        'dark': make_mat('dark', hexc('#080c1a'), 0.3, 0.7),
+        'trim': make_mat('trim', hexc('#0a1830'), 0.2, 0.6, emit=hexc('#7fe9ff'), emit_strength=1.0),
+        'glow': make_mat('glow', hexc('#0a1830'), 0.2, 0.6, emit=hexc('#9fdcff'), emit_strength=1.0),
+        'nav': make_mat('nav', hexc('#300000'), 0.2, 0.6, emit=hexc('#ff4455'), emit_strength=1.0),
+        'canopy': make_mat('canopy', hexc('#06101f'), 0.9, 0.12, emit=hexc('#2a79c8'), emit_strength=0.55),
+    }
+    sb = ShipBuilder('fighter', M)
+    # 機身：細長尖鼻、座艙後隆起、尾部收攏
+    sb.loft([(6.0, 0.02, 0.02, 0.02, 0, 2.2), (5.0, 0.22, 0.2, 0.16, 0, 2.4), (3.0, 0.50, 0.40, 0.30, 0, 2.6),
+             (0.0, 0.72, 0.52, 0.40, 0, 2.8), (-3.0, 0.70, 0.46, 0.38, 0, 2.8), (-5.2, 0.55, 0.34, 0.30, 0, 2.4), (-6.0, 0.42, 0.26, 0.24, 0, 2.2)],
+            'hull', n=14)
+    sb.prism([(0.0, 4.2), (0.40, 1.2), (0.38, -4.6), (-0.38, -4.6), (-0.40, 1.2)], 0.08, 0.38, 'plate', scale_top=0.88)
+    sb.sphere((0, 1.7, 0.42), 0.46, 'canopy', seg=12, rings=7, scale=(0.72, 1.7, 0.62))
+    # 主翼：大後掠三角翼，前緣發光
+    for sg in (1, -1):
+        sb.prism([(sg * 0.6, 2.6), (sg * 4.9, -4.4), (sg * 4.5, -5.5), (sg * 0.9, -3.6)], 0.10, -0.02, 'hull')
+        sb.ribbon([(sg * 0.7, 2.55, 0.1), (sg * 4.85, -4.35, 0.1)], 0.10, 'trim')
+        sb.ribbon([(sg * 1.0, -3.55, 0.1), (sg * 4.5, -5.4, 0.1)], 0.06, 'trim')
+        sb.box((sg * 4.75, -4.9, 0.05), (0.14, 0.4, 0.14), 'nav')
+        # 翼根機砲（四挺：每側兩挺）
+        for k, fx_ in enumerate((2.0, 1.2)):
+            xg = sg * (1.15 + 0.42 * k)
+            sb.cyl((xg, 2.0 - 0.0, -0.02), 0.07, 2.2, 'dark', axis='f', sides=6)
+            sb.anchor('HP_GUN_%d' % (len([1 for _ in range(0)]) + (1 if sg > 0 else 3) + k), (xg, 3.1, -0.02))
+        # 垂直雙尾翼，微外傾
+        sb.prism_xz([(sg * 0.55, -2.4), (sg * 1.2, -5.7), (sg * 0.55, -5.7)], 0.08, 0.35, 'hull') if False else None
+        sb.box((sg * 0.75, -4.7, 0.78), (0.08, 1.7, 1.0), 'plate', rot=(0, sg * 0.28, 0), taper=(1, 0.5))
+        # 雙引擎
+        sb.cyl((sg * 0.42, -6.1, -0.02), 0.26, 1.1, 'dark', axis='f', sides=10)
+        sb.cyl((sg * 0.42, -6.62, -0.02), 0.2, 0.1, 'glow', axis='f', sides=10)
+        sb.anchor('HP_ENGINE_%d' % (1 if sg > 0 else 2), (sg * 0.42, -6.75, -0.02))
+    sb.anchor('HP_COCKPIT', (0, 1.6, 0.62))
+    sb.export(os.path.join(out, 'fighter.glb'))
+
+
+# ═════════════════ FPV：駕駛艙內裝（相機位於原點；僅作為疊加畫面，不進入主場景深度） ═════════════════
+# 參照影片中黑塔太空站艦橋：深色面板、六角格、藍色霓虹結構線。單位：公尺。
+def cockpit(out):
+    reset()
+    M = {
+        'frame': make_mat('frame', hexc('#10182c'), 0.7, 0.4),
+        'panel': make_mat('panel', hexc('#1b2744'), 0.6, 0.45),
+        'dark': make_mat('dark', hexc('#05070f'), 0.4, 0.6),
+        'neon': make_mat('neon', hexc('#06142a'), 0.2, 0.6, emit=hexc('#5fd0ff'), emit_strength=1.4),
+        'screen': make_mat('screen', hexc('#03121c'), 0.2, 0.5, emit=hexc('#2bb6c8'), emit_strength=0.45),
+        'warn': make_mat('warn', hexc('#2a0a08'), 0.2, 0.5, emit=hexc('#ff7a3a'), emit_strength=1.0),
+    }
+    sb = ShipBuilder('cockpit', M)
+    ZD = -0.75                                                    # 儀表板頂面高度（壓低，讓視野開闊）
+    # 儀表板本體與前緣
+    sb.box((0, 1.05, ZD - 0.14), (3.0, 1.5, 0.28), 'frame', taper=(0.92, 1.0))
+    sb.box((0, 0.35, ZD - 0.10), (1.5, 0.22, 0.2), 'panel')
+    sb.box((0, 1.82, ZD + 0.02), (3.2, 0.12, 0.2), 'frame')
+    sb.ribbon([(-1.35, 1.76, ZD + 0.13), (1.35, 1.76, ZD + 0.13)], 0.025, 'neon')
+    # 六角格面板
+    r = 0.085
+    for row in range(-3, 4):
+        for col in range(0, 11):
+            fx_ = 0.55 + row * 0.0 + col * 0.115
+            fx_ = 0.62 + col * 0.118
+            x = (row + (0.5 if col % 2 else 0.0)) * 0.19
+            if abs(x) > 1.30 or abs(x) < 0.0 and False:
+                continue
+            if abs(x) < 0.36 and fx_ < 1.5:                            # 中央留給主螢幕
+                continue
+            ang = [(math.cos(math.pi / 3 * i + math.pi / 6) * r, math.sin(math.pi / 3 * i + math.pi / 6) * r) for i in range(6)]
+            sb.prism([(x + a, fx_ + b) for a, b in ang], 0.012, ZD, 'panel' if (row + col) % 3 else 'dark')
+            if (row * 7 + col * 3) % 11 == 0:
+                sb.prism([(x + a * 0.55, fx_ + b * 0.55) for a, b in ang], 0.008, ZD + 0.012, 'neon')
+    # 主螢幕（雷達／狀態）與警示燈
+    sb.box((0, 1.32, ZD + 0.012), (0.42, 0.26, 0.014), 'screen')
+    sb.ribbon([(-0.21, 1.17, ZD + 0.02), (0.21, 1.17, ZD + 0.02)], 0.012, 'neon')
+    for sg in (1, -1):
+        sb.box((sg * 0.42, 1.25, ZD + 0.012), (0.16, 0.2, 0.012), 'screen')
+        sb.box((sg * 0.98, 1.1, ZD + 0.016), (0.07, 0.07, 0.02), 'warn')
+    # 座艙框架：A 柱、頂樑、側欄與藍色霓虹內緣
+    for sg in (1, -1):
+        sb.bar((sg * 1.42, 0.2, ZD), (sg * 1.12, 1.0, 0.18), 0.05, 'frame', sides=6)      # 後側欄（下）
+        sb.bar((sg * 1.12, 1.0, 0.18), (sg * 0.62, 1.78, 0.74), 0.045, 'frame', sides=6)    # A 柱
+        sb.bar((sg * 1.42, 0.2, ZD), (sg * 1.18, -0.3, 0.48), 0.04, 'frame', sides=6)
+        sb.bar((sg * 1.18, -0.3, 0.48), (sg * 0.62, 1.78, 0.74), 0.045, 'frame', sides=6)  # 側頂樑
+        sb.bar((sg * 1.1, 1.02, 0.17), (sg * 0.6, 1.76, 0.72), 0.014, 'neon', sides=4)
+        sb.bar((sg * 1.40, 0.2, ZD + 0.02), (sg * 1.12, 1.0, 0.16), 0.014, 'neon', sides=4)
+    sb.bar((-0.62, 1.78, 0.74), (0.62, 1.78, 0.74), 0.04, 'frame', sides=6)                 # 前頂樑
+    sb.bar((-1.18, -0.3, 0.48), (1.18, -0.3, 0.48), 0.05, 'frame', sides=6)                 # 後頂樑
+    sb.bar((-0.5, 1.76, 0.7), (0.5, 1.76, 0.7), 0.012, 'neon', sides=4)
+    sb.box((0, 0.7, 0.62), (0.9, 0.9, 0.05), 'frame')                                      # 頭頂面板
+    sb.ribbon([(-0.35, 0.3, 0.59), (0.35, 0.3, 0.59)], 0.02, 'neon')
+    sb.anchor('HP_EYE', (0, 0, 0))
+    sb.export(os.path.join(out, 'cockpit.glb'))
+
+
+BUILDERS = {'frigate': frigate, 'cruiser': cruiser, 'dread': dread, 'hss': hss, 'moon': moon, 'whale': whale, 'butterfly': butterfly, 'debris': debris, 'irontomb': irontomb, 'fighter': fighter, 'cockpit': cockpit}
 
 if __name__ == '__main__':
     ap = argparse.ArgumentParser()

@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<title>Amphoreus Finale · Fighter Cockpit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"/>
+<style>
+  :root { --bg: #0b0f1a; --text: #e2e8f0; --dim: #94a3b8; --cyan: #8fe6ff; --gold: #ffd98a; --red: #ff4466; --line: rgba(143,230,255,.28); }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; background: var(--bg); color: var(--text); overflow: hidden; font-family: 'Noto Sans TC', sans-serif; }
+  .fpv-root { position: fixed; inset: 0; user-select: none; -webkit-user-select: none; cursor: crosshair; }
+  .fpv-canvas, .fpv-hud { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  .fpv-hud { pointer-events: none; }
+  .fpv-flash { position: absolute; inset: 0; pointer-events: none; opacity: 0; background: radial-gradient(ellipse at center, transparent 40%, rgba(255,40,70,.75) 100%); transition: opacity .35s; }
+  .fpv-log { position: absolute; left: 16px; top: 14px; width: min(46vw, 440px); display: flex; flex-direction: column; gap: 6px; pointer-events: none; font-family: 'Space Mono', monospace; }
+  .fpv-log div { border-left: 2px solid var(--cyan); padding: 2px 0 2px 9px; background: linear-gradient(90deg, rgba(10,20,40,.7), transparent); font-size: clamp(10px, 1.2vw, 12px); animation: fpv-in .4s ease-out; transition: opacity 1s; }
+  .fpv-log div.warn { border-color: var(--red); color: #ffd1da; }
+  .fpv-log div.out { opacity: 0; }
+  @keyframes fpv-in { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: none; } }
+  .fpv-center { position: absolute; left: 0; right: 0; top: 22%; text-align: center; pointer-events: none; font-family: 'Space Mono', monospace; letter-spacing: .2em; font-size: clamp(12px, 2vw, 18px); color: var(--red); text-shadow: 0 0 14px rgba(255,68,102,.8); opacity: 0; transition: opacity .3s; }
+  .fpv-center.on { opacity: 1; }
+  .fpv-title { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 24px; text-align: center; background: radial-gradient(ellipse at center, rgba(11,15,26,.78), rgba(5,7,14,.96)); cursor: default; transition: opacity .6s; }
+  .fpv-title.off { opacity: 0; pointer-events: none; }
+  .fpv-title h1 { font-family: 'Space Mono', monospace; font-weight: 700; letter-spacing: .14em; font-size: clamp(18px, 4vw, 34px); color: var(--cyan); text-shadow: 0 0 20px rgba(143,230,255,.5); }
+  .fpv-title p { max-width: 640px; color: var(--dim); font-size: clamp(12px, 1.6vw, 14px); line-height: 1.8; }
+  .fpv-keys { display: grid; grid-template-columns: auto auto; gap: 4px 18px; font-family: 'Space Mono', monospace; font-size: clamp(10px, 1.3vw, 12px); text-align: left; color: var(--text); }
+  .fpv-keys b { color: var(--gold); font-weight: 700; }
+  .fpv-btn { font-family: 'Space Mono', monospace; letter-spacing: .2em; font-size: 14px; color: var(--cyan); background: rgba(8,16,32,.8); border: 1px solid var(--line); padding: 12px 34px; cursor: pointer; pointer-events: auto; }
+  .fpv-btn:hover { background: rgba(20,50,90,.8); }
+  .fpv-row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+  .fpv-small { font-size: 11px !important; opacity: .7; }
+  .fpv-load { font-family: 'Space Mono', monospace; font-size: 12px; color: var(--dim); }
+</style>
+</head>
+<body>
+<div class="fpv-root" id="fpv-root">
+  <canvas class="fpv-canvas" id="fpv-canvas"></canvas>
+  <canvas class="fpv-hud" id="fpv-hud"></canvas>
+  <div class="fpv-flash" id="fpv-flash"></div>
+  <div class="fpv-log" id="fpv-log"></div>
+  <div class="fpv-center" id="fpv-center"></div>
+  <div class="fpv-title" id="fpv-title">
+    <h1>AMPHOREUS FINALE · FIGHTER COCKPIT</h1>
+    <p>You are one fighter in the Anti-Irontomb Cosmic Alliance fleet. Dreadnoughts the size of cities crawl past, the Antimatter Legion pours in from the dark, and the Irontomb stands at the far edge of the sky. Shoot at it if you like. It will not notice.<br/>
+       你是星際聯軍艦隊中的一架戰機。巨大的戰艦在身旁緩緩航行，反物質軍團從黑暗中湧來，鐵墓矗立在天際盡頭。想轟他就轟吧，他不會在意。</p>
+    <div class="fpv-keys">
+      <span><b>Mouse</b> pitch / yaw</span><span><b>W / S</b> throttle up / down</span>
+      <span><b>Q / E</b> roll</span><span><b>A / D · R / F</b> strafe · rise / sink</span>
+      <span><b>Shift</b> afterburner</span><span><b>X</b> full stop</span>
+      <span><b>LMB / Space</b> lasers</span><span><b>RMB / Ctrl</b> missile (needs lock)</span>
+      <span><b>T</b> target nearest to reticle</span><span><b>Y</b> next hostile</span>
+      <span><b>V</b> cockpit / chase camera</span><span><b>Z</b> flight assist on / off</span>
+      <span><b>I</b> invert pitch</span><span><b>M</b> music · <b>P / Esc</b> pause</span>
+    </div>
+    <div class="fpv-row">
+      <button class="fpv-btn" id="fpv-go" type="button" disabled>LOADING…</button>
+    </div>
+    <p class="fpv-small">Desktop with mouse + keyboard recommended. No time limit; the battle never ends. Music: Agony Converging into River · © HOYO-MiX. Fan-made, non-commercial.</p>
+    <div class="fpv-load" id="fpv-load"></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../assets/space-war/vendor/GLTFLoader.js"></script>
+<script src="../assets/space-war/vendor/CopyShader.js"></script>
+<script src="../assets/space-war/vendor/LuminosityHighPassShader.js"></script>
+<script src="../assets/space-war/vendor/EffectComposer.js"></script>
+<script src="../assets/space-war/vendor/MaskPass.js"></script>
+<script src="../assets/space-war/vendor/ShaderPass.js"></script>
+<script src="../assets/space-war/vendor/RenderPass.js"></script>
+<script src="../assets/space-war/vendor/UnrealBloomPass.js"></script>
+<script src="../assets/space-war/js/sw-assets.js"></script>
+<script src="../assets/space-war/js/sw-env.js"></script>
+<script src="../assets/space-war/js/sw-fx.js"></script>
+<script src="../assets/space-war/js/sw-fleet.js"></script>
+<script src="../assets/space-war/fpv/fpv-audio.js"></script>
+<script src="../assets/space-war/fpv/fpv-game.js"></script>
+</body>
+</html>
