@@ -64,7 +64,7 @@
     const fx = { time: 0 };
 
     /* ── 光束 ── */
-    const NB = 1800;
+    const NB = 4096;
     const base = new THREE.PlaneBufferGeometry(1, 1);
     const bg = new THREE.InstancedBufferGeometry();
     bg.index = base.index; bg.setAttribute('position', base.attributes.position); bg.setAttribute('uv', base.attributes.uv);
