@@ -139,7 +139,7 @@ addEventListener('resize', resize);
 
 /* ═════════ 3. 艦艇資料與生成 ═════════ */
 const allies = [], enemies = [];
-let t = 0, kills = 0, deaths = 0, wave = 0, started = false, paused = true, nextWave = 8, nextLance = 30, nextReinf = 25, nameN = 0;
+let t = 0, kills = 0, deaths = 0, wave = 0, started = false, paused = true, nextWave = 8, nextReinf = 25, nameN = 0;
 const V = new THREE.Vector3(), V2 = new THREE.Vector3(), V3 = new THREE.Vector3(), QT = new THREE.Quaternion(), QT2 = new THREE.Quaternion();
 const AXX = new THREE.Vector3(1, 0, 0), AXY = new THREE.Vector3(0, 1, 0), AXZ = new THREE.Vector3(0, 0, 1);
 
@@ -443,7 +443,7 @@ function stepPlayer(dt) {
   // 邊界與鐵墓威壓
   const dc = P.pos.length(); if (dc > ARENA_R) { P.vel.addScaledVector(V.copy(P.pos).normalize(), -140 * dt); setCenter('LEAVING BATTLE AREA · TURN BACK', true); }
   const dt_ = V.copy(P.pos).sub(TOMB_POS).length();
-  if (dt_ < TOMB_AURA) { P.vel.addScaledVector(V.copy(P.pos).sub(TOMB_POS).normalize(), 220 * dt); hurtPlayerSoft(dt * 35); setCenter('IRONTOMB PRESSURE · BACK OFF', true); } else if (dc <= ARENA_R) setCenter('', false);
+  if (dt_ < TOMB_AURA) { P.vel.addScaledVector(V.copy(P.pos).sub(TOMB_POS).normalize(), 220 * dt); setCenter('IRONTOMB EXCLUSION ZONE · TURN BACK', true); } else if (dc <= ARENA_R) setCenter('', false);
   // 護盾再生與武器
   if (t - P.lastHit > 4) P.shield = Math.min(P.shieldMax, P.shield + 55 * dt);
   if (P.hull < P.hullMax * 0.35) FPVAudio.alarm();
@@ -453,7 +453,6 @@ function stepPlayer(dt) {
   if ((input.rmb || k.ControlLeft) && P.mslCd <= 0) playerMissile();
   cam.shake *= Math.exp(-dt * 5);
 }
-function hurtPlayerSoft(d) { if (player.shield > 0) player.shield = Math.max(0, player.shield - d); else { player.hull -= d * 0.6; if (player.hull <= 0) playerDie(); } }
 let gunSide = 0;
 function playerFire() {
   const P = player, s = P.ship; P.fireCd = 0.11; P.heat -= 3.2; gunSide = (gunSide + 1) % 4;
@@ -503,14 +502,6 @@ function flybys() {   // 敵機貼近玩家高速掠過時的「咻」聲
   }
 }
 /* ═════════ 7. 鐵墓與事件 ═════════ */
-function lanceStrike() {
-  const tg = pick(allies.filter((s) => s.d.hp >= 3000 && s.d.hp < 100000 && !s.dead)); if (!tg) return;
-  const ox = TOMB_POS.x + rnd(-1, 1) * 600, oy = TOMB_POS.y + 700, oz = TOMB_POS.z + 800;
-  const dist = Math.hypot(tg.x - ox, tg.y - oy, tg.z - oz), T = dist / 3200;
-  fx.beam(ox, oy, oz, tg.x, tg.y, tg.z, { color: [1, 0.2, 0.3], width: 120, dur: T + 1.2, len: 1800 });
-  FPVAudio.lance(); log('Irontomb lance fired · ' + tg.d.name + ' targeted', true);
-  fx.later(T + 0.3, () => { if (tg.dead) return; fx.explode(tg.x, tg.y, tg.z, 4, true, 12); damage(tg, 28000, tg.x, tg.y, tg.z, null); });
-}
 let reinfN = 0;
 function reinforce() {
   reinfN++;
@@ -529,7 +520,6 @@ function launchFighters() {   // 從 HSS 機庫起飛的戰機：聯軍的空中
 function stepWorld(dt) {
   t += dt;
   if (t >= nextWave) { nextWave = t + Math.max(20, 38 - wave * 1.5); spawnWave(); }
-  if (t >= nextLance) { nextLance = t + rnd(35, 60); lanceStrike(); }
   if (t >= nextReinf) { nextReinf = t + 20; reinforce(); }
   if (t >= nextLaunch) { nextLaunch = t + 7; launchFighters(); }
   for (let i = 0; i < allies.length; i++) { const s = allies[i]; if (s.dead || s.isPlayer) continue; if (s.kind === 'fgt') aiFighter(s, dt); else if (s.d.hp > 1000) aiCapital(s, dt); }
