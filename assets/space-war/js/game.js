@@ -1031,7 +1031,7 @@ function setupTombModel(a) {
   TOMB.core.visible = TOMB.wire1.visible = TOMB.wire2.visible = false;
   TOMB.r = 60; TOMB.labelY = 150; TOMB.numY = 60; TOMB.glowS = 330; TOMB.glow.position.y = 20;
   // 命中球：[x, y, z, 半徑]（頭罩、軀幹、雙肩、雙臂末端、腰環、裙擺）
-  TOMB.parts = [[0, 88, 0, 28], [0, 30, 0, 42], [-78, 72, 0, 22], [78, 72, 0, 22], [-118, 70, 0, 14], [118, 70, 0, 14], [0, -5, 0, 52], [0, -70, 0, 38]];
+  TOMB.parts = [[0, 86, 0, 22], [0, 40, 0, 22], [-34, 86, 0, 14], [34, 86, 0, 14], [-105, 86, 0, 14], [105, 86, 0, 14], [0, 14, 0, 32], [0, -45, 0, 26], [0, -100, 0, 14]];
   ZONE = 165; const k = ZONE / 135;
   TOMB.zone.scale.set(1.9, 1.9, 1); TOMB.zoneRing.scale.set(1.9, 1.9, 1); TOMB.zoneRing2.scale.set(k, k, 1); TOMB.zoneSphere.scale.setScalar(k);
   TOMB.inf.position.y = 150; TOMB.inf.scale.setScalar(1.3);
