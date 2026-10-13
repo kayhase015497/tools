@@ -59,8 +59,50 @@
     '  gl_FragColor = vec4(vC.rgb * vC.a * a, 1.0); }'
   ].join('\n');
 
+
+  /* ── 擬真爆炸：體積火球與煙霧（噪聲著色器的公告板，不需要貼圖；沒有 point sprite 的尺寸上限） ── */
+  const VOL_VS = [
+    'attribute vec3 aPos; attribute vec4 aD; attribute vec3 aC; varying vec2 vUv; varying vec4 vD; varying vec3 vC;',
+    'void main(){ vUv = position.xy * 2.0; vD = aD; vC = aC;',
+    '  vec4 mv = viewMatrix * vec4(aPos, 1.0); float s = aD.y;',
+    '  s = min(s, 2.2 * max(1.0, -mv.z) / projectionMatrix[1][1]);',              // 近距離時限制在螢幕內
+    '  mv.xy += position.xy * s * 2.0; gl_Position = projectionMatrix * mv; }'
+  ].join('\n');
+  const VOL_NOISE = [
+    'varying vec2 vUv; varying vec4 vD; varying vec3 vC;',
+    'float h21(vec2 p){ p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }',
+    'float vn(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(h21(i), h21(i + vec2(1.0, 0.0)), f.x), mix(h21(i + vec2(0.0, 1.0)), h21(i + vec2(1.0, 1.0)), f.x), f.y); }',
+    'float fbm(vec2 p){ float a = 0.5, s = 0.0; for (int i = 0; i < 5; i++) { s += a * vn(p); p = p * 2.03 + vec2(1.7, 9.2); a *= 0.5; } return s; }'
+  ].join('\n');
+  const FIRE_FS = VOL_NOISE + [
+    'void main(){',
+    '  float r = length(vUv); if (r > 1.0) discard;',
+    '  float age = vD.x; vec2 q = vUv * 1.5 + vec2(vD.z * 13.1, vD.z * 7.7);',
+    '  float n = fbm(q + vec2(0.0, -age * 1.4)), n2 = fbm(q * 2.1 - age * 0.9 + 4.0);',
+    '  float core = 1.0 - r;',
+    '  float dens = smoothstep(0.0, 0.5, n * 0.9 + n2 * 0.4 + core * 1.2 - 0.5 - age * 0.6);',
+    '  if (dens < 0.01) discard;',
+    '  float heat = clamp(core * 1.15 + n * 0.55 - age * 1.15, 0.0, 1.0);',
+    '  vec3 hot = vec3(1.0, 0.93, 0.78) * 5.5, mid = vC * 2.6, cool = vC * vec3(0.55, 0.14, 0.08) * 0.8;',
+    '  vec3 col = mix(cool, mid, smoothstep(0.1, 0.55, heat)); col = mix(col, hot, smoothstep(0.62, 1.0, heat));',
+    '  gl_FragColor = vec4(col * dens * pow(1.0 - age, 1.3) * vD.w, 1.0);',
+    '}'
+  ].join('\n');
+  const SMOKE_FS = VOL_NOISE + [
+    'void main(){',
+    '  float r = length(vUv); if (r > 1.0) discard;',
+    '  float age = vD.x; vec2 q = vUv * 1.3 + vec2(vD.z * 5.3, vD.z * 11.9);',
+    '  float n = fbm(q - age * 0.4), n2 = fbm(q * 2.3 + 3.0);',
+    '  float dens = smoothstep(0.05, 0.6, n * 0.9 + n2 * 0.35 + (1.0 - r) * 0.9 - 0.62);',
+    '  if (dens < 0.01) discard;',
+    '  float lit = 0.6 + 0.8 * n2;',
+    '  vec3 col = mix(vec3(0.028, 0.026, 0.025) * lit, vC * 0.32, pow(1.0 - age, 3.0) * (1.0 - r));',
+    '  gl_FragColor = vec4(col, dens * 0.78 * pow(1.0 - age, 0.7) * vD.w);',
+    '}'
+  ].join('\n');
+
   function create(opts) {
-    const scene = opts.scene;
+    const scene = opts.scene, pro = !!opts.pro;
     const fx = { time: 0 };
 
     /* ── 光束 ── */
@@ -168,6 +210,45 @@
       debrisAttr.needsUpdate = true;
     }
 
+
+    /* ── 體積火球／煙霧粒子池 ── */
+    function makePuffSystem(N, fs, blending, order) {
+      const base = new THREE.PlaneBufferGeometry(1, 1), g = new THREE.InstancedBufferGeometry();
+      g.index = base.index; g.setAttribute('position', base.attributes.position);
+      const aPos = new THREE.InstancedBufferAttribute(new Float32Array(N * 3), 3).setUsage(THREE.DynamicDrawUsage);
+      const aD = new THREE.InstancedBufferAttribute(new Float32Array(N * 4), 4).setUsage(THREE.DynamicDrawUsage);
+      const aC = new THREE.InstancedBufferAttribute(new Float32Array(N * 3), 3).setUsage(THREE.DynamicDrawUsage);
+      g.setAttribute('aPos', aPos); g.setAttribute('aD', aD); g.setAttribute('aC', aC); g.instanceCount = N;
+      const m = new THREE.ShaderMaterial({ vertexShader: VOL_VS, fragmentShader: fs, transparent: true, depthWrite: false, blending, side: THREE.DoubleSide });
+      const mesh = new THREE.Mesh(g, m); mesh.frustumCulled = false; mesh.renderOrder = order; scene.add(mesh);
+      return { N, i: 0, aPos, aD, aC, vel: new Float32Array(N * 3), age: new Float32Array(N), life: new Float32Array(N).fill(0), s0: new Float32Array(N), s1: new Float32Array(N), drag: new Float32Array(N), amp: new Float32Array(N), seed: new Float32Array(N) };
+    }
+    const fireSys = pro ? makePuffSystem(900, FIRE_FS, THREE.AdditiveBlending, 7) : null, smokeSys = pro ? makePuffSystem(700, SMOKE_FS, THREE.NormalBlending, 3) : null;
+    function puff(sys, x, y, z, vx, vy, vz, s0, s1, life, col, drag, amp) {
+      const i = (sys.i++) % sys.N;
+      sys.aPos.array.set([x, y, z], i * 3); sys.vel[i * 3] = vx; sys.vel[i * 3 + 1] = vy; sys.vel[i * 3 + 2] = vz;
+      sys.age[i] = 0; sys.life[i] = life; sys.s0[i] = s0; sys.s1[i] = s1; sys.drag[i] = drag || 0; sys.amp[i] = amp || 1; sys.seed[i] = Math.random() * 50;
+      sys.aC.array.set(col, i * 3); sys.aD.array[i * 4 + 1] = s0;
+    }
+    function updatePuffs(sys, dt) {
+      if (!sys) return;
+      const P = sys.aPos.array, D = sys.aD.array;
+      for (let i = 0; i < sys.N; i++) {
+        const l = sys.life[i];
+        if (l <= 0) { if (D[i * 4 + 1] !== 0) D[i * 4 + 1] = 0; continue; }
+        sys.age[i] += dt; const a = sys.age[i] / l;
+        if (a >= 1) { sys.life[i] = 0; D[i * 4 + 1] = 0; continue; }
+        const dr = Math.max(0, 1 - sys.drag[i] * dt);
+        sys.vel[i * 3] *= dr; sys.vel[i * 3 + 1] *= dr; sys.vel[i * 3 + 2] *= dr;
+        P[i * 3] += sys.vel[i * 3] * dt; P[i * 3 + 1] += sys.vel[i * 3 + 1] * dt; P[i * 3 + 2] += sys.vel[i * 3 + 2] * dt;
+        const e = 1 - Math.pow(1 - a, 2.2);
+        D[i * 4] = a; D[i * 4 + 1] = sys.s0[i] + (sys.s1[i] - sys.s0[i]) * e; D[i * 4 + 2] = sys.seed[i]; D[i * 4 + 3] = sys.amp[i];
+      }
+      sys.aPos.needsUpdate = sys.aD.needsUpdate = sys.aC.needsUpdate = true;
+    }
+    fx.fire = (x, y, z, vx, vy, vz, s0, s1, life, col, drag, amp) => { if (fireSys) puff(fireSys, x, y, z, vx, vy, vz, s0, s1, life, col, drag, amp); };
+    fx.smoke = (x, y, z, vx, vy, vz, s0, s1, life, col, drag, amp) => { if (smokeSys) puff(smokeSys, x, y, z, vx, vy, vz, s0, s1, life, col || [0.3, 0.12, 0.05], drag, amp); };
+
     /* ── 延遲事件 ── */
     const queue = [];
     fx.later = function (delay, fn) { queue.push({ t: fx.time + delay, fn }); };
@@ -176,6 +257,7 @@
     fx.explode = function (x, y, z, k, enemy, U) {
       U = U || 1;   // 單位倍率：FPV 以公尺計，爆炸的尺寸與速度整體放大
       const kk = Math.max(0.3, k);
+      if (pro) return proExplode(x, y, z, kk, enemy, U);
       // 十字星芒與核心閃光
       fx.emit(x, y, z, 0, 0, 0, 1, 0.95, 0.8, (26 * kk + 8) * U, 0.26, 0, 1);
       fx.emit(x, y, z, 0, 0, 0, 1, 1, 1, (10 * kk + 4) * U, 0.18, 0, 0, 1.2);
@@ -201,12 +283,46 @@
       if (kk >= 0.9) fx.debris(x, y, z, Math.min(14, Math.floor(2 + 2.2 * kk)), (10 + 6 * Math.sqrt(kk)) * U, (0.6 + 0.35 * Math.sqrt(kk)) * U);
     };
 
+
+    /* 擬真爆炸：白熱閃光 → 翻騰的火球（噪聲著色器）→ 緩慢擴散的黑煙，另有迸射的火星、衝擊環與碎片 */
+    function proExplode(x, y, z, kk, enemy, U) {
+      const R = (4 + 4 * Math.sqrt(kk)) * U, flame = enemy ? [0.8, 0.28, 1.0] : [1.0, 0.5, 0.12];
+      fx.emit(x, y, z, 0, 0, 0, 1, 0.95, 0.85, R * 3.2, 0.2, 0, 0, 1.2);                     // 瞬間白閃（柔光）
+      fx.emit(x, y, z, 0, 0, 0, 1, 0.8, 0.5, R * 2.0, 0.11, 0, 1);                          // 極短的星芒，只留一點鏡頭感
+      const nf = Math.min(16, 3 + Math.floor(kk * 1.4));
+      for (let i = 0; i < nf; i++) {
+        const a = rnd(0, 6.28), u = rnd(-1, 1), c = Math.sqrt(1 - u * u), sp = R * rnd(0.3, 1.1), off = R * rnd(0, 0.5);
+        const life = rnd(0.7, 1.5) * (0.8 + 0.2 * Math.sqrt(kk));
+        fx.fire(x + Math.cos(a) * c * off, y + u * off, z + Math.sin(a) * c * off, Math.cos(a) * c * sp, u * sp * 0.8 + R * 0.2, Math.sin(a) * c * sp, R * rnd(0.35, 0.6), R * rnd(1.0, 1.6), life, flame, 1.1, 1);
+      }
+      fx.fire(x, y, z, 0, 0, 0, R * 0.5, R * 1.7, 0.45, [1, 0.8, 0.5], 0, 1.4);               // 中心的高亮核心
+      const ns = Math.min(12, 2 + Math.floor(kk));
+      for (let i = 0; i < ns; i++) {
+        const a = rnd(0, 6.28), u = rnd(-0.6, 1), c = Math.sqrt(1 - u * u), sp = R * rnd(0.12, 0.5), delay = rnd(0.05, 0.4);
+        fx.later(delay, () => fx.smoke(x + Math.cos(a) * c * R * 0.3, y + u * R * 0.3, z + Math.sin(a) * c * R * 0.3, Math.cos(a) * c * sp, u * sp + R * 0.08, Math.sin(a) * c * sp, R * rnd(0.5, 0.8), R * rnd(1.5, 2.6), rnd(2.8, 5.5), flame, 0.5, 1));
+      }
+      const nsp = Math.min(60, Math.floor(12 + 12 * kk));                                       // 火星
+      for (let i = 0; i < nsp; i++) {
+        const a = rnd(0, 6.28), u = rnd(-1, 1), c = Math.sqrt(1 - u * u), sp = rnd(8, 34) * Math.sqrt(kk + 0.4) * U;
+        const hot = Math.random() < 0.7;
+        fx.emit(x, y, z, Math.cos(a) * c * sp, u * sp, Math.sin(a) * c * sp, hot ? 1 : (enemy ? 0.78 : 0.6), hot ? rnd(0.55, 0.9) : (enemy ? 0.4 : 0.85), hot ? rnd(0.15, 0.4) : 1, rnd(1.2, 2.8) * Math.sqrt(U), rnd(0.6, 1.8), 1.3);
+      }
+      if (kk >= 1.8) fx.emit(x, y, z, 0, 0, 0, enemy ? 0.8 : 1, enemy ? 0.5 : 0.8, enemy ? 1 : 0.6, 18 * kk * U, 0.7, 0, 2, 5.5);
+      // 放射狀的火星拖曳線（光束系統的短曳光）：爆炸瞬間向四面迸射，帶出電影感
+      const nst = Math.min(26, Math.floor(6 + 3 * kk));
+      for (let i = 0; i < nst; i++) {
+        const a = rnd(0, 6.28), u = rnd(-1, 1), c = Math.sqrt(1 - u * u), L = R * rnd(2.5, 6.5);
+        fx.beam(x, y, z, x + Math.cos(a) * c * L, y + u * L, z + Math.sin(a) * c * L, { color: Math.random() < 0.5 ? [1, 0.75, 0.35] : (enemy ? [0.9, 0.5, 1] : [1, 0.55, 0.2]), width: Math.max(0.15, R * 0.025), dur: rnd(0.5, 1.2), len: L * rnd(0.25, 0.5) });
+      }
+      if (kk >= 0.9) fx.debris(x, y, z, Math.min(18, Math.floor(3 + 3 * kk)), (10 + 6 * Math.sqrt(kk)) * U, (0.6 + 0.35 * Math.sqrt(kk)) * U * 0.32);
+    }
+
     /* ── 每幀 ── */
     fx.update = function (dt) {
       fx.time += dt;
       beamMat.uniforms.uTime.value = fx.time;
       if (beamDirty) { aA.needsUpdate = aB.needsUpdate = aC.needsUpdate = aP.needsUpdate = true; beamDirty = false; }
-      updateParticles(dt); updateDebris(dt);
+      updateParticles(dt); updateDebris(dt); updatePuffs(fireSys, dt); updatePuffs(smokeSys, dt);
       for (let i = queue.length - 1; i >= 0; i--) if (queue[i].t <= fx.time) { const f = queue[i].fn; queue.splice(i, 1); f(); }
     };
     fx.setPixelScale = (v) => { partMat.uniforms.scale.value = v; };

@@ -20,39 +20,46 @@ function mkShip(kind, x, y, z, h, o) {
     scale: d.sc * (o && o.k ? o.k : 1), rad: d.rad * (o && o.k ? o.k : 1), vx: 0, vy: 0, vz: 0, cd: rnd(0, d.cd || 1), hx: x, hy: y, hz: z, tgt: null, mode: 0, mt: 0, id: ++nameN, cs: makeCallsign(kind), order: null, awTgt: null }, o || {});
   (d.side === 'a' ? allies : enemies).push(s); return s;
 }
+/* 聯軍以鐵墓為中心做 360° 立體環形包圍（沿用經典戰術版的陣型）；敵軍自鐵墓外圍湧出 */
+function ringPos(r, az, pitch) { return [TOMB_POS.x + r * Math.cos(pitch) * Math.sin(az), TOMB_POS.y + r * Math.sin(pitch), TOMB_POS.z + r * Math.cos(pitch) * Math.cos(az)]; }
+function faceTomb(s) { const dx = TOMB_POS.x - s.x, dy = TOMB_POS.y - s.y, dz = TOMB_POS.z - s.z; s.h = Math.atan2(dx, dz); s.p = Math.atan2(dy, Math.hypot(dx, dz)); }
 function mkFighter(kind, x, y, z, h) { const s = mkShip(kind, x, y, z, h); s.spd = DEF[kind].spd * rnd(0.85, 1.1); s.vx = Math.sin(h) * s.spd; s.vz = Math.cos(h) * s.spd; if (kind === 'fly') { s.hp = s.hpMax = s.d.hp * G.enemyHp; } return s; }
+function mkRing(kind, r, az, pitch, o) { const q = ringPos(r, az, pitch), s = kind === 'fgt' ? mkFighter(kind, q[0], q[1], q[2], 0) : mkShip(kind, q[0], q[1], q[2], 0, o); faceTomb(s); if (kind === 'fgt') { FWD(s, V); s.vx = V.x * s.spd; s.vy = V.y * s.spd; s.vz = V.z * s.spd; } s.hx = s.x; s.hy = s.y; s.hz = s.z; return s; }
 function spawnFleet() {
-  mkShip('hss', 0, 150, -1500, Math.PI, { cd: 1.5 });
-  [[-4300, 300, -3200], [4400, -250, -3900], [100, 2400, -4800]].forEach((p) => mkShip('moon', p[0], p[1], p[2], Math.PI));
-  for (let i = 0; i < 6; i++) { const a = (i / 6) * TAU + 0.4; mkShip('cap', Math.cos(a) * 2300, Math.sin(a * 1.7) * 650, -3600 + Math.sin(a) * 1700, Math.PI); }
-  for (let i = 0; i < 10; i++) mkShip('cruis', rnd(-1700, 1700), rnd(-500, 500), rnd(-5000, -2400), Math.PI + rnd(-0.1, 0.1));
-  for (let i = 0; i < 24; i++) mkShip('frig', rnd(-2600, 2600), rnd(-700, 700), rnd(-6000, -3000), Math.PI + rnd(-0.1, 0.1));
-  for (let i = 0; i < 30; i++) mkFighter('fgt', rnd(-900, 900), rnd(-300, 300), rnd(-4600, -2400), Math.PI);
-  mkShip('awacs', 300, 700, -600, Math.PI);
-  allies.forEach((s) => { if (s.d.hp > 1000) { s.hx = s.x; s.hy = s.y; s.hz = s.z - 1500; } });
-  // 玩家的初始戰機（指揮官模式下由 AI 駕駛）
-  const o = mkFighter('fgt', 2300, 380, 300, Math.PI); o.thr = 0.5; player.orig = player.ship = o; o.isOrig = true;
+  mkRing('hss', 8200, 0, 0, { cd: 1.5 });
+  [[2.1, 0.12], [4.2, -0.12], [3.14, 0.45]].forEach((m) => mkRing('moon', 9500, m[0], m[1]));
+  for (let i = 0; i < 6; i++) mkRing('cap', 7200, i * (TAU / 6) + 0.52, i % 2 ? -0.22 : 0.22);
+  for (let i = 0; i < 10; i++) mkRing('cruis', rnd(6000, 8000), i * (TAU / 10) + rnd(-0.2, 0.2), rnd(-0.6, 0.6));
+  for (let i = 0; i < 24; i++) mkRing('frig', rnd(5400, 8600), rnd(0, TAU), rnd(-0.7, 0.7));
+  const caps = allies.filter((s) => s.d.hp > 1000);
+  for (let i = 0; i < 30; i++) { const c = caps[i % caps.length], f = mkFighter('fgt', c.x + rnd(-700, 700), c.y + rnd(-500, 500), c.z + rnd(-700, 700), 0); faceTomb(f); FWD(f, V); f.vx = V.x * f.spd; f.vy = V.y * f.spd; f.vz = V.z * f.spd; f.hx = f.x; f.hy = f.y; f.hz = f.z; }
+  mkRing('awacs', 10800, 0, 0.15);
+  // 玩家的初始戰機（指揮官模式下由 AI 駕駛）：HSS 旁
+  const o = mkRing('fgt', 7400, 0.25, 0.05); o.thr = 0.5; player.orig = player.ship = o; o.isOrig = true;
 }
 function spawnWave() {
   G.wave++;
   const w = G.wave, nW = Math.min(2 + Math.floor(w / 2), 8), nF = Math.min(14 + w * 4, 70);
   const live = enemies.filter((e) => e.kind === 'whale').length, liveF = enemies.length - live;
-  const ox = rnd(-2500, 2500), oy = rnd(-600, 900), oz = w <= 2 ? -8300 : -10800;   // 開場兩波直接壓上來，之後從鐵墓方向湧出
-  for (let i = 0; i < nW && live + i < 16; i++) { const s = mkShip('whale', ox + rnd(-1800, 1800), oy + rnd(-500, 500), oz + rnd(-1200, 400), 0, { k: rnd(0.8, 1.5) }); s.hp = s.hpMax = s.d.hp * (s.scale / s.d.sc) * G.enemyHp; }
-  for (let i = 0; i < nF && liveF + i < 110; i++) { const s = mkFighter('fly', ox + rnd(-2200, 2200), oy + rnd(-700, 700), oz + rnd(-1500, 600), 0); s.mode = 0; }
+  const az = rnd(0, TAU);   // 同一波來自鐵墓的同一側
+  const spot = (r, spread) => { const a = az + rnd(-spread, spread), u = rnd(-0.6, 0.6), c = Math.sqrt(1 - u * u); return { x: TOMB_POS.x + Math.sin(a) * c * r, y: TOMB_POS.y + u * r, z: TOMB_POS.z + Math.cos(a) * c * r, h: a }; };
+  for (let i = 0; i < nW && live + i < 16; i++) { const q = spot(rnd(3300, 4000), 0.9), s = mkShip('whale', q.x, q.y, q.z, q.h, { k: rnd(0.8, 1.5) }); s.hp = s.hpMax = s.d.hp * (s.scale / s.d.sc) * G.enemyHp; }
+  for (let i = 0; i < nF && liveF + i < 110; i++) { const q = spot(rnd(3000, 4200), 1.1), s = mkFighter('fly', q.x, q.y, q.z, q.h); s.mode = 0; }
   say('Antimatter Legion wave ' + w + ' emerging from the Irontomb', '反物質軍團第 ' + w + ' 波自鐵墓外圍湧出', true);
 }
 function cnt(k) { let n = 0; for (let i = 0; i < allies.length; i++) if (allies[i].kind === k && !allies[i].dead) n++; return n; }
 function reinforce() {
   reinfN++;
-  if (reinfN % 2 === 0 && cnt('cruis') < 10) { const s = mkShip('cruis', rnd(-2000, 2000), rnd(-500, 500), 2600, Math.PI); s.hx = rnd(-1800, 1800); s.hy = rnd(-500, 500); s.hz = rnd(-5500, -3000); s.vz = -8; say('Cruiser squadron joining the line', '巡洋艦中隊加入戰線', false); }
-  if (reinfN % 5 === 0 && cnt('cap') < 6) { const s = mkShip('cap', rnd(-2000, 2000), rnd(-400, 400), 3200, Math.PI); s.hx = rnd(-2400, 2400); s.hy = rnd(-500, 500); s.hz = rnd(-5000, -3500); s.vz = -5; say('Dreadnought reinforcing the front', '無畏艦馳援前線', false); }
-  if (cnt('frig') < 26) { const s = mkShip('frig', rnd(-2200, 2200), rnd(-500, 500), 2400, Math.PI); s.hx = rnd(-2600, 2600); s.hy = rnd(-600, 600); s.hz = rnd(-6500, -3500); s.vz = -12; say('Alliance reinforcements arriving', '聯軍增援抵達', false); }
+  const edge = (kind, home) => { const a = rnd(0, TAU), q = ringPos(rnd(11500, 13000), a, rnd(-0.4, 0.4)), s = mkShip(kind, q[0], q[1], q[2], 0); faceTomb(s); const h = ringPos(home, a + rnd(-0.3, 0.3), rnd(-0.5, 0.5)); s.hx = h[0]; s.hy = h[1]; s.hz = h[2]; return s; };
+  if (reinfN % 2 === 0 && cnt('cruis') < 10) { edge('cruis', rnd(6000, 8000)); say('Cruiser squadron joining the line', '巡洋艦中隊加入戰線', false); }
+  if (reinfN % 5 === 0 && cnt('cap') < 6) { edge('cap', 7200); say('Dreadnought reinforcing the front', '無畏艦馳援前線', false); }
+  if (cnt('frig') < 26) { edge('frig', rnd(5400, 8600)); say('Alliance reinforcements arriving', '聯軍增援抵達', false); }
 }
 function launchFighters() {   // 從 HSS 機庫起飛的戰機：聯軍的空中戰力持續補充
   const live = allies.filter((s) => s.kind === 'fgt' && !s.dead && !s.isPlayer).length, hss = allies.find((s) => s.kind === 'hss' && !s.dead);
   if (!hss || live >= 36) return;
-  for (let i = 0; i < 3; i++) { const f = mkFighter('fgt', hss.x + rnd(-120, 120), hss.y + rnd(-60, 60), hss.z + 700, Math.PI); f.thr = 0.8; }
+  V.set(hss.x - TOMB_POS.x, hss.y - TOMB_POS.y, hss.z - TOMB_POS.z).normalize();   // 機庫在 HSS 背向鐵墓的一側
+  for (let k = 0; k < 3; k++) { const f = mkFighter('fgt', hss.x + V.x * 700 + rnd(-120, 120), hss.y + V.y * 700 + rnd(-60, 60), hss.z + V.z * 700 + rnd(-120, 120), 0); faceTomb(f); f.thr = 0.8; }
 }
 
 /* ═════════ 彈道、傷害、爆炸 ═════════ */
@@ -166,9 +173,9 @@ function nearest(s, list, maxD, filter) {
   for (let i = 0; i < list.length; i++) { const e = list[i]; if (e.dead || (filter && !filter(e))) continue; const dx = e.x - s.x, dy = e.y - s.y, dz = e.z - s.z, d = dx * dx + dy * dy + dz * dz; if (d < bd) { bd = d; best = e; } }
   return best;
 }
-function randomTarget(s, foes, range) {   // 射程內的敵艦隨機挑一個：火力分散到整個戰線
+function randomTarget(s, foes, range, filter) {   // 射程內的敵艦隨機挑一個：火力分散到整個戰線
   let pick_ = null, n = 0;
-  for (let i = 0; i < foes.length; i++) { const e = foes[i]; if (e.dead || e.isPlayer) continue; const dx = e.x - s.x, dy = e.y - s.y, dz = e.z - s.z; if (dx * dx + dy * dy + dz * dz < range * range && Math.random() * ++n < 1) pick_ = e; }
+  for (let i = 0; i < foes.length; i++) { const e = foes[i]; if (e.dead || e.isPlayer || (filter && !filter(e))) continue; const dx = e.x - s.x, dy = e.y - s.y, dz = e.z - s.z; if (dx * dx + dy * dy + dz * dz < range * range && Math.random() * ++n < 1) pick_ = e; }
   return pick_;
 }
 function leadPoint(src, tgt, spd, out) {
@@ -272,7 +279,7 @@ function aiCapital(s, dt) {
       face = auto;
     } else {
       wx = s.hx - s.x; wy = s.hy - s.y; wz = s.hz - s.z; const l = Math.hypot(wx, wy, wz) || 1; wx /= l; wy /= l; wz /= l; sp = Math.min(sp, l * 0.3);
-      { const tt = nearest(s, enemies, 1e9); face = tt || { x: s.x, y: s.y, z: s.z - 1000 }; }
+      { const tt = nearest(s, enemies, 1e9); face = tt || TOMB_POS; }
     }
     if (face) turnToward(s, face.x, face.y, face.z, dt, d.turn || 0.06);
     const k = 1 - Math.exp(-dt * 0.5);
@@ -285,37 +292,96 @@ function aiCapital(s, dt) {
     if (tg) { const dist = Math.hypot(tg.x - s.x, tg.y - s.y, tg.z - s.z); turnToward(s, tg.x, tg.y, tg.z, dt, d.turn || 0.06); moveFwd(s, dist > 1500 ? d.spd : d.spd * 0.3, dt); } else moveFwd(s, d.spd * 0.5, dt);
   }
   if (d.noGun) return;
-  s.cd -= dt;
-  if (s.cd <= 0) {
-    s.cd = d.cd * rnd(0.7, 1.3);
-    const volley = d.bubble ? 1 : s.side === 'a' ? (s.kind === 'hss' ? 5 : s.kind === 'cap' ? 3 : s.kind === 'cruis' ? 2 : 1) : (s.kind === 'whale' ? 2 : 1);
-    for (let v = 0; v < volley; v++) {
-      let tg = fireTarget && Math.hypot(fireTarget.x - s.x, fireTarget.y - s.y, fireTarget.z - s.z) < d.range ? fireTarget : null;
+  const isFgt = (e) => e.d.cls === 'fgt', isBig = (e) => e.d.cls !== 'fgt';
+  // 主力光束砲（藍：聯軍／紅：反物質軍團）：瞬發的粗光束，優先打大型目標；月球艦改發範圍轟炸的光束泡
+  s.bcd = (s.bcd == null ? rnd(0, 2) : s.bcd) - dt;
+  if (d.bubble) {
+    if (s.bcd <= 0) { s.bcd = d.cd * rnd(0.8, 1.2); const tg = fireTarget && fireTarget.isTomb ? fireTarget : bubbleTarget(s, d.range * 1.15); if (tg) launchBubble(s, tg); }
+  } else if (d.beam && s.bcd <= 0) {
+    s.bcd = d.beam.cd * rnd(0.8, 1.25);
+    const range = d.range * 1.25;
+    for (let v = 0; v < d.beam.n; v++) {
+      let tg = fireTarget && isBig(fireTarget) && Math.hypot(fireTarget.x - s.x, fireTarget.y - s.y, fireTarget.z - s.z) < range ? fireTarget : null;
       if (!tg && !(o && (o.type === 'focus' || o.type === 'tomb'))) {
-        tg = (s.awTgt && !s.awTgt.dead && Math.random() < 0.5 && Math.hypot(s.awTgt.x - s.x, s.awTgt.y - s.y, s.awTgt.z - s.z) < d.range) ? s.awTgt : randomTarget(s, foes, d.range);
-        if (!tg && s.side === 'a' && G.mode === 'script') { const tt = tombTarget(s); if (Math.hypot(tt.x - s.x, tt.y - s.y, tt.z - s.z) < d.range) tg = tt; }   // 射程內只剩鐵墓時，自主開火
+        tg = (s.awTgt && !s.awTgt.dead && isBig(s.awTgt) && Math.random() < 0.6 && Math.hypot(s.awTgt.x - s.x, s.awTgt.y - s.y, s.awTgt.z - s.z) < range) ? s.awTgt : randomTarget(s, foes, range, isBig);
+        if (!tg && s.side === 'a') { const tt = tombTarget(s); if (Math.hypot(tt.x - s.x, tt.y - s.y, tt.z - s.z) < range) tg = tt; }   // 射程內只剩鐵墓時，自主開火
       }
-      if (!tg && s.side === 'e' && player.ship && player.ship.isPlayer && !player.dead && Math.hypot(player.ship.x - s.x, player.ship.y - s.y, player.ship.z - s.z) < d.range) tg = player.ship;
-      if (!tg) return;
-      if (d.bubble) { launchBubble(s, tg); return; }
+      if (tg) fireBeamCannon(s, tg, d.beam);
+    }
+  }
+  // 速射砲（艦上的防空火網）：高射速的小口徑曳光彈，只打戰機與來襲飛彈
+  s.cd -= dt;
+  if (s.cd <= 0 && d.flak) {
+    const fl = d.flak; s.cd = fl.cd * rnd(0.7, 1.3);
+    let tg = randomTarget(s, foes, 1700, isFgt);
+    if (!tg && s.side === 'e' && player.ship && player.ship.isPlayer && !player.dead && Math.hypot(player.ship.x - s.x, player.ship.y - s.y, player.ship.z - s.z) < 1700) tg = player.ship;
+    if (tg) {
       if (!tg.vx && tg.vx !== 0) tg.vx = tg.vy = tg.vz = 0;
-      const gun = fleet.gunWorld(s, V); const aim = leadPoint(gun2(gun), tg, d.bs, V3);
-      aim.x += rnd(-1, 1) * tg.rad * 0.5; aim.y += rnd(-1, 1) * tg.rad * 0.4; aim.z += rnd(-1, 1) * tg.rad * 0.5;
+      const gun = fleet.gunWorld(s, V); const aim = leadPoint(gun2(gun), tg, fl.bs, V3);
+      aim.x += rnd(-1, 1) * 30; aim.y += rnd(-1, 1) * 30; aim.z += rnd(-1, 1) * 30;
       V2.set(aim.x - gun.x, aim.y - gun.y, aim.z - gun.z).normalize();
-      fire(s, gun.x, gun.y, gun.z, V2.x, V2.y, V2.z, d.bs, d.dmg, d.w, d.len, d.col, d.range / d.bs + 0.5);
-      FPVAudio.cannon(gun);
+      fire(s, gun.x, gun.y, gun.z, V2.x, V2.y, V2.z, fl.bs, fl.dmg, fl.w, fl.len, fl.col, 2.2);
+      FPVAudio.fire(s.side === 'a' ? 'ally' : 'enemy', gun);
     }
   }
 }
-function aiAwacs(s, dt) {   // 預警機：待在戰線後方盤旋，敵人逼近就後撤
-  let cx = 0, cz = 0, n = 0;
-  for (const a of allies) if (!a.dead && (a.kind === 'cap' || a.kind === 'hss' || a.kind === 'cruis')) { cx += a.x; cz += a.z; n++; }
-  if (n) { cx /= n; cz /= n; } else { cx = 0; cz = -2000; }
+/** 光束砲：光束先從砲口延伸到目標、短暫持續再收回；命中時才造成傷害 */
+function fireBeamCannon(s, tg, spec) {
+  const gun = fleet.gunWorld(s, V), gx = gun.x, gy = gun.y, gz = gun.z;
+  V2.set(s.x - tg.x, s.y - tg.y, s.z - tg.z).normalize();
+  const rr = (tg.rad || 10) * 0.75, ex = tg.x + V2.x * rr + rnd(-1, 1) * rr * 0.45, ey = tg.y + V2.y * rr + rnd(-1, 1) * rr * 0.4, ez = tg.z + V2.z * rr + rnd(-1, 1) * rr * 0.45;
+  const L = Math.hypot(ex - gx, ey - gy, ez - gz), col = spec.col, w = spec.w;
+  fx.beam(gx, gy, gz, ex, ey, ez, { color: col, width: w, dur: 1.1, len: L * 2.5 });
+  fx.beam(gx, gy, gz, ex, ey, ez, { color: [1, 1, 1], width: w * 0.32, dur: 1.1, len: L * 2.5 });
+  fx.emit(gx, gy, gz, 0, 0, 0, col[0], col[1], col[2], w * 7, 0.4, 0, 1);
+  fx.later(0.28, () => {
+    if (tg.dead) return; impact(ex, ey, ez, Math.max(3, w * 0.6), col); fx.emit(ex, ey, ez, 0, 0, 0, 1, 0.9, 0.8, w * 8, 0.3, 0, 0, 1);
+    if (tg.isTomb) { ironDmg += spec.dmg; return; }
+    damage(tg, spec.dmg, ex, ey, ez, s);
+  });
+  FPVAudio.cannon({ x: gx, y: gy, z: gz });
+}
+/* 螺絲咕姆的範圍轟炸：緩慢飛行的巨型光束泡，抵達後引爆成大範圍衝擊球（經典版的招牌武器） */
+const bubbles = [], blasts = [];
+function bubbleTarget(s, range) {   // 挑「周圍敵艦最密集」的大型敵艦，轟炸才划算
+  let best = null, bs = -1;
+  for (let k = 0; k < 14; k++) {
+    const e = enemies[(Math.random() * enemies.length) | 0]; if (!e || e.dead) continue;
+    const dd = Math.hypot(e.x - s.x, e.y - s.y, e.z - s.z); if (dd > range) continue;
+    let n = 0; for (let i = 0; i < enemies.length; i++) { const q = enemies[i]; if (!q.dead && Math.hypot(q.x - e.x, q.y - e.y, q.z - e.z) < 900) n += q.d.cls === 'fgt' ? 1 : 4; }
+    if (n > bs) { bs = n; best = e; }
+  }
+  return best;
+}
+function launchBubble(s, tg) {
+  const lp = leadPoint(s, tg, 300, V3), b = { x: s.x, y: s.y, z: s.z, tx: lp.x, ty: lp.y, tz: lp.z, tomb: !!tg.isTomb, spd: 300, age: 0, src: s, r: 950, dmg: 15000 };
+  bubbles.push(b); fx.emit(s.x, s.y, s.z, 0, 0, 0, 1, 0.85, 0.35, 600, 0.5, 0, 0, 1); FPVAudio.cannon({ x: s.x, y: s.y, z: s.z });
+}
+function detonateBubble(b) {
+  const x = b.x, y = b.y, z = b.z;
+  fx.explode(x, y, z, 7, true, 16); boomLight(x, y, z, 8, [1, 0.8, 0.4]); FPVAudio.explode(11, { x, y, z }); blasts.push({ x, y, z, age: 0, r: b.r });
+  for (let i = 0; i < 60; i++) { const a = rnd(0, TAU), sp = rnd(120, 420), u = rnd(-0.7, 0.7); fx.emit(x, y, z, Math.cos(a) * sp, u * sp, Math.sin(a) * sp, 1, rnd(0.8, 1), rnd(0.3, 0.7), rnd(10, 22), rnd(0.6, 1.4), 1.6); }
+  if (b.tomb) { ironDmg += 9000; return; }
+  for (let i = 0; i < enemies.length; i++) { const e = enemies[i]; if (e.dead) continue; const dd = Math.hypot(e.x - x, e.y - y, e.z - z); if (dd < b.r + e.rad) damage(e, b.dmg * (1 - dd / (b.r + e.rad)) + 900, e.x, e.y, e.z, b.src); }
+}
+function stepBubbles(dt) {
+  for (let i = bubbles.length - 1; i >= 0; i--) {
+    const b = bubbles[i]; b.age += dt;
+    const dx = b.tx - b.x, dy = b.ty - b.y, dz = b.tz - b.z, d = Math.hypot(dx, dy, dz) || 1;
+    if (d <= b.spd * dt + 20) { detonateBubble(b); bubbles.splice(i, 1); continue; }
+    b.x += dx / d * b.spd * dt; b.y += dy / d * b.spd * dt; b.z += dz / d * b.spd * dt;
+    fx.emit(b.x, b.y, b.z, rnd(-30, 30), rnd(-30, 30), rnd(-30, 30), 1, rnd(0.75, 0.95), 0.3, rnd(70, 130), 0.5, 2);
+    if (b.age > 40) bubbles.splice(i, 1);
+  }
+  for (let i = blasts.length - 1; i >= 0; i--) { blasts[i].age += dt; if (blasts[i].age > 1.6) blasts.splice(i, 1); }
+}
+function aiAwacs(s, dt) {   // 預警機：待在環形陣的外側盤旋，敵人逼近就往外後撤
+  const hss = allies.find((a) => a.kind === 'hss' && !a.dead), base = hss || { x: TOMB_POS.x, y: TOMB_POS.y, z: TOMB_POS.z + 8200 };
+  V3.set(base.x - TOMB_POS.x, base.y - TOMB_POS.y, base.z - TOMB_POS.z).normalize();
+  let tx = base.x + V3.x * 2600 + Math.sin(G.t * 0.03 + s.id) * 900, ty = base.y + V3.y * 2600 + 300, tz = base.z + V3.z * 2600 + Math.cos(G.t * 0.03 + s.id) * 900;
   const near = nearest(s, enemies, 3000);
-  let tx = cx + Math.sin(G.t * 0.03 + s.id) * 900, ty = 600 + Math.sin(G.t * 0.05) * 200, tz = cz + 2700;
-  if (near) { V.set(s.x - near.x, 0, s.z - near.z).normalize(); tx = s.x + V.x * 2000; tz = s.z + V.z * 2000; }
-  turnToward(s, tx, ty, tz, dt, s.d.turn); moveFwd(s, s.d.spd * (near ? 1.4 : 0.7), dt);
-  if (s.z > TOMB_POS.z + 20000) s.z = TOMB_POS.z + 20000;
+  if (near) { V.set(s.x - near.x, s.y - near.y, s.z - near.z).normalize(); tx = s.x + V.x * 2000; ty = s.y + V.y * 2000; tz = s.z + V.z * 2000; }
+  turnToward(s, tx, ty, tz, dt, s.d.turn); moveFwd(s, s.d.spd * (near ? 1.2 : 0.6), dt);
 }
 function separateCaps() {   // 大艦互相排斥，避免前壓時疊在一起
   const L = [];
@@ -326,17 +392,6 @@ function separateCaps() {   // 大艦互相排斥，避免前壓時疊在一起
     if (d2 < min * min && d2 > 1) { const dd = Math.sqrt(d2), push = (min - dd) * 0.12 / dd; a.x -= dx * push; a.y -= dy * push; a.z -= dz * push; b.x += dx * push; b.y += dy * push; b.z += dz * push; }
   }
 }
-function launchBubble(s, tg) {   // 螺絲咕姆月球艦：巨型光束泡，抵達後範圍爆炸
-  const gx = s.x + rnd(-1, 1) * 200, gy = s.y + rnd(-1, 1) * 200, gz = s.z + rnd(-1, 1) * 200, aim = leadPoint({ x: gx, y: gy, z: gz }, tg, s.d.bs, V3), ax = aim.x, ay = aim.y, az = aim.z;
-  const dist = Math.hypot(ax - gx, ay - gy, az - gz), Tm = dist / s.d.bs;
-  fx.beam(gx, gy, gz, ax, ay, az, { color: [1, 0.85, 0.35], width: 90, dur: Tm, len: 260 }); FPVAudio.cannon({ x: gx, y: gy, z: gz });
-  fx.later(Tm, () => {
-    fx.explode(ax, ay, az, 5, true, 14); boomLight(ax, ay, az, 6, [1, 0.8, 0.4]); FPVAudio.explode(10, { x: ax, y: ay, z: az });
-    if (tg.isTomb) { ironDmg += 6000; return; }
-    for (let i = 0; i < enemies.length; i++) { const e = enemies[i]; if (e.dead) continue; const dd = Math.hypot(e.x - ax, e.y - ay, e.z - az); if (dd < 520 + e.rad) damage(e, 9000 * (1 - dd / (700 + e.rad)) + 800, e.x, e.y, e.z, s); }
-  });
-}
-
 /* ═════════ 預警機資料鏈：目標分配、感測分享、飛行員建議目標 ═════════ */
 function allocateTargets() {
   const A = awacsUnit(); allocN++;
@@ -372,12 +427,14 @@ function awacsLifecycle() {
 }
 
 /* ═════════ 玩家：飛行、武器、支援呼叫、重生 ═════════ */
-function spawnPlayer(where) {   // 'front' | 'hss'
+function spawnPlayer(where) {   // 'front'：環形陣上的 HSS 旁｜'hss'：從 HSS 機庫起飛
   const P = player, hss = allies.find((s) => s.kind === 'hss' && !s.dead);
-  if (where === 'hss' && hss) P.pos.set(hss.x + rnd(-200, 200), hss.y + rnd(-100, 100), hss.z + 760); else P.pos.set(2300 + rnd(-100, 100), 380, 300);
-  P.vel.set(0, 0, -60); P.w.set(0, 0, 0); P.q.setFromAxisAngle(AXY, Math.PI); P.thr = 0.45; P.shield = P.shieldMax; P.hull = P.hullMax; P.energy = 100; P.heat = 100; P.missiles = 8; P.dead = false; P.target = null;
+  if (where === 'hss' && hss) { V.set(hss.x - TOMB_POS.x, hss.y - TOMB_POS.y, hss.z - TOMB_POS.z).normalize(); P.pos.set(hss.x + V.x * 760 + rnd(-200, 200), hss.y + V.y * 760 + rnd(-100, 100), hss.z + V.z * 760 + rnd(-200, 200)); }
+  else { const q = ringPos(7400, 0.25, 0.05); P.pos.set(q[0], q[1], q[2]); }
+  V.set(TOMB_POS.x - P.pos.x, TOMB_POS.y - P.pos.y, TOMB_POS.z - P.pos.z).normalize(); P.q.setFromUnitVectors(AXZ, V); P.vel.copy(V).multiplyScalar(60); P.w.set(0, 0, 0);
+  P.thr = 0.45; P.shield = P.shieldMax; P.hull = P.hullMax; P.energy = 100; P.heat = 100; P.missiles = 8; P.dead = false; P.target = null;
   if (G.deaths > 0 || where === 'hss') FPVAudio.respawn();
-  const s = mkShip('fgt', P.pos.x, P.pos.y, P.pos.z, Math.PI); s.isPlayer = true; s.q = P.q; s.hidden = cam.mode === 'cockpit'; P.ship = s; if (!P.orig || P.orig.dead) { P.orig = s; s.isOrig = true; }
+  const s = mkShip('fgt', P.pos.x, P.pos.y, P.pos.z, 0); s.isPlayer = true; s.q = P.q; s.hidden = cam.mode === 'cockpit'; P.ship = s; if (!P.orig || P.orig.dead) { P.orig = s; s.isOrig = true; }
 }
 function hurtPlayer(dmg) {
   if (player.dead) return; player.lastHit = G.t; cam.shake = Math.min(1.6, cam.shake + dmg * 0.02 + 0.2);
@@ -411,8 +468,8 @@ function stepPlayer(dt) {
   else { V.set(sx * 0.6, sy * 0.6, (P.thr * 90 * (P.boost ? 2.4 : 1))).applyQuaternion(P.q); P.vel.addScaledVector(V, dt); if (P.vel.length() > 420) P.vel.setLength(420); }
   if (DBG.aim && P.target && !P.target.dead) { V.set(P.target.x - P.pos.x, P.target.y - P.pos.y, P.target.z - P.pos.z).normalize(); QT.setFromUnitVectors(AXZ, V); P.q.copy(QT); }
   P.pos.addScaledVector(P.vel, dt);
-  const dc = P.pos.length(); let msg = '';
-  if (dc > ARENA_R) { P.vel.addScaledVector(V.copy(P.pos).normalize(), -140 * dt); msg = 'leave'; }
+  const dc = P.pos.distanceTo(TOMB_POS); let msg = '';
+  if (dc > ARENA_R) { P.vel.addScaledVector(V.copy(P.pos).sub(TOMB_POS).normalize(), -140 * dt); msg = 'leave'; }
   const dt_ = V.copy(P.pos).sub(TOMB_POS).length();
   if (dt_ < TOMB_AURA) { P.vel.addScaledVector(V.copy(P.pos).sub(TOMB_POS).normalize(), 220 * dt); msg = 'zone'; }
   setCenter(msg, !!msg);
@@ -533,7 +590,7 @@ function stepWorld(dt) {
   awacsLifecycle();
   for (let i = 0; i < allies.length; i++) { const s = allies[i]; if (s.dead || s.isPlayer) continue; if (s.kind === 'fgt') aiFighter(s, dt); else if (s.kind === 'awacs') aiAwacs(s, dt); else aiCapital(s, dt); }
   for (let i = 0; i < enemies.length; i++) { const s = enemies[i]; if (s.dead) continue; if (s.kind === 'fly') aiFighter(s, dt); else aiCapital(s, dt); }
-  separateCaps(); stepPlayer(dt); stepShots(dt); flybys();
+  separateCaps(); stepPlayer(dt); stepShots(dt); stepBubbles(dt); flybys();
   for (let i = allies.length - 1; i >= 0; i--) if (allies[i].dead) allies.splice(i, 1);
   for (let i = enemies.length - 1; i >= 0; i--) if (enemies[i].dead) enemies.splice(i, 1);
   if (player.target && player.target.dead) player.target = null;

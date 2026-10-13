@@ -53,7 +53,7 @@ $('#b-go').addEventListener('click', () => {
 requestAnimationFrame(frame);
 
 window.battleDebug = { G, player, allies, enemies, shots, input, DBG, cc, ccT, selected,
-  get ready() { return assetsReady; }, get fleet() { return fleet; }, get fx() { return fx; }, get ironFrac() { return ironFrac(); }, get ironDmg() { return ironDmg; },
+  get ready() { return assetsReady; }, get fleet() { return fleet; }, get fx() { return fx; }, get ironFrac() { return ironFrac(); }, get ironDmg() { return ironDmg; }, bubbles, blasts, THREE,
   start(mode, role) { selMode = mode || 'script'; selRole = role || 'pilot'; $('#b-go').click(); },
   warp(sec, aim) { const n = Math.round(sec / 0.05); for (let i = 0; i < n; i++) { if (aim) { if (!player.target || player.target.dead) player.target = enemies.filter((e) => e.kind === 'fly').sort((a, b) => Math.hypot(a.x - player.pos.x, a.z - player.pos.z) - Math.hypot(b.x - player.pos.x, b.z - player.pos.z))[0] || null; } stepWorld(0.05); fx.update(0.05); } },
   killShip, setRole, selectGroup, orderMove, orderCharge, orderHold, orderFocus, orderTomb, callSupport, cycleTarget, issueOrder, awacsUnit, allocateTargets, setCam(m) { cam.mode = m; if (player.ship) player.ship.hidden = m === 'cockpit'; } };

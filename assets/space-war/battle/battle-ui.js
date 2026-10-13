@@ -236,7 +236,7 @@ function drawCommanderHud(dt) {
   // 框選
   if (drag.on && !drag.rot && drag.moved) { hx.strokeStyle = 'rgba(143,230,255,.9)'; hx.fillStyle = 'rgba(143,230,255,.08)'; const x = Math.min(drag.x0, drag.x1), y = Math.min(drag.y0, drag.y1), w = Math.abs(drag.x1 - drag.x0), h = Math.abs(drag.y1 - drag.y0); hx.fillRect(x, y, w, h); hx.strokeRect(x, y, w, h); }
   // 小地圖（右下）：俯視整個戰區，點擊可移動相機
-  const mw = Math.min(190, W * 0.3), mh = mw * 1.1, mx0 = W - mw - 14, my0 = H - mh - 14, X0 = -9000, X1 = 9000, Z0 = -17500, Z1 = 5500;
+  const mw = Math.min(190, W * 0.3), mh = mw, mx0 = W - mw - 14, my0 = H - mh - 14, X0 = -13000, X1 = 13000, Z0 = TOMB_POS.z - 13000, Z1 = TOMB_POS.z + 13000;
   hx.fillStyle = 'rgba(6,14,28,.7)'; hx.fillRect(mx0, my0, mw, mh); hx.strokeStyle = 'rgba(143,230,255,.35)'; hx.strokeRect(mx0, my0, mw, mh);
   const mp = (x, z) => [mx0 + (x - X0) / (X1 - X0) * mw, my0 + (z - Z0) / (Z1 - Z0) * mh];
   const tpp = mp(TOMB_POS.x, TOMB_POS.z); hx.strokeStyle = 'rgba(255,60,90,.6)'; hx.beginPath(); hx.arc(tpp[0], tpp[1], TOMB_AURA / (X1 - X0) * mw, 0, TAU); hx.stroke();
