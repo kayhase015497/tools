@@ -21,7 +21,7 @@ const FOV = 70;
 const TOMB_POS = new THREE.Vector3(0, 1500, -15500), TOMB_SCALE = 34, TOMB_AURA = 4200;
 const ARENA_R = 11000;
 // 命中球（鐵墓模型座標，單位同模型 248 高；乘以 TOMB_SCALE 後為世界尺寸）：[x, y, z, 半徑]
-const TOMB_PARTS = [[0, 88, 0, 28], [0, 30, 0, 42], [-78, 72, 0, 22], [78, 72, 0, 22], [-118, 70, 0, 14], [118, 70, 0, 14], [0, -5, 0, 40], [0, -70, 0, 30]];
+const TOMB_PARTS = [[0, 86, 0, 22], [0, 40, 0, 22], [-34, 86, 0, 14], [34, 86, 0, 14], [-46, 86, 0, 12], [46, 86, 0, 12], [-105, 86, 0, 14], [105, 86, 0, 14], [-47, 10, 0, 10], [47, 10, 0, 10], [0, 14, 0, 30], [0, -45, 0, 24], [0, -100, 0, 12]];
 
 // side: 'a' 聯軍 / 'e' 反物質軍團。sc = 模型縮放（模型已正規化為其 MANIFEST 長度）。
 const DEF = {
@@ -63,8 +63,8 @@ function glowSprite(color, size, op) { const s = new THREE.Sprite(new THREE.Spri
 const sun = glowSprite(0xfff1d6, 5200, 0.95); sun.position.set(26000 * 0.55, 26000 * 0.7, 26000 * 0.4).normalize().multiplyScalar(26000); scene.add(sun);
 const sunCore = glowSprite(0xffffff, 1500, 1); sunCore.position.copy(sun.position); scene.add(sunCore);
 lights.key.position.copy(sun.position).normalize().multiplyScalar(500);
-const tombGlow = glowSprite(0xff2a4a, 15000, 0.55); tombGlow.position.copy(TOMB_POS).add(new THREE.Vector3(0, 300, -400)); scene.add(tombGlow);
-const tombLight = new THREE.PointLight(0xff3050, 2.2, 22000, 1.2); tombLight.position.copy(TOMB_POS).add(new THREE.Vector3(0, 0, 3000)); scene.add(tombLight);
+const tombGlow = glowSprite(0xb02850, 14000, 0.32); tombGlow.position.copy(TOMB_POS).add(new THREE.Vector3(0, 300, -400)); scene.add(tombGlow);
+const tombLight = new THREE.PointLight(0xc8aaff, 1.5, 22000, 1.2); tombLight.position.copy(TOMB_POS).add(new THREE.Vector3(0, 0, 3000)); scene.add(tombLight);
 
 // 太空塵：以視差表現速度感（著色器內以相機位置取模，永遠包圍玩家）
 const DUST = 900;
