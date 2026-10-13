@@ -37,3 +37,11 @@ Tab 隨時切換：指揮官 → 飛行員時可選「回原機」或「從 HSS 
 - 更多單位種類（魚雷艇、補給艦）與預警機的專屬對話。
 - 指揮官模式的編隊與路徑點。
 - 真機效能驗證（高畫質 bloom 與數百單位）。
+
+## v2 combat/visual update
+
+- **Formation**: allies spawn in a 360° 3D ring around the Irontomb (`ringPos`/`mkRing` in battle-sim.js); the arena is centred on `TOMB_POS`. Enemy waves emerge from a sphere around the tomb.
+- **Speeds**: capital ships ≈ 20% of fighter speed (see `DEF` in battle-core.js).
+- **Weapons**: main firepower is blue (allied) / red (Legion) beam cannons (`d.beam`, `fireBeamCannon`); rapid-fire guns remain as anti-fighter flak (`d.flak`). Screwllum moons launch area-bombardment bubbles (`launchBubble` / `detonateBubble` / `stepBubbles`).
+- **FX**: `SWFx.create({pro:true})` enables noise-shader billboard fire/smoke, spark streaks and small debris (`proExplode` in sw-fx.js). Classic pages keep the old behaviour.
+- **Lighting**: stronger key/rim contrast; tomb albedo darkened with a Fresnel red rim (`darkenTomb`) and a red point light at its centre.

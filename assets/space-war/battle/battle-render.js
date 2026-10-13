@@ -11,7 +11,7 @@ const scene = new THREE.Scene(); scene.background = new THREE.Color(0x03050c);
 const camera = new THREE.PerspectiveCamera(FOV, 1, 1, 60000);
 const sky = SWEnv.makeSky(30000, { linear: true }); scene.add(sky);
 SWEnv.makeEnvironment(renderer, scene);
-const lights = SWEnv.addLights(scene, { hemi: 0.85, key: 3.4, rim: 1.1 });
+const lights = SWEnv.addLights(scene, { hemi: 0.34, key: 5.2, rim: 0.8 });   // 低環境光＋強主光：明暗反差大
 let W = 1, H = 1, post = null, hurtK = 0, fovCur = FOV, speedFx = 0;
 
 // 駕駛艙疊加層：獨立的場景＋相機（近平面極近），畫在主場景之後
@@ -34,8 +34,10 @@ const sun = glowSprite(0xfff1d6, 5200, 0.95, 2.6); sun.position.set(26000 * 0.55
 const sunCore = glowSprite(0xffffff, 1500, 1, 9); sunCore.position.copy(sun.position); scene.add(sunCore);
 lights.key.position.copy(sun.position).normalize().multiplyScalar(500);
 const SUN_DIR = sun.position.clone().normalize();
-const tombGlow = glowSprite(0xff2a4a, 16000, 0.6, 1.1); tombGlow.position.copy(TOMB_POS).add(new THREE.Vector3(0, 300, -400)); scene.add(tombGlow);
-const tombLight = new THREE.PointLight(0xff3050, 2.2, 22000, 1.2); tombLight.position.copy(TOMB_POS).add(new THREE.Vector3(0, 0, 3000)); scene.add(tombLight);
+const tombGlow = glowSprite(0xff2040, 9500, 0.62, 1.5); tombGlow.position.copy(TOMB_POS).add(new THREE.Vector3(0, 300, 0)); scene.add(tombGlow);
+const tombGlow2 = glowSprite(0xff5a30, 4200, 0.5, 2.0); tombGlow2.position.copy(TOMB_POS); scene.add(tombGlow2);
+// 紅光從鐵墓體內向外照：艦隊被染成血紅，而鐵墓自己的表面背向光源，反而是陰暗的剪影
+const tombLight = new THREE.PointLight(0xff2a45, 6.0, 26000, 1.05); tombLight.position.copy(TOMB_POS); scene.add(tombLight);
 
 const DUST = 900;
 const dustGeo = new THREE.BufferGeometry(); const dp = new Float32Array(DUST * 3); for (let i = 0; i < dp.length; i++) dp[i] = Math.random();
@@ -90,9 +92,9 @@ function prepAsset(a, panelK) { a.parts.forEach((p) => prepMaterial(p.material, 
 let fx = null, fleet = null, assets = null, tombMeshes = null;
 
 /* ── 指揮官地面格線與鐵墓禁區圈 ── */
-const gridMesh = new THREE.GridHelper(36000, 72, 0x2a4a8a, 0x15264a); gridMesh.material.transparent = true; gridMesh.material.opacity = 0.45; gridMesh.material.depthWrite = false; gridMesh.position.set(0, 0, -6000); gridMesh.visible = false; scene.add(gridMesh);
+const gridMesh = new THREE.GridHelper(36000, 72, 0x2a4a8a, 0x15264a); gridMesh.material.transparent = true; gridMesh.material.opacity = 0.45; gridMesh.material.depthWrite = false; gridMesh.position.set(TOMB_POS.x, TOMB_POS.y, TOMB_POS.z); gridMesh.visible = false; scene.add(gridMesh);
 const auraLine = (function () { const pts = []; for (let i = 0; i <= 128; i++) { const a = i / 128 * TAU; pts.push(new THREE.Vector3(Math.cos(a) * TOMB_AURA, 0, Math.sin(a) * TOMB_AURA)); }
-  const l = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: 0xff3b5c, transparent: true, opacity: 0.7, depthWrite: false })); l.position.set(TOMB_POS.x, 0, TOMB_POS.z); l.visible = false; scene.add(l); return l; })();
+  const l = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: 0xff3b5c, transparent: true, opacity: 0.7, depthWrite: false })); l.position.set(TOMB_POS.x, TOMB_POS.y, TOMB_POS.z); l.visible = false; scene.add(l); return l; })();
 
 /* ── 末日視覺：巨劍與衝擊波 ── */
 const doomObj = { sword: null, light: null, waveS: null, waveR: null };
@@ -148,14 +150,14 @@ function pixelsPerRad() { return H / (2 * Math.tan(THREE.MathUtils.degToRad(came
 
 /* ── 相機：飛行員（座艙／追尾）、指揮官（軌道）、過場（末日） ── */
 const cam = { x: 0, y: 0, z: 0, mode: 'cockpit', shake: 0 };
-const cc = { az: 0.45, pol: 1.0, dist: 9000, tx: 0, ty: 0, tz: -3500 };       // 指揮官相機（目前）
-const ccT = { az: 0.45, pol: 1.0, dist: 9000, tx: 0, ty: 0, tz: -3500 };      // 指揮官相機（目標，輸入改這裡）
+const cc = { az: 0.45, pol: 1.0, dist: 24000, tx: 0, ty: TOMB_POS.y, tz: TOMB_POS.z };       // 指揮官相機（目前）：預設看整個環形陣
+const ccT = { az: 0.45, pol: 1.0, dist: 24000, tx: 0, ty: TOMB_POS.y, tz: TOMB_POS.z };      // 指揮官相機（目標，輸入改這裡）
 let chasePos = new THREE.Vector3(), chaseInit = false;
 function placeCamera(dt) {
   let fovT = FOV;
   if (G.doom > 0) {            // 過場：從艦隊後上方望向鐵墓；巨劍降下時鏡頭跟著下移，衝擊後拉開看衝擊波掃來
     const pd = clamp((G.t - T.DOOM) / (T.IMPACT - T.DOOM), 0, 1), pa = clamp((G.t - T.IMPACT) / (T.WHITE - T.IMPACT), 0, 1);
-    camera.position.set(2400 - pa * 600, 5200 - pd * 1800 + pa * 600, -300 + pa * 700); camera.up.set(0, 1, 0);
+    camera.position.set(2600 - pa * 500, 3800 - pd * 1200 + pa * 500, TOMB_POS.z + 9500 + pa * 600); camera.up.set(0, 1, 0);
     camera.lookAt(0, lerp(9500, 4300, smooth(pd)) - pa * 800, TOMB_POS.z); fovT = 64;
   } else if (G.role === 'commander') {
     const k = 1 - Math.exp(-dt * 9);
@@ -200,23 +202,60 @@ function frameUpdate(dt) {
   gridMesh.visible = auraLine.visible = G.role === 'commander' && G.doom === 0;
   cockRoot.visible = cockpitVisible();
   if (tombMeshes) tombMeshes.rotation.y = Math.sin(G.t * 0.05) * 0.03;
-  updateDoomVisuals(dt);
+  updateDoomVisuals(dt); updateBubbleViz();
+}
+
+/* 鐵墓：本體壓暗、環境反射降到最低，只保留邊緣的紅色輪廓光（菲涅爾），像被體內的紅光逆光照亮的巨大剪影 */
+function darkenTomb(m) {
+  if (m.color) m.color.multiplyScalar(0.34);
+  const emissive = m.emissive && m.emissive.r + m.emissive.g + m.emissive.b > 0.01; if (emissive) m.emissiveIntensity = 1.5;
+  m.envMapIntensity = 0.22;
+  const prev = m.onBeforeCompile;
+  m.onBeforeCompile = (sh) => {
+    if (prev) prev(sh);
+    sh.fragmentShader = sh.fragmentShader.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n float tRim = pow(1.0 - clamp(dot(normalize(normal), normalize(vViewPosition)), 0.0, 1.0), 3.4); totalEmissiveRadiance += vec3(3.0, 0.12, 0.24) * tRim * 0.85;');
+  };
+  m.customProgramCacheKey = () => 'tomb' + (m.color ? m.color.getHex() : 0);
+}
+
+/* ── 螺絲咕姆的光束泡與爆炸衝擊球 ── */
+const bubViz = [], blastViz = [];
+(function () {
+  for (let i = 0; i < 8; i++) { const o = glowSprite(0xffd84a, 500, 0.9, 2.6), c = glowSprite(0xffffff, 220, 1, 4); o.visible = c.visible = false; scene.add(o, c); bubViz.push({ o, c }); }
+  const mat = () => new THREE.ShaderMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, uniforms: { uA: { value: 1 } },
+    vertexShader: 'varying vec3 vN; varying vec3 vV; void main(){ vN = normalize(normalMatrix * normal); vec4 mv = modelViewMatrix * vec4(position, 1.0); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }',
+    fragmentShader: 'uniform float uA; varying vec3 vN; varying vec3 vV; void main(){ float f = pow(1.0 - abs(dot(normalize(vN), normalize(vV))), 2.0); gl_FragColor = vec4(vec3(5.0, 3.6, 1.0) * (0.06 + f * 1.0) * uA, 1.0); }' });
+  for (let i = 0; i < 6; i++) { const m = new THREE.Mesh(new THREE.SphereGeometry(1, 40, 28), mat()); m.visible = false; m.frustumCulled = false; scene.add(m); blastViz.push(m); }
+})();
+function updateBubbleViz() {
+  for (let i = 0; i < bubViz.length; i++) {
+    const v = bubViz[i], b = bubbles[i];
+    if (!b) { v.o.visible = v.c.visible = false; continue; }
+    v.o.visible = v.c.visible = true; v.o.position.set(b.x, b.y, b.z); v.c.position.copy(v.o.position);
+    const k = 1 + 0.1 * Math.sin(b.age * 22); v.o.scale.set(520 * k, 520 * k, 1); v.c.scale.set(230 * k, 230 * k, 1);
+  }
+  for (let i = 0; i < blastViz.length; i++) {
+    const m = blastViz[i], b = blasts[i];
+    if (!b) { m.visible = false; continue; }
+    const p = clamp(b.age / 1.3, 0, 1), e = 1 - Math.pow(1 - p, 3);
+    m.visible = p < 1; m.position.set(b.x, b.y, b.z); m.scale.setScalar(Math.max(1, b.r * (0.12 + 0.88 * e))); m.material.uniforms.uA.value = Math.pow(1 - p, 1.6);
+  }
 }
 
 /* ── 模型載入完成後建立艦隊渲染、鐵墓與駕駛艙 ── */
 function setupRender(a) {
   assets = a;
   Object.keys(a).forEach((k) => { if (k === 'debris') return; prepAsset(a[k], k === 'cockpit' || k === 'moon' ? 0 : 18 / Math.max(a[k].length, 1)); });
-  fx = SWFx.create({ scene, debrisParts: a.debris && a.debris.parts });
+  fx = SWFx.create({ scene, debrisParts: a.debris && a.debris.parts, pro: true });
   fleet = SWFleet.create({ scene, assets: a });
   if (a.irontomb) {
     tombMeshes = new THREE.Group();
-    a.irontomb.parts.forEach((p) => { const m = p.material; if (m.emissive && m.emissive.r + m.emissive.g + m.emissive.b > 0.01) m.emissiveIntensity = 2.4; m.envMapIntensity = 0.9; const me = new THREE.Mesh(p.geometry, m); me.frustumCulled = false; tombMeshes.add(me); });
+    a.irontomb.parts.forEach((p) => { const m = p.material; darkenTomb(m); const me = new THREE.Mesh(p.geometry, m); me.frustumCulled = false; tombMeshes.add(me); });
     tombMeshes.position.copy(TOMB_POS); tombMeshes.scale.setScalar(TOMB_SCALE); scene.add(tombMeshes);
   }
   if (a.cockpit) a.cockpit.parts.forEach((p) => { const m = p.material; if (m.emissive && m.emissive.r + m.emissive.g + m.emissive.b > 0.01) m.emissiveIntensity = 2.2; const me = new THREE.Mesh(p.geometry, m); me.frustumCulled = false; cockRoot.add(me); });
-  Object.keys(fleet.kinds).forEach((k) => fleet.kinds[k].meshes.forEach((me) => { if (me.material.emissive && me.material.emissive.r + me.material.emissive.g + me.material.emissive.b > 0.01) me.material.emissiveIntensity = 2.6; me.material.envMapIntensity = 1.1; }));
-  if (QUALITY === 'high') post = FPVPost.create(renderer, scene, camera, cockScene, cockCam, { width: innerWidth, height: innerHeight, strength: 0.85, threshold: 1.35, radius: 0.7 });
+  Object.keys(fleet.kinds).forEach((k) => fleet.kinds[k].meshes.forEach((me) => { if (me.material.emissive && me.material.emissive.r + me.material.emissive.g + me.material.emissive.b > 0.01) me.material.emissiveIntensity = 2.6; me.material.envMapIntensity = 0.7; }));
+  if (QUALITY === 'high') { post = FPVPost.create(renderer, scene, camera, cockScene, cockCam, { width: innerWidth, height: innerHeight, strength: 1.0, threshold: 1.3, radius: 0.75 }); post.u.uContrast.value = 1.15; post.u.uVig.value = 0.5; post.u.uSat.value = 1.15; }
   else { renderer.outputEncoding = THREE.sRGBEncoding; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.0; }
   buildDoomVisuals(); resize();
 }
