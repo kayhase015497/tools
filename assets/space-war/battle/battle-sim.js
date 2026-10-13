@@ -49,12 +49,38 @@ function spawnWave() {
   say('Antimatter Legion wave ' + w + ' emerging from the Irontomb', '反物質軍團第 ' + w + ' 波自鐵墓外圍湧出', true);
 }
 function cnt(k) { let n = 0; for (let i = 0; i < allies.length; i++) if (allies[i].kind === k && !allies[i].dead) n++; return n; }
+/* 折躍進場：一道白線自後方高速劃過，到達處閃光爆開，艦艇才現身（類似星戰的超光速躍出） */
+function warpIn(make, x, y, z, big) {
+  V.set(x - TOMB_POS.x, y - TOMB_POS.y, z - TOMB_POS.z).normalize();   // 從背離鐵墓的後方來
+  const dx = V.x, dy = V.y, dz = V.z;
+  const L = big ? 9000 : 6000, sx = x + dx * L, sy = y + dy * L + rnd(-300, 300), sz = z + dz * L, dur = big ? 0.55 : 0.4;
+  fx.beam(sx, sy, sz, x, y, z, { color: [0.75, 0.88, 1], width: big ? 26 : 9, dur, len: L * 0.7 });
+  fx.beam(sx, sy, sz, x, y, z, { color: [1, 1, 1], width: big ? 9 : 3, dur, len: L * 0.5 });
+  fx.later(dur * 0.85, () => {
+    const s = make(); if (!s) return;
+    const R = big ? 2600 : 700;
+    fx.emit(x, y, z, 0, 0, 0, 1, 1, 1, R * 2.4, 0.6, 0, 0, 1.4);                          // 躍出的白閃
+    fx.emit(x, y, z, 0, 0, 0, 0.6, 0.8, 1, R * 1.1, 0.5, 0, 1);
+    fx.emit(x, y, z, 0, 0, 0, 0.7, 0.85, 1, R * 0.6, 0.7, 0, 2, 7);                         // 擴散的衝擊環
+    boomLight(x, y, z, big ? 6 : 2, [0.7, 0.85, 1]);
+    if (big) FPVAudio.respawn();
+    s.vx = -dx * s.d.spd * 2.5; s.vy = -dy * s.d.spd * 2.5; s.vz = -dz * s.d.spd * 2.5;   // 帶著衝勢滑入，再減速
+  });
+}
 function reinforce() {
   reinfN++;
-  const edge = (kind, home) => { const a = rnd(-SIDE_AZ, SIDE_AZ), q = ringPos(rnd(11500, 13000), a, rnd(-0.5, 0.5)), s = mkShip(kind, q[0], q[1], q[2], 0); faceTomb(s); const h = ringPos(home, a + rnd(-0.3, 0.3), rnd(-0.5, 0.5)); s.hx = h[0]; s.hy = h[1]; s.hz = h[2]; return s; };
-  if (reinfN % 2 === 0 && cnt('cruis') < 10) { edge('cruis', rnd(6000, 8000)); say('Cruiser squadron joining the line', '巡洋艦中隊加入戰線', false); }
-  if (reinfN % 5 === 0 && cnt('cap') < 6) { edge('cap', 7200); say('Dreadnought reinforcing the front', '無畏艦馳援前線', false); }
-  if (cnt('frig') < 26) { edge('frig', rnd(5400, 8600)); say('Alliance reinforcements arriving', '聯軍增援抵達', false); }
+  const edge = (kind, home, big) => {
+    const a = rnd(-SIDE_AZ, SIDE_AZ), pit = rnd(-0.5, 0.5), q = ringPos(rnd(11500, 13000), a, pit), h = ringPos(home, a + rnd(-0.3, 0.3), rnd(-0.5, 0.5));
+    warpIn(() => { const s = mkShip(kind, q[0], q[1], q[2], 0); faceTomb(s); s.hx = h[0]; s.hy = h[1]; s.hz = h[2]; return s; }, q[0], q[1], q[2], big);
+  };
+  if (reinfN % 2 === 0 && cnt('cruis') < 10) { edge('cruis', rnd(6000, 8000), true); say('Cruiser squadron warping in behind the line', '巡洋艦中隊自後方折躍進場', false); }
+  if (reinfN % 5 === 0 && cnt('cap') < 6) { edge('cap', 7200, true); say('Dreadnought warping in behind the line', '無畏艦自後方折躍馳援', false); }
+  if (cnt('frig') < 26) { edge('frig', rnd(5400, 8600), false); say('Alliance reinforcements warping in', '聯軍增援折躍抵達', false); }
+  if (reinfN % 3 === 0 && allies.filter((u) => u.kind === 'fgt' && !u.dead && !u.isPlayer).length < 40) {   // 一個戰機中隊
+    const a = rnd(-SIDE_AZ, SIDE_AZ), pit = rnd(-0.4, 0.4);
+    for (let k = 0; k < 4; k++) { const q = ringPos(rnd(11000, 12500), a + rnd(-0.08, 0.08), pit + rnd(-0.08, 0.08)); warpIn(() => { const f = mkFighter('fgt', q[0], q[1], q[2], 0); faceTomb(f); FWD(f, V3); f.vx = V3.x * f.spd * 2.5; f.vy = V3.y * f.spd * 2.5; f.vz = V3.z * f.spd * 2.5; f.thr = 0.8; return f; }, q[0], q[1], q[2], false); }
+    say('Fighter wing warping in', '戰機中隊折躍進場', false);
+  }
 }
 function launchFighters() {   // 從 HSS 機庫起飛的戰機：聯軍的空中戰力持續補充
   const live = allies.filter((s) => s.kind === 'fgt' && !s.dead && !s.isPlayer).length, hss = allies.find((s) => s.kind === 'hss' && !s.dead);

@@ -51,3 +51,7 @@ Tab 隨時切換：指揮官 → 飛行員時可選「回原機」或「從 HSS 
 - **Formation**: allies hold one side of the tomb as a spherical cap (`SIDE_AZ`, mixed pitch layers) so the fleet spreads across X/Y/Z; waves emerge from the ally-facing side.
 - **Beam cannons**: sustained ~2 s (`beams[]`, `fireBeamCannon`/`stepBeams`), damage ticks every 0.2 s, impact point emits coloured sparks, orange fire and smoke.
 - **Gun hits** (`impact`): flash, spark fan and small fire puff. **Missile hits** add a smoke cloud (`smokeCloud`).
+
+## Warp-in reinforcements
+
+`warpIn(make, x, y, z, big)` in battle-sim.js: a white traveling beam streaks in from behind (away from the tomb), then a flash + shock ring fires at the arrival point and the ship is created with forward momentum. `reinforce()` uses it for frigates, cruisers, dreadnoughts and 4-fighter wings.
