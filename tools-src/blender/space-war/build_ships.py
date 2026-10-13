@@ -485,48 +485,48 @@ def irontomb(out):
         sb.box((0, -5.2, z), (11 - i * 0.6, 1.0, 1.8), 'glow')
         for sg in (1, -1):
             sb.bar((sg * (11.5 - i * 0.6), 0, z), (sg * (16.5 - i * 0.7), -2, z + 2.2), 1.1, 'thorn', sides=5, r2=0.2)
-    sb.loft_v([(30, 13, 6.5, 6.5, 0, 0, 2.6), (14, 17, 8.5, 8.5, 0, 0, 2.6), (0, 21, 9.5, 9.5, 0, 0, 2.6), (-14, 18, 8.5, 8.5, 0, 0, 2.4), (-28, 15, 7, 7, 0, 0, 2.4)], 'armor', n=18)
+    sb.loft_v([(30, 9, 4.5, 4.5, 0, 0, 2.2), (14, 11, 5.5, 5.5, 0, 0, 2.2), (0, 9, 4.8, 4.8, 0, 0, 2.0), (-14, 4.2, 2.6, 2.6, 0, 0, 1.6), (-28, 3.6, 2.2, 2.2, 0, 0, 1.6)], 'armor', n=18)
     for i in range(5):
         z = 25.0 - i * 6.0
-        sb.box((0, 7.2, z), (25 - 2 * i, 2.8, 4.2), 'bone', taper=(0.9, 1))
-        sb.box((0, 6.2, z - 3.1), (19 - 2 * i, 1.0, 1.3), 'glow')
-    sb.ribbon([(0, 9.8, 20), (0, 9.8, -30)], 3.0, 'glow', up=(0, 1, 0))
+        sb.box((0, 5.0, z), (19 - 2.6 * i, 1.8, 3.2), 'bone', taper=(0.9, 1))
+        sb.box((0, 4.2, z - 2.4), (14 - 2.2 * i, 0.8, 1.0), 'glow')
+    sb.ribbon([(0, 6.0, 20), (0, 4.0, -30)], 1.6, 'glow', up=(0, 1, 0))
 
     # ── 肩、肩胛與主臂 ──
     for sg in (1, -1):
-        sb.box((sg * 44, 0, 62), (24, 17, 13), 'armor', rot=(0, sg * 0.32, 0), taper=(0.8, 0.9))
+        sb.box((sg * 44, 0, 62), (20, 9, 8), 'armor', rot=(0, sg * 0.32, 0), taper=(0.8, 0.9))
         sb.bar((sg * 38, 0, 67), (sg * 50, -2, 86), 3.4, 'armor', sides=5, r2=0.3)
         sb.bar((sg * 48, 3, 66), (sg * 64, 3, 80), 2.4, 'armor', sides=5, r2=0.25)
-        sb.prism_xz([(sg * 21, 52), (sg * 36, 47), (sg * 33, 22), (sg * 24, 8), (sg * 17, 32)], 7.0, -2.0, 'armor')
-        sb.prism_xz([(sg * 22, 49), (sg * 32, 45), (sg * 29, 24), (sg * 24, 14)], 7.4, -2.0, 'glow', back_scale=0.9)
+        sb.prism_xz([(sg * 21, 52), (sg * 36, 47), (sg * 33, 22), (sg * 24, 8), (sg * 17, 32)], 3.2, -2.0, 'armor')
+        sb.prism_xz([(sg * 22, 49), (sg * 32, 45), (sg * 29, 24), (sg * 24, 14)], 3.6, -2.0, 'glow', back_scale=0.9)
         # 沙漏形肩段 → 齒輪環 → 長前臂
-        sb.bar((sg * 40, 0, ZA), (sg * 56, 0, ZA), 10.5, 'armor', sides=8, r2=4.6)
-        sb.bar((sg * 56, 0, ZA), (sg * 73, 0, ZA), 4.6, 'armor', sides=8, r2=10.5)
-        sb.bar((sg * 73, 0, ZA), (sg * 77, 0, ZA), 11.2, 'bone', sides=8)
-        sb.bar((sg * 77, 0, ZA), (sg * 95, 0, ZA), 6.2, 'dark', sides=10)
+        sb.bar((sg * 40, 0, ZA), (sg * 56, 0, ZA), 5.6, 'armor', sides=8, r2=2.4)
+        sb.bar((sg * 56, 0, ZA), (sg * 73, 0, ZA), 2.4, 'armor', sides=8, r2=5.6)
+        sb.bar((sg * 73, 0, ZA), (sg * 77, 0, ZA), 6.0, 'bone', sides=8)
+        sb.bar((sg * 77, 0, ZA), (sg * 95, 0, ZA), 2.6, 'dark', sides=8)
         for k in range(14):                                        # 齒輪環：放射狀 T 形棘刺
             a = 2 * math.pi * k / 14
             c, sn = math.cos(a), math.sin(a)
             x0 = sg * 86.0
-            sb.bar((x0, 8.0 * c, ZA + 8.0 * sn), (x0, 15.0 * c, ZA + 15.0 * sn), 0.75, 'thorn', sides=5)
+            sb.bar((x0, 5.5 * c, ZA + 5.5 * sn), (x0, 11.0 * c, ZA + 11.0 * sn), 0.55, 'thorn', sides=5)
             tx, tz = -sn, c
-            sb.bar((x0 - sg * 0.0, 15.0 * c - tx * 3.4, ZA + 15.0 * sn - tz * 3.4), (x0, 15.0 * c + tx * 3.4, ZA + 15.0 * sn + tz * 3.4), 0.75, 'thorn', sides=5)
+            sb.bar((x0 - sg * 0.0, 11.0 * c - tx * 2.6, ZA + 11.0 * sn - tz * 2.6), (x0, 11.0 * c + tx * 2.6, ZA + 11.0 * sn + tz * 2.6), 0.55, 'thorn', sides=5)
         for xr in (80.0, 92.0):
-            sb.torus((sg * xr, 0, ZA), 9.0, 0.7, 'thorn', axis='x', major=28, minor=5)
-        sb.bar((sg * 95, 0, ZA), (sg * 114, 0, ZA), 7.6, 'armor', sides=8, r2=5.2)
-        sb.bar((sg * 114, 0, ZA), (sg * 118, 0, ZA), 5.6, 'bone', sides=8)
+            sb.torus((sg * xr, 0, ZA), 6.0, 0.55, 'thorn', axis='x', major=28, minor=5)
+        sb.bar((sg * 95, 0, ZA), (sg * 114, 0, ZA), 3.2, 'armor', sides=8, r2=2.0)
+        sb.bar((sg * 114, 0, ZA), (sg * 118, 0, ZA), 3.2, 'bone', sides=8)
         hand((sg * 122, 0, ZA), (sg, 0, 0), fingers=4, flen=13, spread=3.0, palm=(8.0, 1.6, 8.0))
         # 第二對細臂：垂在身側，手掌朝前
-        sb.sphere((sg * 30, -1, 48), 3.6, 'bone', seg=8, rings=5)
-        sb.bar((sg * 30, -1, 48), (sg * 47, 2, 22), 3.3, 'bone', sides=6, r2=2.8)
-        sb.sphere((sg * 47, 2, 22), 3.2, 'bone', seg=8, rings=5)
-        sb.bar((sg * 47, 2, 22), (sg * 41, 6, -6), 2.8, 'bone', sides=6, r2=2.2)
+        sb.sphere((sg * 30, -1, 48), 2.2, 'bone', seg=8, rings=5)
+        sb.bar((sg * 30, -1, 48), (sg * 47, 2, 22), 1.9, 'bone', sides=6, r2=1.5)
+        sb.sphere((sg * 47, 2, 22), 2.0, 'bone', seg=8, rings=5)
+        sb.bar((sg * 47, 2, 22), (sg * 41, 6, -6), 1.5, 'bone', sides=6, r2=1.1)
         hand((sg * 40.5, 6, -8.5), (sg * 0.15, 0.1, -1), fingers=4, flen=9, spread=2.3, palm=(6.0, 1.4, 5.0))
         # 腰間垂下的多對細長多節手臂
         for k in range(5):
-            x0, z0 = sg * (9 + 2.2 * k), -14.0 - k * 1.2
-            m1 = (sg * (18 + 6.5 * k), 3 + 2 * k, -34 - 4.5 * k)
-            m2 = (sg * (22 + 8.5 * k), 5 + 3 * k, -56 - 6.0 * k)
+            x0, z0 = sg * (4 + 1.4 * k), -14.0 - k * 1.2
+            m1 = (sg * (10 + 4.0 * k), 3 + 2 * k, -34 - 4.5 * k)
+            m2 = (sg * (13 + 5.5 * k), 5 + 3 * k, -56 - 6.0 * k)
             sb.bar((x0, 0, z0), m1, 1.7, 'bone', sides=5, r2=1.3)
             sb.sphere(m1, 1.6, 'bone', seg=6, rings=4)
             sb.bar(m1, m2, 1.3, 'bone', sides=5, r2=1.0)
@@ -534,7 +534,7 @@ def irontomb(out):
                 sb.bar(m2, (m2[0] + sg * (1.2 + q * 1.1), m2[1] + 0.6 + q * 0.9, m2[2] - 7.0), 0.45, 'hand', sides=4, r2=0.12)
 
     # ── 腰間的棘刺環（T 形棘刺排成一圈） ──
-    ZR, RR = -14.0, 49.0
+    ZR, RR = -14.0, 34.0
     sb.torus((0, 0, ZR), RR, 0.9, 'thorn', axis='z', major=72, minor=5)
     for k in range(44):
         a = 2 * math.pi * k / 44
@@ -547,15 +547,15 @@ def irontomb(out):
 
     # ── 骨盆兩側的爪形護翼與下半身碎片裙擺 ──
     for sg in (1, -1):
-        sb.prism_xz([(sg * 14, 10), (sg * 24, 20), (sg * 29, 8), (sg * 39, 15), (sg * 41, -4), (sg * 36, -12), (sg * 33, -26), (sg * 20, -40), (sg * 12, -20)], 6.0, -3.0, 'armor')
-        sb.prism_xz([(sg * 16, 6), (sg * 26, 12), (sg * 31, 0), (sg * 28, -14), (sg * 20, -28), (sg * 15, -16)], 6.4, -3.0, 'glow', back_scale=0.88)
-    sb.prism_xz([(0, -126), (7, -72), (11, -38), (0, -26), (-11, -38), (-7, -72)], 13.0, 1.0, 'armor')
-    sb.ribbon([(0, 7.6, -34), (0, 7.6, -116)], 2.6, 'glow', up=(0, 1, 0))
+        sb.prism_xz([(sg * 6, 6), (sg * 11, 12), (sg * 14, 2), (sg * 20, 8), (sg * 21, -6), (sg * 18, -14), (sg * 16, -28), (sg * 10, -44), (sg * 5, -20)], 2.6, -1.3, 'armor')
+        sb.prism_xz([(sg * 8, 3), (sg * 13, 8), (sg * 15, -2), (sg * 14, -14), (sg * 11, -30), (sg * 8, -16)], 2.9, -1.3, 'glow', back_scale=0.88)
+    sb.prism_xz([(0, -126), (3, -72), (5, -38), (0, -26), (-5, -38), (-3, -72)], 4.5, 1.0, 'armor')
+    sb.ribbon([(0, 3.0, -34), (0, 3.0, -116)], 1.2, 'glow', up=(0, 1, 0))
     for k in range(1, 5):
         for sg in (1, -1):
             top, tip = -24.0 - k * 1.5, -68.0 - 15.0 * k
-            sb.prism_xz([(sg * (8 + 5 * k), top), (sg * (14 + 6 * k), top - 24 - 6 * k), (sg * (13 + 10 * k), tip), (sg * (6 + 3 * k), top - 18)], 8.0 - k, (2.0 if k % 2 else -3.0), 'armor')
-            sb.ribbon([(sg * (10 + 6 * k), (2.0 if k % 2 else -3.0) + 4.4 - 0.4 * k, top - 8), (sg * (13 + 9 * k), (2.0 if k % 2 else -3.0) + 4.0 - 0.4 * k, tip + 8)], 1.8, 'glow', up=(0, 1, 0))
+            sb.prism_xz([(sg * (5 + 2.5 * k), top), (sg * (7 + 3 * k), top - 24 - 6 * k), (sg * (6 + 5 * k), tip), (sg * (3 + 1.5 * k), top - 18)], 2.6, (2.0 if k % 2 else -3.0), 'armor')
+            sb.ribbon([(sg * (6 + 3 * k), (2.0 if k % 2 else -3.0) + 1.6, top - 8), (sg * (7 + 5 * k), (2.0 if k % 2 else -3.0) + 1.6, tip + 8)], 1.0, 'glow', up=(0, 1, 0))
     sb.export(os.path.join(out, 'irontomb.glb'))
 
 
