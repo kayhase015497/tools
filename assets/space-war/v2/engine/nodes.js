@@ -76,16 +76,21 @@ export function particleMaterial() {
 
 /* ───────── 體積火球／煙霧（對應 v1 的 VOL_VS / FIRE_FS / SMOKE_FS） ───────── */
 export function puffMaterial(kind) {
-  const aPos = attribute('aPos', 'vec3'), aD = attribute('aD', 'vec4'), aC = attribute('aC', 'vec3');
+  const aPos = attribute('aPos', 'vec3'), aVel = attribute('aVel', 'vec3'), aC = attribute('aC', 'vec3'), aT = attribute('aT', 'vec4'), aS = attribute('aS', 'vec2'), aSeed = attribute('aSeed', 'float');
+  const uTime = uniform(0);
+  const age = uTime.sub(aT.x), a = clamp(age.div(aT.y), 0.0, 1.0), dr = aT.z;
+  const travel = select(dr.greaterThan(0.001), oneMinus(exp(dr.negate().mul(age))).div(max(dr, 1e-4)), age);
+  const e = oneMinus(pow(oneMinus(a), 2.2)), size = aS.x.add(aS.y.sub(aS.x).mul(e));
+  const dead = age.lessThan(0.0).or(age.greaterThan(aT.y));
   const clipPos = Fn(() => {
-    const mv = cameraViewMatrix.mul(vec4(aPos, 1.0)).toVar(), s = min(aD.y, float(2.2).mul(max(1.0, mv.z.negate())).div(cameraProjectionMatrix.element(1).y));
+    const mv = cameraViewMatrix.mul(vec4(aPos.add(aVel.mul(travel)), 1.0)).toVar(), s = min(size, float(2.2).mul(max(1.0, mv.z.negate())).div(cameraProjectionMatrix.element(1).y));
     mv.xy.addAssign(positionLocal.xy.mul(s).mul(2.0));
     return cameraProjectionMatrix.mul(vec4(mv.xyz, 1.0));
   })();
   const isFire = kind === 'fire';
   const m = fxMaterial({ blending: isFire ? ADD : W.NormalBlending });
-  m.vertexNode = select(aD.y.lessThanEqual(0.0), vec4(2.0, 2.0, 2.0, 1.0), clipPos);
-  const vUv = varying(positionLocal.xy.mul(2.0), 'vVU'), vD = varying(aD, 'vVD'), vC = varying(aC, 'vVC');
+  m.vertexNode = select(dead, vec4(2.0, 2.0, 2.0, 1.0), clipPos);
+  const vUv = varying(positionLocal.xy.mul(2.0), 'vVU'), vD = varying(vec4(a, size, aSeed, aT.w), 'vVD'), vC = varying(aC, 'vVC');
   m.colorNode = isFire ? Fn(() => {
     const r = length(vUv); If(r.greaterThan(1.0), () => { Discard(); });
     const age = vD.x, q = vUv.mul(1.5).add(vec2(vD.z.mul(13.1), vD.z.mul(7.7)));
@@ -105,6 +110,7 @@ export function puffMaterial(kind) {
     const lit = n2.mul(0.8).add(0.6), col = mix(vec3(0.075, 0.07, 0.068).mul(lit), vC.mul(0.42), pow(oneMinus(age), 2.2).mul(oneMinus(r.mul(0.6))));
     return vec4(col, dens.mul(0.78).mul(pow(oneMinus(age), 0.7)).mul(vD.w));
   })();
+  m.uniforms = { uTime };
   return m;
 }
 

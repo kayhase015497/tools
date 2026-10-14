@@ -206,39 +206,30 @@
 
 
     /* ── 體積火球／煙霧粒子池 ── */
+    /* 現在整套運動／縮放／淡出都在 GPU 頂點著色器裡以「出生時間」解析計算（和粒子一樣），CPU 只在發射時寫入一次、每幀上傳新增的那一段 */
     function makePuffSystem(N, fs, blending, order) {
-      const base = new THREE.PlaneBufferGeometry(1, 1), g = new THREE.InstancedBufferGeometry();
-      g.index = base.index; g.setAttribute('position', base.attributes.position);
-      const aPos = new THREE.InstancedBufferAttribute(new Float32Array(N * 3), 3).setUsage(THREE.DynamicDrawUsage);
-      const aD = new THREE.InstancedBufferAttribute(new Float32Array(N * 4), 4).setUsage(THREE.DynamicDrawUsage);
-      const aC = new THREE.InstancedBufferAttribute(new Float32Array(N * 3), 3).setUsage(THREE.DynamicDrawUsage);
-      g.setAttribute('aPos', aPos); g.setAttribute('aD', aD); g.setAttribute('aC', aC); g.instanceCount = N;
+      const mk = (n) => new THREE.InstancedBufferAttribute(new Float32Array(N * n), n).setUsage(THREE.DynamicDrawUsage);
+      const A = { aPos: mk(3), aVel: mk(3), aC: mk(3), aT: mk(4), aS: mk(2) };   // aT = (出生時間, 壽命, 阻力, 強度)；aS = (起始大小, 終點大小)；種子藏在 aVel 之外的 aC 不夠用，改放 aS 的小數運算
+      A.aSeed = mk(1);
+      for (let i = 0; i < N; i++) A.aT.array[i * 4] = 1e9;
+      const g = window.SW2.nodes.quadGeometry(N, A);
       const m = window.SW2.nodes.puffMaterial(fs === FIRE_FS ? 'fire' : 'smoke');
       const mesh = new THREE.Mesh(g, m); mesh.frustumCulled = false; mesh.renderOrder = order; scene.add(mesh);
-      return { N, i: 0, aPos, aD, aC, vel: new Float32Array(N * 3), age: new Float32Array(N), life: new Float32Array(N).fill(0), s0: new Float32Array(N), s1: new Float32Array(N), drag: new Float32Array(N), amp: new Float32Array(N), seed: new Float32Array(N) };
+      return { N, i: 0, A, m, lo: 1e9, hi: -1, wrapped: false };
     }
-    const fireSys = pro ? makePuffSystem(900, FIRE_FS, THREE.AdditiveBlending, 7) : null, smokeSys = pro ? makePuffSystem(700, SMOKE_FS, THREE.NormalBlending, 3) : null;
+    const fireSys = pro ? makePuffSystem(3000, FIRE_FS, THREE.AdditiveBlending, 7) : null, smokeSys = pro ? makePuffSystem(2500, SMOKE_FS, THREE.NormalBlending, 3) : null;
     function puff(sys, x, y, z, vx, vy, vz, s0, s1, life, col, drag, amp) {
-      const i = (sys.i++) % sys.N;
-      sys.aPos.array.set([x, y, z], i * 3); sys.vel[i * 3] = vx; sys.vel[i * 3 + 1] = vy; sys.vel[i * 3 + 2] = vz;
-      sys.age[i] = 0; sys.life[i] = life; sys.s0[i] = s0; sys.s1[i] = s1; sys.drag[i] = drag || 0; sys.amp[i] = amp || 1; sys.seed[i] = Math.random() * 50;
-      sys.aC.array.set(col, i * 3); sys.aD.array[i * 4 + 1] = s0;
+      const i = sys.i++ % sys.N, A = sys.A; if (i === 0 && sys.i > 1) sys.wrapped = true;
+      A.aPos.array.set([x, y, z], i * 3); A.aVel.array.set([vx, vy, vz], i * 3); A.aC.array.set(col, i * 3);
+      A.aT.array.set([fx.time, life, drag || 0, amp || 1], i * 4); A.aS.array.set([s0, s1], i * 2); A.aSeed.array[i] = Math.random() * 50;
+      if (i < sys.lo) sys.lo = i; if (i > sys.hi) sys.hi = i;
     }
-    function updatePuffs(sys, dt) {
-      if (!sys) return;
-      const P = sys.aPos.array, D = sys.aD.array;
-      for (let i = 0; i < sys.N; i++) {
-        const l = sys.life[i];
-        if (l <= 0) { if (D[i * 4 + 1] !== 0) D[i * 4 + 1] = 0; continue; }
-        sys.age[i] += dt; const a = sys.age[i] / l;
-        if (a >= 1) { sys.life[i] = 0; D[i * 4 + 1] = 0; continue; }
-        const dr = Math.max(0, 1 - sys.drag[i] * dt);
-        sys.vel[i * 3] *= dr; sys.vel[i * 3 + 1] *= dr; sys.vel[i * 3 + 2] *= dr;
-        P[i * 3] += sys.vel[i * 3] * dt; P[i * 3 + 1] += sys.vel[i * 3 + 1] * dt; P[i * 3 + 2] += sys.vel[i * 3 + 2] * dt;
-        const e = 1 - Math.pow(1 - a, 2.2);
-        D[i * 4] = a; D[i * 4 + 1] = sys.s0[i] + (sys.s1[i] - sys.s0[i]) * e; D[i * 4 + 2] = sys.seed[i]; D[i * 4 + 3] = sys.amp[i];
-      }
-      sys.aPos.needsUpdate = sys.aD.needsUpdate = sys.aC.needsUpdate = true;
+    function updatePuffs(sys) {
+      if (!sys) return; sys.m.uniforms.uTime.value = fx.time;
+      if (sys.hi < 0) return;
+      const lo = sys.wrapped ? 0 : sys.lo, n = sys.wrapped ? sys.N : sys.hi - sys.lo + 1;
+      for (const k in sys.A) { const at = sys.A[k]; at.updateRange.offset = lo * at.itemSize; at.updateRange.count = n * at.itemSize; at.needsUpdate = true; }
+      sys.lo = 1e9; sys.hi = -1; sys.wrapped = false;
     }
     fx.fire = (x, y, z, vx, vy, vz, s0, s1, life, col, drag, amp) => { if (fireSys) puff(fireSys, x, y, z, vx, vy, vz, s0, s1, life, col, drag, amp); };
     fx.smoke = (x, y, z, vx, vy, vz, s0, s1, life, col, drag, amp) => { if (smokeSys) puff(smokeSys, x, y, z, vx, vy, vz, s0, s1, life, col || [0.3, 0.12, 0.05], drag, amp); };
@@ -316,7 +307,7 @@
       fx.time += dt;
       beamMat.uniforms.uTime.value = fx.time;
       if (beamDirty) { aA.needsUpdate = aB.needsUpdate = aC.needsUpdate = aP.needsUpdate = true; beamDirty = false; }
-      updateParticles(); updateDebris(dt); updatePuffs(fireSys, dt); updatePuffs(smokeSys, dt);
+      updateParticles(); updateDebris(dt); updatePuffs(fireSys); updatePuffs(smokeSys);
       for (let i = queue.length - 1; i >= 0; i--) if (queue[i].t <= fx.time) { const f = queue[i].fn; queue.splice(i, 1); f(); }
     };
     fx.setPixelScale = (v) => { partMat.uniforms.scale.value = v; };
