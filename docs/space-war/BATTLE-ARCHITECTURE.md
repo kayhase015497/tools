@@ -101,3 +101,7 @@ The centreline is now a lemniscate (∞, half-width `MOBIUS_A` = 6,200 m) lying 
 - The final pass takes 3 samples instead of 15 when the speed blur is off. Pixel ratio is capped at 1.5 in high quality.
 - Damage shader work is skipped for undamaged hulls (`vDmg` branch); damage smoke/fire is limited to the 6 nearest wounded ships within 9 km, with smaller and rarer puffs; volumetric noise uses 4 octaves.
 - **Governor** (`governor()` in battle-main.js): if the frame time stays > 42 ms for 3 s it steps down: 1 = cinema off, 2 = pixel ratio 1, 3 = bloom off + `G.lite` (no shields viz / damage FX). Disable with `?gov=0` (used by the headless tests).
+
+### See-through hulls (fixed)
+
+The star `Points` were `transparent` with `depthTest: false`, so three.js drew them in the transparent queue *after* the opaque ships and painted them over every hull. They now use depth testing with `gl_Position.z = w * 0.99999` (pushed to the far plane), so stars only appear where nothing else was drawn. The shield bubble is also skipped while the camera is inside it. Film grain is back at 0.03.

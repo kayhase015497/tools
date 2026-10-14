@@ -56,8 +56,8 @@ for (let i = 0; i < STARS; i++) {
   stC[i * 3] = c[0] * b; stC[i * 3 + 1] = c[1] * b; stC[i * 3 + 2] = c[2] * b; stS[i] = 1 + Math.min(4, b) * 0.9;
 }
 const starGeo = new THREE.BufferGeometry(); starGeo.setAttribute('position', new THREE.BufferAttribute(stP, 3)); starGeo.setAttribute('aCol', new THREE.BufferAttribute(stC, 3)); starGeo.setAttribute('aSize', new THREE.BufferAttribute(stS, 1));
-const starMat = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending, uniforms: { uPR: { value: 1 } },
-  vertexShader: 'attribute vec3 aCol; attribute float aSize; uniform float uPR; varying vec3 vC; void main(){ vC = aCol; gl_PointSize = aSize * uPR; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+const starMat = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, depthTest: true, blending: THREE.AdditiveBlending, uniforms: { uPR: { value: 1 } },   // 深度測試開啟＋深度壓到遠平面：星星只會畫在「沒有任何東西」的地方，不會透過艦體顯示
+  vertexShader: 'attribute vec3 aCol; attribute float aSize; uniform float uPR; varying vec3 vC; void main(){ vC = aCol; gl_PointSize = aSize * uPR; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); gl_Position.z = gl_Position.w * 0.99999; }',
   fragmentShader: 'varying vec3 vC; void main(){ float d = length(gl_PointCoord - 0.5); float a = smoothstep(0.5, 0.0, d); gl_FragColor = vec4(vC * a * a, 1.0); }' });
 const stars = new THREE.Points(starGeo, starMat); stars.frustumCulled = false; stars.renderOrder = -9; scene.add(stars);
 
@@ -157,6 +157,12 @@ for (let i = 0; i < SHIELD_K; i++) {
   const me = new THREE.Mesh(shieldGeo, m); me.frustumCulled = false; me.visible = false; me.matrixAutoUpdate = false; me.renderOrder = 3; scene.add(me); shieldViz.push(me);
 }
 const _sc0 = new THREE.Vector3(), _sc1 = new THREE.Vector3(), _sc2 = new THREE.Vector3();
+function insideShield(s) {
+  const K = fleet && fleet.kinds[s.kind], sz = K ? K.size : null, sc = s.scale || 1, rx = Math.max(sz ? sz.x * sc * 0.62 : 0, s.rad * 0.95), ry = Math.max(sz ? sz.y * sc * 0.8 : 0, s.rad * 0.85), rz = Math.max(sz ? sz.z * sc * 0.58 : 0, s.rad * 1.05);
+  const cy = Math.cos(s.h), sn = Math.sin(s.h), cp = Math.cos(s.p), sp = Math.sin(s.p), dx = camera.position.x - s.x, dy = camera.position.y - s.y, dz = camera.position.z - s.z;
+  const lx = (dx * cy - dz * sn) / rx, ly = (dx * -sn * sp + dy * cp + dz * -cy * sp) / ry, lz = (dx * sn * cp + dy * sp + dz * cy * cp) / rz;
+  return lx * lx + ly * ly + lz * lz < 1.02;
+}
 function shieldColor(s) { return s.side === 'e' ? [0.62, 0.28, 1.0] : s.kind === 'ipc' ? [1.0, 0.28, 0.25] : [0.3, 0.65, 1.0]; }
 function updateShieldViz() {
   if (G.lite) { for (let i = 0; i < SHIELD_K; i++) shieldViz[i].visible = false; return; }
@@ -164,6 +170,7 @@ function updateShieldViz() {
   cand.sort((a, b) => b.shT - a.shT);
   for (let i = 0; i < SHIELD_K; i++) {
     const me = shieldViz[i], s = cand[i]; if (!s) { me.visible = false; continue; }
+    if (insideShield(s)) { me.visible = false; continue; }   // 鏡頭在護盾球裡面時不畫，免得整個畫面都是六角格
     const K = fleet && fleet.kinds[s.kind], sz = K ? K.size : null, sc = s.scale || 1;
     const rx = Math.max(sz ? sz.x * sc * 0.62 : 0, s.rad * 0.95), ry = Math.max(sz ? sz.y * sc * 0.8 : 0, s.rad * 0.85), rz = Math.max(sz ? sz.z * sc * 0.58 : 0, s.rad * 1.05);
     const cy = Math.cos(s.h), sn = Math.sin(s.h), cp = Math.cos(s.p), sp = Math.sin(s.p);
@@ -349,7 +356,7 @@ function setupRender(a) {
   }
   if (a.cockpit) a.cockpit.parts.forEach((p) => { const m = p.material; if (m.emissive && m.emissive.r + m.emissive.g + m.emissive.b > 0.01) m.emissiveIntensity = 2.2; const me = new THREE.Mesh(p.geometry, m); me.frustumCulled = false; cockRoot.add(me); });
   Object.keys(fleet.kinds).forEach((k) => fleet.kinds[k].meshes.forEach((me) => { if (me.material.emissive && me.material.emissive.r + me.material.emissive.g + me.material.emissive.b > 0.01) me.material.emissiveIntensity = 1.8; me.material.envMapIntensity = 0.28; }));
-  if (QUALITY === 'high') { post = FPVPost.create(renderer, scene, camera, cockScene, cockCam, { width: innerWidth, height: innerHeight, strength: 0.55, threshold: 2.0, radius: 0.6, cinema: true, streak: 0.4, ghost: 0.3 }); post.u.uContrast.value = 1.15; post.u.uGrain.value = 0; post.u.uVig.value = 0.5; post.u.uSat.value = 1.15; }
+  if (QUALITY === 'high') { post = FPVPost.create(renderer, scene, camera, cockScene, cockCam, { width: innerWidth, height: innerHeight, strength: 0.55, threshold: 2.0, radius: 0.6, cinema: true, streak: 0.4, ghost: 0.3 }); post.u.uContrast.value = 1.15; post.u.uGrain.value = 0.03; post.u.uVig.value = 0.5; post.u.uSat.value = 1.15; }
   else { renderer.outputEncoding = THREE.sRGBEncoding; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.0; }
   buildDoomVisuals(); resize();
 }
