@@ -67,3 +67,7 @@ Tab 隨時切換：指揮官 → 飛行員時可選「回原機」或「從 HSS 
 - `xzd` (Xianzhou Alliance dreadnought, one unit, larger than the HSS, 6 beams + 8-missile salvos + heavy flak) and `ipc` (Interastral Peace Corp cruiser, red beams) — models built by `capital(..., theme='xz'|'ipc')` in build_ships.py; both are `fpv:true` in the manifest so the classic pages do not download them.
 - Beam colours: Alliance blue, IPC red, Antimatter Legion purple (beams, flak and fighter shots). The beam shader now keeps the beam's own colour (white only at the very core) so bloom no longer turns everything white.
 - Ship missiles: `fireShipMissiles` (homing, reuses `stepMissile`; `big:true` enlarges the trail).
+
+## Amphoreus Möbius ring
+
+`mobius` in battle-render.js: a true half-twisted strip (R = 5100 m ≈ the Irontomb's arm span, centred at the thigh, y = `TOMB_POS.y - 55 * TOMB_SCALE`, slightly tilted and slowly rotating) with bright edge lines, flowing highlights and a wide violet halo; HDR values feed the bloom. The classic page never had one (only the red exclusion rings).
