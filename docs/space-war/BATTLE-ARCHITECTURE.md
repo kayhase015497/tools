@@ -81,3 +81,6 @@ Tab 隨時切換：指揮官 → 飛行員時可選「回原機」或「從 HSS 
 ### Xianzhou dreadnought stern ring
 
 `capital(..., theme='xz')` adds a silver ring at the stern (like the art-book shot): three arcs with gaps, two teal nodes in crescent brackets, a rectangular green-lit node on top, a bottom spike, four struts to the hull, plus two flat swept arcs around the stern. The rear turrets were moved forward to clear the ring (still 8 turrets).
+### Möbius ring v3 (∞)
+
+The centreline is now a lemniscate (∞, half-width `MOBIUS_A` = 6,200 m) lying in a plane whose normal faces the HSS (+Z), so the alliance side sees a clean ∞. The ribbon twists 3 half-turns along it (odd → still a true Möbius strip) and narrows to a thin line where it turns edge-on. It only sways slightly instead of spinning.
