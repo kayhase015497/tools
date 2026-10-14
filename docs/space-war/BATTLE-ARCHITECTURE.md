@@ -70,7 +70,7 @@ Tab 隨時切換：指揮官 → 飛行員時可選「回原機」或「從 HSS 
 
 ## Amphoreus Möbius ring
 
-`mobius` in battle-render.js: a true half-twisted strip (R = 5100 m ≈ the Irontomb's arm span, centred at the thigh, y = `TOMB_POS.y - 55 * TOMB_SCALE`, slightly tilted and slowly rotating) with bright edge lines, flowing highlights and a wide violet halo; HDR values feed the bloom. The classic page never had one (only the red exclusion rings).
+`mobius` in battle-render.js: a true half-twisted strip, now 1,500 m wide so the twist reads clearly (R = 5100 m ≈ the Irontomb's arm span, centred at the thigh, y = `TOMB_POS.y - 55 * TOMB_SCALE`, slightly tilted and slowly rotating) with bright edge lines, flowing highlights and a wide violet halo; HDR values feed the bloom. The classic page never had one (only the red exclusion rings).
 
 ## Missile resupply, faction colours, bass SFX
 
