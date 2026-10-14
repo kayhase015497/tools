@@ -12,7 +12,7 @@ const scene = new THREE.Scene(); scene.background = new THREE.Color(0x03050c);
 const camera = new THREE.PerspectiveCamera(FOV, 1, 1, 60000);
 const sky = SWEnv.makeSky(30000, { linear: true }); scene.add(sky);
 SWEnv.makeEnvironment(renderer, scene);
-const lights = SWEnv.addLights(scene, { hemi: 0.24, key: 3.0, rim: 0.7 });   // 低環境光＋強主光：明暗反差大
+const lights = SWEnv.addLights(scene, { hemi: 0.2, key: 1.5, rim: 0.55 });   // v2：主光 3.0 → 1.5，艦艇不再被照到發白   // 低環境光＋強主光：明暗反差大
 let W = 1, H = 1, post = null, hurtK = 0, fovCur = FOV, speedFx = 0;
 
 // 駕駛艙疊加層：獨立的場景＋相機（近平面極近），畫在主場景之後
@@ -66,7 +66,7 @@ function updateBoomLights(dt) { for (const p of BL) { p.k *= Math.exp(-dt * 4.2)
 const LINEARIZED = new Map();
 function prepMaterial(m, panelK) {   // sRGB 顯示色 → 線性；轉成節點材質；硬表面加程序化面板接縫
   if (LINEARIZED.has(m)) return LINEARIZED.get(m);
-  if (m.color) m.color.convertSRGBToLinear();
+  if (m.color) { m.color.convertSRGBToLinear(); if (!(m.emissive && (m.emissive.r + m.emissive.g + m.emissive.b) > 0.01)) m.color.multiplyScalar(0.78); }   // v2：非發光面（裝甲）反照率 ×0.78
   const emissive = m.emissive && (m.emissive.r + m.emissive.g + m.emissive.b) > 0.01;
   if (m.emissive) m.emissive.convertSRGBToLinear();
   const nm = window.SW2.nodes.toNode(renderer, m);
@@ -299,11 +299,23 @@ function setupRender(a) {
     tombMeshes.position.copy(TOMB_POS); tombMeshes.scale.setScalar(TOMB_SCALE); scene.add(tombMeshes);
   }
   if (a.cockpit) a.cockpit.parts.forEach((p) => { const m = p.material; if (m.emissive && m.emissive.r + m.emissive.g + m.emissive.b > 0.01) m.emissiveIntensity = 2.2; const me = new THREE.Mesh(p.geometry, m); me.frustumCulled = false; cockRoot.add(me); });
-  Object.keys(fleet.kinds).forEach((k) => fleet.kinds[k].meshes.forEach((me) => { if (me.material.emissive && me.material.emissive.r + me.material.emissive.g + me.material.emissive.b > 0.01) me.material.emissiveIntensity = 1.8; me.material.envMapIntensity = 0.28; if (window.SW2.envTex) me.material.envMap = window.SW2.envTex; }));
+  Object.keys(fleet.kinds).forEach((k) => fleet.kinds[k].meshes.forEach((me) => { if (me.material.emissive && me.material.emissive.r + me.material.emissive.g + me.material.emissive.b > 0.01) me.material.emissiveIntensity = 1.2; me.material.envMapIntensity = 0.28; if (window.SW2.envTex) me.material.envMap = window.SW2.envTex; }));
   // 高畫質：4× MSAA + 泛光 + 電影感；低畫質：只有最終合成（調色／暈邊／顆粒），不開泛光與電影感
-  post = FPVPost.create(renderer, scene, camera, cockScene, cockCam, QUALITY === 'high'
-    ? { width: innerWidth, height: innerHeight, samples: 4, strength: 0.55, threshold: 2.0, radius: 0.6, cinema: true, streak: 0, ghost: 0 }   // v2：拿掉拉絲光與鏡頭鬼影（座艙裡像玻璃反光，太擋畫面）；保留體積光
-    : { width: innerWidth, height: innerHeight, samples: 0, bloom: false, cinema: false });
-  post.u.uContrast.value = 1.15; post.u.uGrain.value = 0.03; post.u.uVig.value = 0.5; post.u.uSat.value = 1.15;
+  knobs.msaa = QUALITY === 'high' ? 4 : 0; knobs.bloom = QUALITY === 'high'; knobs.cinema = QUALITY === 'high';
+  rebuildPost();
   buildDoomVisuals(); resize();
+}
+
+/* ── 效能旋鈕（F3 面板顯示；F4 解析度、F5 抗鋸齒、F6 泛光、F7 體積光、F8 護盾／損傷特效） ── */
+const knobs = { res: QUALITY === 'high' ? 1.5 : 1.25, msaa: 0, bloom: false, cinema: false };
+function rebuildPost() {   // v2：拿掉拉絲光與鏡頭鬼影（座艙裡像玻璃反光，太擋畫面）；保留體積光
+  post = FPVPost.create(renderer, scene, camera, cockScene, cockCam, { width: innerWidth, height: innerHeight, samples: knobs.msaa, strength: 0.55, threshold: 2.0, radius: 0.6, bloom: knobs.bloom, cinema: knobs.cinema, streak: 0, ghost: 0 });
+  post.u.uContrast.value = 1.15; post.u.uGrain.value = 0.03; post.u.uVig.value = 0.5; post.u.uSat.value = 1.15;
+}
+function setKnob(name, v) {
+  if (name === 'res') { knobs.res = v; renderer.setPixelRatio(Math.min(devicePixelRatio || 1, v)); resize(); rebuildPost(); }
+  else if (name === 'msaa') { knobs.msaa = v; rebuildPost(); }
+  else if (name === 'bloom') { knobs.bloom = v; rebuildPost(); }
+  else if (name === 'cinema') { knobs.cinema = v; rebuildPost(); }
+  else if (name === 'fx') { G.lite = !v; }
 }

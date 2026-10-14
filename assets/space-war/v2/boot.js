@@ -77,12 +77,21 @@ window.SW2.snap = () => {
   document.body.appendChild(el);
   let on = false, n = 0, t0 = performance.now(), fps = 0, gpuName = '';
   navigator.gpu && navigator.gpu.requestAdapter().then((a) => { if (a) gpuName = (a.info && (a.info.description || a.info.vendor + ' ' + a.info.architecture)) || ''; }).catch(() => {});
-  addEventListener('keydown', (e) => { if (e.code === 'F3') { e.preventDefault(); on = !on; el.style.display = on ? 'block' : 'none'; } });
+  const RES = [0.75, 1, 1.25, 1.5, 2];
+  addEventListener('keydown', (e) => {
+    const K = window.battleKnobs; if (e.code === 'F3') { e.preventDefault(); on = !on; el.style.display = on ? 'block' : 'none'; return; }
+    if (!on || !K) return;
+    if (e.code === 'F4') { e.preventDefault(); K.set('res', RES[(RES.indexOf(K.get().res) + 1) % RES.length] || 1); }
+    else if (e.code === 'F5') { e.preventDefault(); K.set('msaa', K.get().msaa ? 0 : 4); }
+    else if (e.code === 'F6') { e.preventDefault(); K.set('bloom', !K.get().bloom); }
+    else if (e.code === 'F7') { e.preventDefault(); K.set('cinema', !K.get().cinema); }
+    else if (e.code === 'F8') { e.preventDefault(); K.set('fx', !!window.G.lite); }
+  });
   (function loop() {
     requestAnimationFrame(loop); n++; const t = performance.now();
     if (t - t0 > 500) { fps = n * 1000 / (t - t0); n = 0; t0 = t; if (on) {
       const D = window.battleDebug, r = window.SW2.renderer, ps = r.getPixelRatio();
-      el.textContent = `v2 build 3 · ${window.SW2.backend} · ${window.SW2.QUALITY}\n${fps.toFixed(1)} fps · ${(1000 / Math.max(fps, 1)).toFixed(1)} ms\n${Math.round(innerWidth * ps)}×${Math.round(innerHeight * ps)} (×${ps})\n${gpuName || 'GPU: n/a'}\nships ${D ? D.allies.length + D.enemies.length : 0} · particles ${D && D.fx ? D.fx.particleCount : 0}`;
+      el.textContent = `v2 build 4 · ${window.SW2.backend} · ${window.SW2.QUALITY}\n${fps.toFixed(1)} fps · ${(1000 / Math.max(fps, 1)).toFixed(1)} ms\n${Math.round(innerWidth * ps)}×${Math.round(innerHeight * ps)} (×${ps})\n${gpuName || 'GPU: n/a'}\nships ${D ? D.allies.length + D.enemies.length : 0} · particles ${D && D.fx ? D.fx.particleCount : 0}\n` + (window.battleKnobs ? (k => `[F4] 解析度比例 ×${k.res}   [F5] 抗鋸齒 ${k.msaa ? k.msaa + '×' : '關'}\n[F6] 泛光 ${k.bloom ? '開' : '關'}   [F7] 體積光 ${k.cinema ? '開' : '關'}   [F8] 護盾/損傷特效 ${window.G.lite ? '關' : '開'}`)(window.battleKnobs.get()) : '');
     } }
   })();
 })();
