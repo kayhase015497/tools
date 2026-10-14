@@ -81,8 +81,8 @@
         sh.uniforms.uDmgTime = dmgTime;
         sh.vertexShader = 'attribute float aDmg; varying float vDmg; varying vec3 vObjP;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vDmg = aDmg; vObjP = position;');
         sh.fragmentShader = 'varying float vDmg; varying vec3 vObjP; uniform float uDmgTime;\n' + DMG_NOISE + sh.fragmentShader
-          .replace('#include <color_fragment>', '#include <color_fragment>\n float dsc = smoothstep(0.05, 0.85, vDmg) * (0.3 + 0.7 * dn(vObjP * 0.55)); diffuseColor.rgb *= 1.0 - 0.88 * dsc;')
-          .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n { float cr = 1.0 - abs(2.0 * dn(vObjP * 0.42 + 3.1) - 1.0); cr = smoothstep(0.9, 0.985, cr * (0.75 + 0.25 * dn(vObjP * 1.3))); float pulse = 0.75 + 0.25 * sin(uDmgTime * 5.0 + vObjP.x * 0.4); totalEmissiveRadiance += vec3(3.2, 0.7, 0.1) * cr * smoothstep(0.3, 0.8, vDmg) * pulse; }');
+          .replace('#include <color_fragment>', '#include <color_fragment>\n if (vDmg > 0.02) { float dsc = smoothstep(0.05, 0.85, vDmg) * (0.3 + 0.7 * dn(vObjP * 0.55)); diffuseColor.rgb *= 1.0 - 0.88 * dsc; }')
+          .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n if (vDmg > 0.3) { float cr = 1.0 - abs(2.0 * dn(vObjP * 0.42 + 3.1) - 1.0); cr = smoothstep(0.9, 0.985, cr * (0.75 + 0.25 * dn(vObjP * 1.3))); float pulse = 0.75 + 0.25 * sin(uDmgTime * 5.0 + vObjP.x * 0.4); totalEmissiveRadiance += vec3(3.2, 0.7, 0.1) * cr * smoothstep(0.3, 0.8, vDmg) * pulse; }');
       };
       m.customProgramCacheKey = () => 'dmgfx';
       m.needsUpdate = true;

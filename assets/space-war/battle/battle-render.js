@@ -6,7 +6,7 @@ const cv = $('#b-canvas'), hudCv = $('#b-hud'), hx = hudCv.getContext('2d');
 const coarse = matchMedia('(pointer: coarse)').matches;
 let QUALITY = Q.get('q') || (coarse ? 'low' : 'high');
 const renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: QUALITY === 'high' && !coarse });
-renderer.setPixelRatio(Math.min(devicePixelRatio || 1, QUALITY === 'high' ? 2 : 1.25));
+renderer.setPixelRatio(Math.min(devicePixelRatio || 1, QUALITY === 'high' ? 1.5 : 1.25));
 const scene = new THREE.Scene(); scene.background = new THREE.Color(0x03050c);
 const camera = new THREE.PerspectiveCamera(FOV, 1, 1, 60000);
 const sky = SWEnv.makeSky(30000, { linear: true }); scene.add(sky);
@@ -159,6 +159,7 @@ for (let i = 0; i < SHIELD_K; i++) {
 const _sc0 = new THREE.Vector3(), _sc1 = new THREE.Vector3(), _sc2 = new THREE.Vector3();
 function shieldColor(s) { return s.side === 'e' ? [0.62, 0.28, 1.0] : s.kind === 'ipc' ? [1.0, 0.28, 0.25] : [0.3, 0.65, 1.0]; }
 function updateShieldViz() {
+  if (G.lite) { for (let i = 0; i < SHIELD_K; i++) shieldViz[i].visible = false; return; }
   const cand = []; const f = (list) => { for (let i = 0; i < list.length; i++) { const s = list[i]; if (!s.dead && s.shMax && !s.hidden && G.t - s.shT < 1.35) cand.push(s); } }; f(allies); f(enemies);
   cand.sort((a, b) => b.shT - a.shT);
   for (let i = 0; i < SHIELD_K; i++) {
@@ -225,6 +226,13 @@ function resize() {
   if (post) post.setSize(W, H); starMat.uniforms.uPR.value = renderer.getPixelRatio();
 }
 addEventListener('resize', resize);
+/* 效能守門員：畫面持續卡頓時，依序關閉電影感後處理 → 降低解析度 → 關泛光／精簡特效，並在左上角提示 */
+function degradeQuality(stage) {
+  if (stage === 1) { if (post && post.cinema) { post.cinema.enabled = false; post.u.uCinema.value = 0; } else renderer.setPixelRatio(1); }
+  else if (stage === 2) { renderer.setPixelRatio(1); resize(); }
+  else if (stage >= 3) { if (post) post.bloom.enabled = false; G.lite = true; }
+  say('Performance mode ' + stage + ': reducing effects', '效能模式 ' + stage + '：自動降低特效', true);
+}
 const proj = new THREE.Vector3();
 function toScreen(x, y, z) { proj.set(x, y, z).project(camera); return { x: (proj.x * 0.5 + 0.5) * W, y: (-proj.y * 0.5 + 0.5) * H, z: proj.z, ok: proj.z < 1 && proj.z > -1 }; }
 function pixelsPerRad() { return H / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2))); }
@@ -270,9 +278,9 @@ function cockpitVisible() { return G.role === 'pilot' && cam.mode === 'cockpit' 
 function render() {
   const cockOn = cockpitVisible();
   if (post) {
-    if (post.god) {   // 體積光的光源：鐵墓胸口的核心；轉成螢幕座標，位於鏡頭後方時關閉
-      const lp = toScreen(TOMB_POS.x, TOMB_POS.y + 2890, TOMB_POS.z), lu = lp.x / W, lv = 1 - lp.y / H, off = Math.max(Math.abs(lu - 0.5), Math.abs(lv - 0.5));
-      post.god.uniforms.uLight.value.set(lu, lv); post.god.uniforms.uInt.value = lp.ok ? clamp(1.6 - off * 1.6, 0, 1) * 0.45 * (G.doom > 1 ? 0.4 : 1) : 0;
+    if (post.cinema) {   // 體積光的光源：鐵墓胸口的核心；轉成螢幕座標，位於鏡頭後方時關閉
+      const lp = toScreen(TOMB_POS.x, TOMB_POS.y + 2890, TOMB_POS.z), lu = lp.x / W, lv = 1 - lp.y / H, off = Math.max(Math.abs(lu - 0.5), Math.abs(lv - 0.5)), cu = post.cinema.u;
+      cu.uLight.value.set(lu, lv); cu.uInt.value = lp.ok ? clamp(1.6 - off * 1.6, 0, 1) * 0.45 * (G.doom > 1 ? 0.4 : 1) : 0;
     }
     post.cockpit.enabled = cockOn; const u = post.u; u.uTime.value = performance.now() / 1000; u.uSpeed.value = 0;   // 已移除：加速時的徑向速度模糊 u.uHurt.value = hurtK;
     post.composer.render();

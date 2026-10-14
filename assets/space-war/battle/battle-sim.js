@@ -135,21 +135,24 @@ function stepShields(dt) {
   f(allies); f(enemies);
 }
 /* 艦體損傷：受損的主力艦冒煙、噴火花、起火，重傷時偶爾發生小型二次爆炸（艦體的焦黑與裂縫發光在 sw-fleet 的材質裡） */
+let dmgFxBudget = 0;
 function stepDamageFx(dt) {
-  if (!fx.smoke) return;
+  if (!fx.smoke || G.lite) return;
+  dmgFxBudget = 0;   // 每幀最多讓 6 艘受損艦冒煙起火（體積煙霧填充成本高，離鏡頭遠的不處理）
   const f = (list) => {
     for (let i = 0; i < list.length; i++) {
       const s = list[i]; if (s.dead || s.d.hp < 2500 || s.isPlayer) continue;
       const dm = 1 - s.hp / s.hpMax; if (dm < 0.3) continue;
-      if (Math.abs(s.x - camera.position.x) > 22000 || Math.abs(s.z - camera.position.z) > 22000) continue;
+      if (Math.abs(s.x - camera.position.x) > 9000 || Math.abs(s.z - camera.position.z) > 9000 || Math.abs(s.y - camera.position.y) > 9000) continue;
+      if (++dmgFxBudget > 6) return;
       const k = clamp((dm - 0.3) / 0.7, 0, 1), R = s.rad * 0.8;
-      if (Math.random() < dt * (1.2 + 3.5 * k)) {                              // 傷口冒煙
+      if (Math.random() < dt * (0.5 + 1.2 * k)) {                              // 傷口冒煙
         const u = rnd(-0.5, 0.8), a = rnd(0, TAU), c = Math.sqrt(1 - u * u);
-        fx.smoke(s.x + Math.cos(a) * c * R, s.y + u * R, s.z + Math.sin(a) * c * R, s.vx * 0.2 + rnd(-8, 8), s.vy * 0.2 + rnd(6, 20), s.vz * 0.2 + rnd(-8, 8), R * 0.12, R * rnd(0.4, 0.8), rnd(3, 6), [0.04, 0.03, 0.03], 0.4, 1.3);
+        fx.smoke(s.x + Math.cos(a) * c * R, s.y + u * R, s.z + Math.sin(a) * c * R, s.vx * 0.2 + rnd(-8, 8), s.vy * 0.2 + rnd(6, 20), s.vz * 0.2 + rnd(-8, 8), R * 0.1, R * rnd(0.3, 0.55), rnd(2.5, 4.5), [0.04, 0.03, 0.03], 0.4, 1.3);
       }
-      if (k > 0.35 && Math.random() < dt * (1 + 5 * k)) {                       // 火舌與火花
+      if (k > 0.35 && Math.random() < dt * (0.6 + 2.0 * k)) {                       // 火舌與火花
         const u = rnd(-0.5, 0.8), a = rnd(0, TAU), c = Math.sqrt(1 - u * u), px = s.x + Math.cos(a) * c * R, py = s.y + u * R, pz = s.z + Math.sin(a) * c * R;
-        fx.fire(px, py, pz, rnd(-6, 6), rnd(4, 16), rnd(-6, 6), R * 0.07, R * rnd(0.18, 0.32), rnd(0.5, 1.1), s.side === 'e' ? [0.75, 0.3, 1.0] : [1.0, 0.5, 0.12], 1.2, 1);
+        fx.fire(px, py, pz, rnd(-6, 6), rnd(4, 16), rnd(-6, 6), R * 0.06, R * rnd(0.12, 0.22), rnd(0.4, 0.9), s.side === 'e' ? [0.75, 0.3, 1.0] : [1.0, 0.5, 0.12], 1.2, 1);
         for (let j = 0; j < 3; j++) fx.emit(px, py, pz, rnd(-1, 1) * R * 0.3, rnd(-0.2, 1) * R * 0.3, rnd(-1, 1) * R * 0.3, 1, rnd(0.5, 0.8), 0.25, Math.max(2, R * 0.015), rnd(0.5, 1.4), 1.2);
       }
       if (k > 0.7 && Math.random() < dt * 0.12 * k) {                           // 重傷：小型二次爆炸
