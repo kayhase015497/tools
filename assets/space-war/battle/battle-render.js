@@ -97,13 +97,17 @@ const auraLine = (function () { const pts = []; for (let i = 0; i <= 128; i++) {
   const l = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: 0xff3b5c, transparent: true, opacity: 0.7, depthWrite: false })); l.position.set(TOMB_POS.x, TOMB_POS.y, TOMB_POS.z); l.visible = false; scene.add(l); return l; })();
 
 /* ── 翁法羅斯的莫比烏斯環：一圈高亮的扭轉光帶，環心在鐵墓大腿中段，半徑約等於鐵墓的手臂展幅 ── */
-const MOBIUS_R = 5100, MOBIUS_CY = TOMB_POS.y - 55 * TOMB_SCALE;
+const MOBIUS_A = 6200, MOBIUS_CY = TOMB_POS.y - 55 * TOMB_SCALE;   // ∞ 的半寬；環心在鐵墓大腿中段
 const mobius = (function () {
-  const grp = new THREE.Group(), U = 360, V = 2;
+  const grp = new THREE.Group(), U = 480, V = 2;
+  // 中心線是一條橫躺的 ∞（伯努利雙紐線），所在平面的法線朝向 HSS（+Z），所以從聯軍陣線看過去就是完整的 ∞；
+  // 光帶沿中心線扭轉 3 個半圈（奇數 → 仍是真正的莫比烏斯帶），扭到側面時光帶收成一條細線，扭轉一目了然
   const mkGeo = (w) => {
-    const pos = [], uv = [], idx = [];
-    for (let i = 0; i <= U; i++) { const u = i / U * TAU, c = Math.cos(u / 2), sn = Math.sin(u / 2);
-      for (let j = 0; j <= V; j++) { const v = j / V * 2 - 1, r = MOBIUS_R + v * w / 2 * c; pos.push(r * Math.cos(u), v * w / 2 * sn, r * Math.sin(u)); uv.push(i / U, v); } }
+    const pos = [], uv = [], idx = [], A = MOBIUS_A, C = (t) => { const d = 1 + Math.sin(t) ** 2; return [A * Math.cos(t) / d, A * Math.sin(t) * Math.cos(t) / d]; };
+    for (let i = 0; i <= U; i++) {
+      const t = i / U * TAU, p = C(t), q = C(t + 1e-3), tx = q[0] - p[0], ty = q[1] - p[1], l = Math.hypot(tx, ty) || 1, nx = -ty / l, ny = tx / l, th = 1.5 * t, cs = Math.cos(th), sn = Math.sin(th);
+      for (let j = 0; j <= V; j++) { const v = j / V * 2 - 1, h = v * w / 2; pos.push(p[0] + nx * cs * h, p[1] + ny * cs * h, sn * h); uv.push(i / U, v); }
+    }
     for (let i = 0; i < U; i++) for (let j = 0; j < V; j++) { const a = i * (V + 1) + j, b = a + V + 1; idx.push(a, b, a + 1, b, b + 1, a + 1); }
     const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx); return g;
   };
@@ -125,9 +129,9 @@ const mobius = (function () {
       '  gl_FragColor = vec4(col * al, 1.0);',
       '}'].join('\n')
   });
-  const strip = new THREE.Mesh(mkGeo(1500), mat(false)), halo = new THREE.Mesh(mkGeo(3200), mat(true));
+  const strip = new THREE.Mesh(mkGeo(1300), mat(false)), halo = new THREE.Mesh(mkGeo(2900), mat(true));
   strip.frustumCulled = halo.frustumCulled = false; strip.renderOrder = 3; halo.renderOrder = 2; grp.add(halo, strip);
-  grp.position.set(TOMB_POS.x, MOBIUS_CY, TOMB_POS.z); grp.rotation.set(0.42, 0.4, 0.1); scene.add(grp); grp.userData.mats = [strip.material, halo.material]; return grp;
+  grp.position.set(TOMB_POS.x, MOBIUS_CY, TOMB_POS.z); grp.rotation.set(0, 0, 0); scene.add(grp); grp.userData.mats = [strip.material, halo.material]; return grp;
 })();
 
 /* ── 末日視覺：巨劍與衝擊波 ── */
@@ -236,7 +240,7 @@ function frameUpdate(dt) {
   gridMesh.visible = auraLine.visible = G.role === 'commander' && G.doom === 0;
   cockRoot.visible = cockpitVisible();
   if (tombMeshes) tombMeshes.rotation.y = Math.sin(G.t * 0.05) * 0.03;
-  mobius.userData.mats.forEach((m) => { m.uniforms.uTime.value = G.t; }); mobius.rotation.y = 0.4 + G.t * 0.006;
+  mobius.userData.mats.forEach((m) => { m.uniforms.uTime.value = G.t; }); mobius.rotation.x = Math.sin(G.t * 0.07) * 0.06; mobius.rotation.y = Math.sin(G.t * 0.05) * 0.08;   // 只輕微晃動，始終正對聯軍陣線
   updateDoomVisuals(dt); updateBubbleViz();
 }
 
