@@ -104,6 +104,26 @@ function drawFlare() {
   for (const q of ghosts) { const x = sp.x + (cx - sp.x) * (1 + q[0]), y = sp.y + (cy - sp.y) * (1 + q[0]), r = R * q[1], gg = hx.createRadialGradient(x, y, 0, x, y, r); gg.addColorStop(0, 'rgba(' + q[2] + ',' + (q[3] * k) + ')'); gg.addColorStop(0.7, 'rgba(' + q[2] + ',' + (q[3] * k * 0.5) + ')'); gg.addColorStop(1, 'rgba(' + q[2] + ',0)'); hx.fillStyle = gg; hx.beginPath(); hx.arc(x, y, r, 0, TAU); hx.fill(); }
   hx.restore();
 }
+/* 飛彈補給導引：琥珀色閃爍標記指向最近的補給艦（HSS／無畏艦），靠近後顯示 2 秒補給進度 */
+function drawSupplyGuide(sc, cx, cy, S) {
+  const P = player, T2 = P.supplyTgt; if (!P.needSupply || !T2 || T2.dead) return;
+  const dd = Math.hypot(T2.x - P.pos.x, T2.y - P.pos.y, T2.z - P.pos.z), on = toScreen(T2.x, T2.y, T2.z), bl = 0.8 + 0.2 * Math.sin(G.t * 8), col = 'rgba(255,200,70,' + bl + ')';
+  const name = T2.kind === 'hss' ? 'HSS' : T2.kind === 'xzd' ? 'XIANZHOU' : 'DREADNOUGHT';
+  hx.textAlign = 'center'; hx.font = '14px "Space Mono"'; const msg = S.resupply + ' ' + name + ' · ' + fmtD(dd), tw = hx.measureText(msg).width + 24; hx.fillStyle = 'rgba(30,18,0,.7)'; hx.fillRect(cx - tw / 2, cy - 150 * sc - 12, tw, 24); hx.fillStyle = col; hx.fillText(msg, cx, cy - 150 * sc);
+  const inside = on.ok && on.x > 0 && on.x < W && on.y > 0 && on.y < H;
+  if (inside) {
+    const r = clamp(T2.rad / Math.max(dd, 1) * pixelsPerRad(), 16, 140); hx.strokeStyle = col; hx.lineWidth = 2; hx.beginPath(); hx.moveTo(on.x, on.y - r); hx.lineTo(on.x + r, on.y); hx.lineTo(on.x, on.y + r); hx.lineTo(on.x - r, on.y); hx.closePath(); hx.stroke();
+    hx.font = '11px "Space Mono"'; hx.fillStyle = col; hx.fillText('RESUPPLY', on.x, on.y - r - 10);
+  } else {
+    V.set(T2.x - P.pos.x, T2.y - P.pos.y, T2.z - P.pos.z); V.applyQuaternion(QT.copy(P.q).invert()); let ax = -V.x, ay = -V.y; const m = Math.hypot(ax, ay) || 1; ax /= m; ay /= m;
+    const px = cx + ax * Math.min(W, H) * 0.4, py = cy + ay * Math.min(W, H) * 0.4; hx.fillStyle = col; hx.beginPath(); hx.moveTo(px + ax * 16, py + ay * 16); hx.lineTo(px - ay * 10 - ax * 8, py + ax * 10 - ay * 8); hx.lineTo(px + ay * 10 - ax * 8, py - ax * 10 - ay * 8); hx.fill();
+  }
+  if (P.resT > 0.01) {
+    const bw = 170 * Math.max(0.7, sc), bx = cx - bw / 2, by = cy + 120 * sc, k = clamp(P.resT / RESUPPLY_TIME, 0, 1);
+    hx.fillStyle = 'rgba(255,190,60,.25)'; hx.fillRect(bx, by, bw, 7); hx.fillStyle = '#ffbe3c'; hx.fillRect(bx, by, bw * k, 7);
+    hx.font = '11px "Space Mono"'; hx.fillStyle = '#ffd98a'; hx.textAlign = 'center'; hx.fillText(S.resupplying + ' ' + Math.round(k * 100) + '%', cx, by - 8);
+  }
+}
 function drawPilotHud(dt) {
   const P = player, cx = W / 2, cy = H / 2, sc = Math.min(W, H) / 720, S = L();
   hx.font = '11px "Space Mono", monospace'; hx.textBaseline = 'middle';
@@ -131,6 +151,7 @@ function drawPilotHud(dt) {
   allies.forEach((a) => {   // 友軍旗艦、月球艦、預警機的標記
     if (a.dead || (a.kind !== 'hss' && a.kind !== 'moon' && a.kind !== 'xzd' && a.kind !== 'awacs')) return; const s = toScreen(a.x, a.y, a.z); if (!s.ok) return; const d = Math.hypot(a.x - P.pos.x, a.y - P.pos.y, a.z - P.pos.z); if (d < a.rad * 1.2) return;
     hx.fillStyle = a.kind === 'awacs' ? 'rgba(143,230,255,.85)' : 'rgba(255,217,138,.8)'; hx.textAlign = 'center'; hx.fillText(a.kind === 'hss' ? 'HSS' : a.kind === 'moon' ? 'SCREWLLUM' : a.kind === 'xzd' ? 'XIANZHOU' : a.cs, s.x, s.y - 14); hx.fillStyle = 'rgba(255,255,255,.5)'; hx.fillText(fmtD(d), s.x, s.y); });
+  drawSupplyGuide(sc, cx, cy, S);
   const tp = toScreen(TOMB_POS.x, TOMB_POS.y + 800, TOMB_POS.z), td = P.pos.distanceTo(TOMB_POS);
   if (tp.ok) { hx.fillStyle = 'rgba(255,90,120,.9)'; hx.textAlign = 'center'; hx.fillText('IRONTOMB · ' + fmtD(td), tp.x, tp.y - 6); if (G.mode === 'free') { hx.fillStyle = 'rgba(255,170,190,.7)'; hx.fillText(S.integrity + ' ' + (100 - ironDmg / 1e9).toFixed(6) + '%', tp.x, tp.y + 10); } }
   const bx = 18, by = H - 92, bw = 170 * Math.max(0.7, sc); bar(bx, by, bw, 8, P.shield / P.shieldMax, '#4aa8ff', 'SHIELD'); bar(bx, by + 24, bw, 8, P.hull / P.hullMax, P.hull / P.hullMax < 0.35 ? '#ff4466' : '#7dffb0', 'HULL');
@@ -139,6 +160,7 @@ function drawPilotHud(dt) {
   if (P.supCd > 0) { hx.fillStyle = '#9fb4cc'; hx.fillText('COMMS ' + Math.ceil(P.supCd) + 's', bx + bw + 20, by - 22); }
   hx.fillStyle = '#cfe9ff'; hx.textAlign = 'right'; hx.font = '12px "Space Mono"'; const spd = P.vel.length();
   hx.fillText('SPD ' + Math.round(spd) + ' m/s' + (P.boost ? '  AB' : '') + (P.assist ? '' : '  FA-OFF'), W - 18, H - 92); hx.fillText('THR ' + Math.round(P.thr * 100) + '%', W - 18, H - 74);
+  if (P.needSupply) hx.fillStyle = 'rgba(255,' + Math.round(170 + 60 * Math.sin(G.t * 8)) + ',60,1)';   // 剩 2 發以下：飛彈欄位閃爍
   hx.fillText('MSL ' + P.missiles + '/8  KILLS ' + P.kills + '  FLEET ' + allies.filter((s) => s.d.hp > 1000).length + '  HOSTILE ' + enemies.length, W - 18, H - 56);
   hx.fillText(G.mode === 'script' ? 'T+' + Math.floor(Math.max(0, G.t - T.REVEAL) / 60) + ':' + String(Math.floor(Math.max(0, G.t - T.REVEAL) % 60)).padStart(2, '0') : 'WAVE ' + G.wave + '  T+' + Math.floor(G.t / 60) + ':' + String(Math.floor(G.t % 60)).padStart(2, '0'), W - 18, H - 38);
   if (hudMsgT > 0) { hudMsgT -= dt; hx.textAlign = 'center'; hx.fillStyle = hudMsgCol; hx.font = '13px "Space Mono"'; hx.fillText(hudMsg, cx, cy + 90 * sc); }

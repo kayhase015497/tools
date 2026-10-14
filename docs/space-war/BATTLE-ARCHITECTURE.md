@@ -71,3 +71,9 @@ Tab 隨時切換：指揮官 → 飛行員時可選「回原機」或「從 HSS 
 ## Amphoreus Möbius ring
 
 `mobius` in battle-render.js: a true half-twisted strip (R = 5100 m ≈ the Irontomb's arm span, centred at the thigh, y = `TOMB_POS.y - 55 * TOMB_SCALE`, slightly tilted and slowly rotating) with bright edge lines, flowing highlights and a wide violet halo; HDR values feed the bloom. The classic page never had one (only the red exclusion rings).
+
+## Missile resupply, faction colours, bass SFX
+
+- **Resupply**: pilot missiles ≤ 2 → `P.needSupply`; the HUD MSL line blinks amber and `drawSupplyGuide` points at the nearest HSS / dreadnought / Xianzhou dreadnought (`supplyShip`). Staying within `rad + 450` m for 2 s (`RESUPPLY_TIME`) refills to 8 (`stepResupply`). The old passive regen was removed.
+- **Colours**: Alliance/Xianzhou blue, IPC red, Antimatter Legion purple for flak and fighter shots; the player's lasers are Alliance blue.
+- **SFX** (`tools-src/audio/build_sfx.py`): `shield_hit` and `missile_launch` rebuilt as deep, muffled, underwater-style bass (sub sweep + low-passed jet, ~97% of energy below 150 Hz). Regenerate single sounds with e.g. `python build_sfx.py --out ... missile_launch` and **restore `manifest.json` afterwards** (the script rewrites it with only the named sounds).

@@ -118,8 +118,8 @@ function impact(x, y, z, big, col) {
 function smokeCloud(x, y, z, R, n) {
   if (!fx || !fx.smoke) return;
   for (let i = 0; i < n; i++) {
-    const a = rnd(0, TAU), u = rnd(-0.6, 1), c = Math.sqrt(1 - u * u), sp = R * rnd(0.12, 0.45), off = R * rnd(0, 0.5), dl = rnd(0.05, 0.5);
-    fx.later(dl, () => fx.smoke(x + Math.cos(a) * c * off, y + u * off, z + Math.sin(a) * c * off, Math.cos(a) * c * sp, u * sp + R * 0.06, Math.sin(a) * c * sp, R * rnd(0.5, 0.9), R * rnd(1.8, 3.2), rnd(3.5, 6.5), [1.0, 0.5, 0.2], 0.55, 1.25));
+    const a = rnd(0, TAU), u = rnd(-0.6, 1), c = Math.sqrt(1 - u * u), sp = R * rnd(0.12, 0.45), off = R * rnd(0, 0.5), dl = rnd(0.05, 0.6), black = i % 3 !== 0;   // 三分之二是濃黑煙，其餘帶火光的橘褐煙
+    fx.later(dl, () => fx.smoke(x + Math.cos(a) * c * off, y + u * off, z + Math.sin(a) * c * off, Math.cos(a) * c * sp, u * sp + R * 0.06, Math.sin(a) * c * sp, R * rnd(0.6, 1.0), R * rnd(2.2, 3.8), rnd(4.5, 8.0), black ? [0.03, 0.02, 0.02] : [1.0, 0.5, 0.2], 0.5, black ? 1.6 : 1.25));
   }
 }
 function damage(s, dmg, x, y, z, src) {
@@ -209,7 +209,7 @@ function stepMissile(m, dt) {
     V.set(tg.x - m.x, tg.y - m.y, tg.z - m.z); const dist = V.length(); V.divideScalar(dist || 1);
     V2.set(m.vx, m.vy, m.vz); const sp = Math.min(m.spd + 330 * dt, 340); V2.normalize();
     V2.lerp(V, Math.min(1, 2.6 * dt)).normalize(); m.spd = sp; m.vx = V2.x * sp; m.vy = V2.y * sp; m.vz = V2.z * sp;
-    if (dist < tg.rad + 14) { impact(m.x, m.y, m.z, 8, [1, 0.8, 0.4]); fx.explode(m.x, m.y, m.z, 1.4, m.side === 'e', 1); smokeCloud(m.x, m.y, m.z, 40, 10); boomLight(m.x, m.y, m.z, 1.4, [1, 0.7, 0.4]); FPVAudio.explode(1.4, m); damage(tg, m.dmg, m.x, m.y, m.z, m.src); return false; }
+    if (dist < tg.rad + 14) { impact(m.x, m.y, m.z, 8, [1, 0.8, 0.4]); fx.explode(m.x, m.y, m.z, 1.4, m.side === 'e', 1); smokeCloud(m.x, m.y, m.z, 48, 22); boomLight(m.x, m.y, m.z, 1.4, [1, 0.7, 0.4]); FPVAudio.explode(1.4, m); damage(tg, m.dmg, m.x, m.y, m.z, m.src); return false; }
   } else { m.spd = Math.min(m.spd + 330 * dt, 340); m.vx = m.fx * m.spd; m.vy = m.fy * m.spd; m.vz = m.fz * m.spd; }
   m.x += m.vx * dt; m.y += m.vy * dt; m.z += m.vz * dt; m.life -= dt;
   const mk = m.big ? 6 : 1;   // 艦載飛彈體型大，拖尾與彈頭光點跟著放大才看得見
@@ -259,7 +259,7 @@ function fighterFire(s, tg, dt) {
   if (s.cd <= 0) {
     s.cd = s.side === 'a' ? 0.18 : 0.32; FWD(s, V2);
     const gun = fleet.gunWorld(s, V); const dmg = s.side === 'a' ? 10 : (tg.isPlayer ? 7 : 9);
-    fire(s, gun.x, gun.y, gun.z, V2.x + rnd(-0.012, 0.012), V2.y + rnd(-0.012, 0.012), V2.z + rnd(-0.012, 0.012), 1300, dmg, 0.35, 28, s.side === 'a' ? [0.4, 0.9, 1] : [0.7, 0.3, 1], 1.6);
+    fire(s, gun.x, gun.y, gun.z, V2.x + rnd(-0.012, 0.012), V2.y + rnd(-0.012, 0.012), V2.z + rnd(-0.012, 0.012), 1300, dmg, 0.35, 28, s.side === 'a' ? [0.3, 0.72, 1] : [0.62, 0.22, 1], 1.6);
     FPVAudio.fire(s.side === 'a' ? 'ally' : 'enemy', gun);
   }
 }
@@ -530,7 +530,7 @@ function spawnPlayer(where) {   // 'front'：環形陣上的 HSS 旁｜'hss'：�
   if (where === 'hss' && hss) { V.set(hss.x - TOMB_POS.x, hss.y - TOMB_POS.y, hss.z - TOMB_POS.z).normalize(); P.pos.set(hss.x + V.x * 760 + rnd(-200, 200), hss.y + V.y * 760 + rnd(-100, 100), hss.z + V.z * 760 + rnd(-200, 200)); }
   else { const q = ringPos(7400, 0.25, 0.05); P.pos.set(q[0], q[1], q[2]); }
   V.set(TOMB_POS.x - P.pos.x, TOMB_POS.y - P.pos.y, TOMB_POS.z - P.pos.z).normalize(); P.q.setFromUnitVectors(AXZ, V); P.vel.copy(V).multiplyScalar(60); P.w.set(0, 0, 0);
-  P.thr = 0.45; P.shield = P.shieldMax; P.hull = P.hullMax; P.energy = 100; P.heat = 100; P.missiles = 8; P.dead = false; P.target = null;
+  P.thr = 0.45; P.shield = P.shieldMax; P.hull = P.hullMax; P.energy = 100; P.heat = 100; P.missiles = 8; P.needSupply = false; P.resT = 0; P.resting = false; P.dead = false; P.target = null;
   if (G.deaths > 0 || where === 'hss') FPVAudio.respawn();
   const s = mkShip('fgt', P.pos.x, P.pos.y, P.pos.z, 0); s.isPlayer = true; s.q = P.q; s.hidden = cam.mode === 'cockpit'; P.ship = s; if (!P.orig || P.orig.dead) { P.orig = s; s.isOrig = true; }
 }
@@ -573,7 +573,7 @@ function stepPlayer(dt) {
   setCenter(msg, !!msg);
   if (G.t - P.lastHit > 4) P.shield = Math.min(P.shieldMax, P.shield + 55 * dt);
   if (P.hull < P.hullMax * 0.35) FPVAudio.alarm();
-  P.heat = clamp(P.heat + 24 * dt, 0, 100); P.fireCd -= dt; P.mslCd -= dt; P.supCd -= dt; P.mslT += dt; if (P.mslT > 14 && P.missiles < 8) { P.missiles++; P.mslT = 0; }
+  P.heat = clamp(P.heat + 24 * dt, 0, 100); P.fireCd -= dt; P.mslCd -= dt; P.supCd -= dt; P.mslT += dt; stepResupply(dt);
   const s = P.ship; s.x = P.pos.x; s.y = P.pos.y; s.z = P.pos.z; s.vx = P.vel.x; s.vy = P.vel.y; s.vz = P.vel.z; s.thr = P.thr + (P.boost ? 0.5 : 0); s.q = P.q;
   if (live && (input.lmb || k.Space) && P.fireCd <= 0 && P.heat > 8) playerFire();
   if (live && (input.rmb || k.ControlLeft) && P.mslCd <= 0) playerMissile();
@@ -588,8 +588,26 @@ function playerFire() {
   const T_ = P.target;
   if (T_ && !T_.dead) { const l = leadPoint({ x: gun.x, y: gun.y, z: gun.z }, T_, 1900, V3); const ang = V3.clone().sub(P.pos).normalize().dot(V2); if (ang > 0.985) { tx_ = l.x; ty_ = l.y; tz_ = l.z; } }
   V3.set(tx_ - gun.x, ty_ - gun.y, tz_ - gun.z).normalize();
-  fire(s, gun.x, gun.y, gun.z, V3.x, V3.y, V3.z, 1900 + P.vel.length() * 0.3, 16, 0.5, 34, [0.45, 0.95, 1], 2.1);
+  fire(s, gun.x, gun.y, gun.z, V3.x, V3.y, V3.z, 1900 + P.vel.length() * 0.3, 16, 0.5, 34, [0.3, 0.72, 1], 2.1);
   FPVAudio.fire('player', { pan: gunSide < 2 ? -0.35 : 0.35 });
+}
+/* 飛彈補給：剩 2 發以下開始亮 HUD 並導引到最近的補給艦（HSS／無畏艦／仙舟無畏艦），靠近停留 2 秒補滿 */
+const RESUPPLY_TIME = 2.0, SUPPLY_KINDS = ['hss', 'cap', 'xzd'];
+function supplyShip() {
+  let best = null, bd = 1e18; const P = player;
+  for (const a of allies) { if (a.dead || SUPPLY_KINDS.indexOf(a.kind) < 0) continue; const d = Math.hypot(a.x - P.pos.x, a.y - P.pos.y, a.z - P.pos.z); if (d < bd) { bd = d; best = a; } }
+  return best;
+}
+function stepResupply(dt) {
+  const P = player;
+  if (P.missiles > 2 && !P.needSupply) { P.resT = 0; P.supplyTgt = null; return; }
+  if (P.missiles <= 2) P.needSupply = true;
+  const sh = supplyShip(); P.supplyTgt = sh; if (!sh) { P.resT = 0; return; }
+  const d = Math.hypot(sh.x - P.pos.x, sh.y - P.pos.y, sh.z - P.pos.z);
+  if (d < sh.rad + 450) {
+    P.resT += dt; P.resting = true;
+    if (P.resT >= RESUPPLY_TIME) { P.missiles = 8; P.needSupply = false; P.resT = 0; P.resting = false; P.supplyTgt = null; FPVAudio.lock(true); say('Missiles resupplied', '飛彈補給完成', false); hudNote(L().resupplied, '#7dffb0'); }
+  } else { P.resT = Math.max(0, P.resT - dt * 2); P.resting = false; }
 }
 function playerMissile() {
   const P = player; if (P.missiles <= 0 || !P.target || P.target.dead) return;
