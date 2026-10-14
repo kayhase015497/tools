@@ -289,7 +289,7 @@ function render() {
       const lp = toScreen(TOMB_POS.x, TOMB_POS.y + 2890, TOMB_POS.z), lu = lp.x / W, lv = 1 - lp.y / H, off = Math.max(Math.abs(lu - 0.5), Math.abs(lv - 0.5)), cu = post.cinema.u;
       cu.uLight.value.set(lu, lv); cu.uInt.value = lp.ok ? clamp(1.6 - off * 1.6, 0, 1) * 0.45 * (G.doom > 1 ? 0.4 : 1) : 0;
     }
-    post.cockpit.enabled = cockOn; const u = post.u; u.uTime.value = performance.now() / 1000; u.uSpeed.value = 0;   // 已移除：加速時的徑向速度模糊 u.uHurt.value = hurtK;
+    post.cockpit.enabled = cockOn; const u = post.u; u.uTime.value = performance.now() / 1000; u.uSpeed.value = 0; u.uHurt.value = hurtK;   // 已移除：加速時的徑向速度模糊
     post.composer.render();
   } else {
     renderer.render(scene, camera);
