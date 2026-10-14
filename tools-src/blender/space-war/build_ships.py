@@ -63,7 +63,8 @@ def _capital_mats(theme=None):
             'hull': make_mat('hull', hexc('#1c3358'), 0.7, 0.38), 'plate': make_mat('plate', hexc('#b9c6e0'), 0.6, 0.4),
             'dark': make_mat('dark', hexc('#070b18'), 0.3, 0.7), 'trim': make_mat('trim', hexc('#0a1830'), 0.2, 0.6, emit=hexc('#ffe2a0'), emit_strength=1.0),
             'win': make_mat('win', hexc('#1a1208'), 0.2, 0.6, emit=hexc('#ffd98a'), emit_strength=1.0), 'glow': make_mat('glow', hexc('#0a1830'), 0.2, 0.6, emit=hexc('#9fe4ff'), emit_strength=1.0),
-            'nav': make_mat('nav', hexc('#300000'), 0.2, 0.6, emit=hexc('#ff4455'), emit_strength=1.0)}
+            'nav': make_mat('nav', hexc('#300000'), 0.2, 0.6, emit=hexc('#ff4455'), emit_strength=1.0),
+            'green': make_mat('green', hexc('#0a2a22'), 0.2, 0.5, emit=hexc('#1fc88a'), emit_strength=0.8)}
     if theme == 'ipc':   # 星際和平公司：炭黑艦體、赤橙發光線條、紅色砲口
         return {
             'hull': make_mat('hull', hexc('#2a2124'), 0.7, 0.42), 'plate': make_mat('plate', hexc('#6d5a55'), 0.55, 0.45),
@@ -112,7 +113,7 @@ def capital(out, name, H, big, theme=None):
     sb.anchor('HP_COCKPIT', (0, -.33 * H + 0.4, top - 0.3 * r ** 0.4))
     sb.box((0, -.33 * H, top + 1.05), (0.5, 0.5, 0.1), 'nav')
     # 雙聯裝砲塔
-    tpos = ([.78, .62, .46, .30, -.40, -.52, -.68, -.84] if (big and theme == 'xz') else [.78, .62, .46, -.52, -.68, -.84] if big else [.52, .74] if theme != 'ipc' else [.6, .35, -.2])
+    tpos = ([.80, .64, .48, .32, .16, -.08, -.24, -.40] if (big and theme == 'xz') else [.78, .62, .46, -.52, -.68, -.84] if big else [.52, .74] if theme != 'ipc' else [.6, .35, -.2])
     ts = 0.75 if big else 0.55
     for gi, fr in enumerate(tpos):
         f = fr * H
@@ -157,6 +158,24 @@ def capital(out, name, H, big, theme=None):
                     sb.cyl((sg * (W + 1.9 + j * 0.28), f + 1.4, .25 * T + 0.1), 0.09, 0.5, 'dark', axis='f', sides=6)
             sb.anchor('HP_MSL_%d' % (1 if sg > 0 else 2), (sg * (W + 1.9), .3 * H, .25 * T))
         sb.box((0, .9 * H, 0.05), (0.12, 0.35 * H, T * 1.4), 'trim')
+    if theme == 'xz':   # 船尾圓環（參照美術設定圖）：銀白細環，環上有缺口與托架，兩顆青綠圓球、頂部矩形發光節點、底部尖刺
+        f0, R = -.70 * H, .27 * H
+        def pt(ang, rr=R):
+            a = math.radians(ang); return (math.cos(a) * rr, f0, math.sin(a) * rr)
+        for (a0, a1) in ((38, 82), (98, 142), (158, 382)):
+            sb.torus((0, f0, 0), R, 0.42, 'plate', axis='f', major=max(8, int((a1 - a0) / 6)), minor=8, a0=math.radians(a0), a1=math.radians(a1))
+        sb.torus((0, f0, 0), R - 0.5, 0.07, 'trim', axis='f', major=60, minor=6)                      # 內側細描邊
+        for ang in (150, 30):                                                                          # 兩顆青綠球＋月牙托架
+            c = pt(ang)
+            sb.sphere(c, 1.1, 'green', seg=14, rings=8)
+            sb.torus(c, 1.45, 0.14, 'plate', axis='f', major=14, minor=6, a0=math.radians(ang + 90 - 120), a1=math.radians(ang + 90 + 120))
+        c = pt(90, R + 0.1)                                                                            # 頂部矩形節點
+        sb.box(c, (1.1, 0.7, 1.7), 'plate'); sb.box((c[0], f0 + 0.38, c[2]), (0.18, 0.05, 1.2), 'green')
+        sb.cyl((0, f0, -R - 1.2), 0.55, 2.8, 'plate', axis='z', sides=6, r2=0.04)                      # 底部尖刺
+        for ang in (45, 135, 225, 315):                                                                # 連接艦體的細樑
+            a = math.radians(ang); sb.ribbon([(math.cos(a) * W * 0.8, f0, math.sin(a) * T * 0.8), (math.cos(a) * (R - 0.1), f0, math.sin(a) * (R - 0.1))], 0.22, 'plate', up=(0, 1, 0))
+        for (a0, a1) in ((115, 245), (-65, 65)):                                                       # 橫向的扁平弧環（繞著艦體）
+            sb.torus((0, f0 - 1.0, 0), R * 1.3, 0.12, 'plate', axis='z', major=24, minor=6, a0=math.radians(a0), a1=math.radians(a1))
     if theme == 'ipc':   # 背部發光脊線 + 艦首方形砲口
         sb.box((0, .1 * H, ztop + 0.3 * T), (0.35 * W, 1.1 * H, 0.3 * T), 'trim', taper=(0.7, 0.8))
         sb.box((0, .9 * H, 0), (0.7 * W, 0.2 * H, 0.9 * T), 'plate', taper=(0.6, 0.8))
