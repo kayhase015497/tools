@@ -28,5 +28,6 @@ m.colorNode = Fn(() => { const d = length(uv().sub(0.5)); const a = smoothstep(0
 const mesh = new THREE.Mesh(g, m); mesh.frustumCulled = false; scene.add(mesh);
 
 const rp = new THREE.RenderPipeline(renderer); const sp = pass(scene, camera); rp.outputNode = sp.getTextureNode('output').add(bloom(sp.getTextureNode('output'), 0.6, 0.5, 1.0));
+window.__snap = async () => { rp.render(); await new Promise((r) => requestAnimationFrame(r)); const c2 = document.createElement('canvas'); c2.width = canvas.width; c2.height = canvas.height; const g = c2.getContext('2d'); g.drawImage(canvas, 0, 0); return c2.toDataURL('image/png'); };
 let n = 0, t0 = performance.now();
 renderer.setAnimationLoop(() => { box.rotation.y += 0.01; rp.render(); n++; if (n === 30) { info.textContent += `30 frames in ${((performance.now() - t0) / 1000).toFixed(1)} s · instances ${N}\nREADY`; window.__ready = true; } });

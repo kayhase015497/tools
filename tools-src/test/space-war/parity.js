@@ -1,19 +1,21 @@
-const { chromium } = (() => { try { return require('playwright'); } catch (e) { return require('/opt/node22/lib/node_modules/playwright'); } })();
+const { chromium } = require('/opt/node22/lib/node_modules/playwright');
 const fs = require('fs');
 (async () => {
   const q = process.argv[2] || 'low', which = process.argv[3] || 'v2';
   const page = which === 'v1' ? 'space-war-battle' : 'space-war-battle-v2';
-  const b = await chromium.launch({ args: ['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader','--ignore-gpu-blocklist','--no-sandbox'] });
+  const GPU = process.env.GPU === '1';
+  const b = await chromium.launch({ args: GPU ? ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--enable-features=Vulkan,UseSkiaRenderer', '--enable-unsafe-webgpu', '--use-vulkan=swiftshader', '--use-webgpu-adapter=swiftshader', '--no-sandbox', '--ignore-gpu-blocklist', '--disable-gpu-sandbox'] : ['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader','--ignore-gpu-blocklist','--no-sandbox'] });
   const pg = await b.newPage({ viewport: { width: 800, height: 450 } });
   const errs = []; pg.on('pageerror', e => errs.push('PAGEERR ' + e.message)); pg.on('console', m => { if (['error', 'warning'].includes(m.type()) && !/Failed to load|fonts/.test(m.text())) errs.push(m.type() + ': ' + m.text().slice(0, 200)); });
+  if (GPU) await pg.addInitScript(() => { if (window.GPUTexture) { const o = GPUTexture.prototype.createView; GPUTexture.prototype.createView = function (d) { if (d && d.swizzle) { d = Object.assign({}, d); delete d.swizzle; } return o.call(this, d); }; } });
   if (which === 'v1') await pg.route('**/three.min.js', r => r.fulfill({ body: fs.readFileSync('three.min.js'), contentType: 'application/javascript' }));
   await pg.route(/fonts\.(googleapis|gstatic)/, r => r.abort());
   await pg.addInitScript(() => { let s = 123456789; Math.random = () => { s |= 0; s = s + 0x6D2B79F5 | 0; let t = Math.imul(s ^ s >>> 15, 1 | s); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; });
-  await pg.goto(`http://localhost:8765/gadget/${page}.html?gov=0&q=${q}`);
+  await pg.goto(`http://localhost:8765/gadget/${page}.html?gov=0&q=${q}${process.env.R ? '&r=' + process.env.R : ''}`);
   await pg.waitForFunction('window.battleDebug && window.battleDebug.ready', null, { timeout: 90000 });
   await pg.evaluate(() => battleDebug.start('free', 'commander'));
   await pg.waitForTimeout(800);
-  const shot = async (name) => { await pg.waitForTimeout(900); await pg.screenshot({ path: `par/${which}_${q}_${name}.png`, timeout: 120000 }); };
+  const shot = async (name) => { await pg.waitForTimeout(900); if (GPU) { const d = await pg.evaluate(() => SW2.snap()); require('fs').writeFileSync(`par/${which}_${q}_${name}.png`, Buffer.from(d.split(',')[1], 'base64')); } else await pg.screenshot({ path: `par/${which}_${q}_${name}.png`, timeout: 120000 }); };
   const cam = (az, pol, dist, ty, tz) => pg.evaluate(([a, p, d, y, z]) => { const D = battleDebug; for (const c of [D.cc, D.ccT]) { c.az = a; c.pol = p; c.dist = d; c.tx = 0; c.ty = y; c.tz = z; } D.warp(0.02); }, [az, pol, dist, ty, tz]);
   await cam(0.45, 1.0, 24000, 1500, -15500); await shot('s1_overview');
   await pg.evaluate(() => battleDebug.warp(25));

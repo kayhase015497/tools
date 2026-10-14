@@ -62,3 +62,27 @@ const FILES = ['sw-assets', 'sw-env', 'sw-fx', 'sw-fleet', 'fpv-audio', 'battle-
 for (const f of FILES) {
   await new Promise((res, rej) => { const s = document.createElement('script'); s.src = BASE + f + '.js'; s.onload = res; s.onerror = () => rej(new Error('載入失敗：' + f)); document.body.appendChild(s); });
 }
+
+// 測試用：WebGPU 畫布無法被一般截圖擷取，這個函式在同一個工作週期內渲染一幀並複製成圖片
+window.SW2.snap = () => {
+  window.render(); window.drawHud(0.016);
+  const c = document.getElementById('b-canvas'), h = document.getElementById('b-hud'), o = document.createElement('canvas'); o.width = c.width; o.height = c.height;
+  const g = o.getContext('2d'); g.drawImage(c, 0, 0); g.drawImage(h, 0, 0, c.width, c.height); return o.toDataURL('image/png');
+};
+
+// F3：效能面板（後端、幀數、解析度、顯卡、粒子數）——截圖貼給我就能判斷問題
+(function () {
+  const el = document.createElement('div');
+  el.style.cssText = 'position:fixed;left:8px;bottom:8px;z-index:60;font:11px/1.5 "Space Mono",monospace;color:#9fe;background:rgba(0,10,20,.78);padding:6px 9px;border:1px solid rgba(143,230,255,.3);display:none;white-space:pre;pointer-events:none';
+  document.body.appendChild(el);
+  let on = false, n = 0, t0 = performance.now(), fps = 0, gpuName = '';
+  navigator.gpu && navigator.gpu.requestAdapter().then((a) => { if (a) gpuName = (a.info && (a.info.description || a.info.vendor + ' ' + a.info.architecture)) || ''; }).catch(() => {});
+  addEventListener('keydown', (e) => { if (e.code === 'F3') { e.preventDefault(); on = !on; el.style.display = on ? 'block' : 'none'; } });
+  (function loop() {
+    requestAnimationFrame(loop); n++; const t = performance.now();
+    if (t - t0 > 500) { fps = n * 1000 / (t - t0); n = 0; t0 = t; if (on) {
+      const D = window.battleDebug, r = window.SW2.renderer, ps = r.getPixelRatio();
+      el.textContent = `v2 · ${window.SW2.backend} · ${window.SW2.QUALITY}\n${fps.toFixed(1)} fps · ${(1000 / Math.max(fps, 1)).toFixed(1)} ms\n${Math.round(innerWidth * ps)}×${Math.round(innerHeight * ps)} (×${ps})\n${gpuName || 'GPU: n/a'}\nships ${D ? D.allies.length + D.enemies.length : 0} · particles ${D && D.fx ? D.fx.particleCount : 0}`;
+    } }
+  })();
+})();

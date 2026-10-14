@@ -113,3 +113,20 @@ assets/space-war/v2/
 | 新 Three.js 的顏色／燈光差異 | 階段 A 專門做一致性比對，先不加新效果 |
 | 效能 | 守門員 + 分檔畫質 + 每次 PR 自動量測，退步會被擋下 |
 | 素材授權 | 只用 CC0／明確可商用；每個素材記錄來源與授權在 `CREDITS.md` |
+
+---
+
+## 進度（階段 A、B 第一部分已完成）
+
+- **A 完成**：Three.js r186 放入 `assets/space-war/v2/vendor/three/`（含 `three/webgpu`、`three/tsl`、後處理與 GLTF 載入器）；`gadget/space-war-battle-v2.html` 以 importmap 載入；`boot.js` 提供相容層，v1 的模擬與 UI 程式（`v2/legacy/`）幾乎原封不動。以固定亂數種子對 6 個固定場景比對 v1/v2：低畫質平均像素差約 7–20、亮度差 ≤ 3（階段 A 相容層版本）。
+- **B 部分完成**：`WebGPURenderer`（自動退回 WebGL2；`?r=gl` 強制退回、`?r=gpu` 強制 WebGPU）；所有自訂 GLSL 著色器改寫成 TSL 節點材質（`v2/engine/nodes.js`）：光束、粒子、火球／煙霧、護盾、莫比烏斯環、衝擊波、星點、太空塵、艦體損傷、面板接縫、鐵墓輪廓光；天空改成「啟動時烘焙成立方體貼圖」；後處理改成 TSL `RenderPipeline`（`v2/engine/post.js`）：泛光 + 1/4 解析度電影感 + 最終合成。WebGPU 與 WebGL2 兩個後端都能完整載入並繪製遊戲（沙盒用軟體 Vulkan 驗證）。
+- **尚未做**（下一步）：
+  1. 粒子／火球／煙霧／碎片改成 **compute shader**（GPU 自己更新）。目前仍由 CPU 每幀寫入實例資料，只是繪製走 WebGPU。這是效能的最大提升點。
+  2. 艦隊實例矩陣改由 GPU 端更新（讓上千艘艦艇的 CPU 負擔降到最低）。
+  3. 與 v1 的逐格視覺比對：WebGPU 後端的色彩與亮度還需微調（泛光、天空、護盾）。
+  4. 階段 C（視覺大升級）與 D（音訊）。
+- **F3 面板**：遊戲中按 F3 顯示後端、FPS、解析度、顯卡、艦艇與粒子數——請在真機截圖回報。
+
+### 測試方式（我這邊的環境）
+沙盒沒有真正的 GPU，只有軟體模擬（SwiftShader）：功能與畫面可驗證，**效能數字沒有參考價值**，要靠你在真機按 F3 回報。
+測試腳本在 `tools-src/test/space-war/`（`parity.js`、`pdiff.py` 等）。
