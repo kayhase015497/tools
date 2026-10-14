@@ -77,3 +77,7 @@ Tab 隨時切換：指揮官 → 飛行員時可選「回原機」或「從 HSS 
 - **Resupply**: pilot missiles ≤ 2 → `P.needSupply`; the HUD MSL line blinks amber and `drawSupplyGuide` points at the nearest HSS / dreadnought / Xianzhou dreadnought (`supplyShip`). Staying within `rad + 450` m for 2 s (`RESUPPLY_TIME`) refills to 8 (`stepResupply`). The old passive regen was removed.
 - **Colours**: Alliance/Xianzhou blue, IPC red, Antimatter Legion purple for flak and fighter shots; the player's lasers are Alliance blue.
 - **SFX** (`tools-src/audio/build_sfx.py`): `shield_hit` and `missile_launch` rebuilt as deep, muffled, underwater-style bass (sub sweep + low-passed jet, ~97% of energy below 150 Hz). Regenerate single sounds with e.g. `python build_sfx.py --out ... missile_launch` and **restore `manifest.json` afterwards** (the script rewrites it with only the named sounds).
+
+### Möbius ring v3 (∞)
+
+The centreline is now a lemniscate (∞, half-width `MOBIUS_A` = 6,200 m) lying in a plane whose normal faces the HSS (+Z), so the alliance side sees a clean ∞. The ribbon twists 3 half-turns along it (odd → still a true Möbius strip) and narrows to a thin line where it turns edge-on. It only sways slightly instead of spinning.
