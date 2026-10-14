@@ -96,6 +96,40 @@ const gridMesh = new THREE.GridHelper(36000, 72, 0x2a4a8a, 0x15264a); gridMesh.m
 const auraLine = (function () { const pts = []; for (let i = 0; i <= 128; i++) { const a = i / 128 * TAU; pts.push(new THREE.Vector3(Math.cos(a) * TOMB_AURA, 0, Math.sin(a) * TOMB_AURA)); }
   const l = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: 0xff3b5c, transparent: true, opacity: 0.7, depthWrite: false })); l.position.set(TOMB_POS.x, TOMB_POS.y, TOMB_POS.z); l.visible = false; scene.add(l); return l; })();
 
+/* ── 翁法羅斯的莫比烏斯環：一圈高亮的扭轉光帶，環心在鐵墓大腿中段，半徑約等於鐵墓的手臂展幅 ── */
+const MOBIUS_R = 5100, MOBIUS_CY = TOMB_POS.y - 55 * TOMB_SCALE;
+const mobius = (function () {
+  const grp = new THREE.Group(), U = 360, V = 2;
+  const mkGeo = (w) => {
+    const pos = [], uv = [], idx = [];
+    for (let i = 0; i <= U; i++) { const u = i / U * TAU, c = Math.cos(u / 2), sn = Math.sin(u / 2);
+      for (let j = 0; j <= V; j++) { const v = j / V * 2 - 1, r = MOBIUS_R + v * w / 2 * c; pos.push(r * Math.cos(u), v * w / 2 * sn, r * Math.sin(u)); uv.push(i / U, v); } }
+    for (let i = 0; i < U; i++) for (let j = 0; j < V; j++) { const a = i * (V + 1) + j, b = a + V + 1; idx.push(a, b, a + 1, b, b + 1, a + 1); }
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx); return g;
+  };
+  const mat = (halo) => new THREE.ShaderMaterial({
+    uniforms: { uTime: { value: 0 }, uHalo: { value: halo ? 1 : 0 } }, transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending,
+    vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+    fragmentShader: [
+      'varying vec2 vUv; uniform float uTime; uniform float uHalo;',
+      'void main(){',
+      '  float a = abs(vUv.y), u = vUv.x;',
+      '  float flow = pow(0.5 + 0.5 * sin(u * 6.2832 * 7.0 - uTime * 0.7), 6.0), flow2 = pow(0.5 + 0.5 * sin(u * 6.2832 * 3.0 + uTime * 0.35), 4.0);',
+      '  vec3 col; float al;',
+      '  if (uHalo > 0.5) { al = exp(-a * a * 2.2) * 0.2; col = vec3(0.45, 0.3, 1.0) * (0.7 + 0.5 * flow2); }',
+      '  else {',
+      '    float edge = smoothstep(0.78, 0.97, a), core = exp(-a * a * 14.0);',
+      '    col = vec3(0.32, 0.22, 0.95) * (0.18 + 0.25 * flow2) + vec3(4.4, 3.9, 5.4) * edge * (0.8 + 0.9 * flow) + vec3(1.2, 1.1, 1.8) * core * 0.35;',
+      '    al = 1.0;',
+      '  }',
+      '  gl_FragColor = vec4(col * al, 1.0);',
+      '}'].join('\n')
+  });
+  const strip = new THREE.Mesh(mkGeo(300), mat(false)), halo = new THREE.Mesh(mkGeo(1500), mat(true));
+  strip.frustumCulled = halo.frustumCulled = false; strip.renderOrder = 3; halo.renderOrder = 2; grp.add(halo, strip);
+  grp.position.set(TOMB_POS.x, MOBIUS_CY, TOMB_POS.z); grp.rotation.set(0.2, 0.4, 0.06); scene.add(grp); grp.userData.mats = [strip.material, halo.material]; return grp;
+})();
+
 /* ── 末日視覺：巨劍與衝擊波 ── */
 const doomObj = { sword: null, light: null, waveS: null, waveR: null };
 function buildDoomVisuals() {
@@ -202,6 +236,7 @@ function frameUpdate(dt) {
   gridMesh.visible = auraLine.visible = G.role === 'commander' && G.doom === 0;
   cockRoot.visible = cockpitVisible();
   if (tombMeshes) tombMeshes.rotation.y = Math.sin(G.t * 0.05) * 0.03;
+  mobius.userData.mats.forEach((m) => { m.uniforms.uTime.value = G.t; }); mobius.rotation.y = 0.4 + G.t * 0.004;
   updateDoomVisuals(dt); updateBubbleViz();
 }
 
