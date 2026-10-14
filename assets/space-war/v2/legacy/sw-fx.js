@@ -127,10 +127,7 @@
     bg.instanceCount = NB;
     // 預設全部為「過期」狀態
     for (let i = 0; i < NB; i++) { aP.array[i * 4] = -1e6; aP.array[i * 4 + 1] = 0.01; }
-    const beamMat = new THREE.ShaderMaterial({
-      uniforms: { uTime: { value: 0 } }, vertexShader: BEAM_VS, fragmentShader: BEAM_FS,
-      transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide
-    });
+    const beamMat = window.SW2.nodes.beamMaterial();
     const beamMesh = new THREE.Mesh(bg, beamMat); beamMesh.frustumCulled = false; beamMesh.renderOrder = 5; scene.add(beamMesh);
     let bi = 0, beamDirty = false;
     fx.beam = function (ax, ay, az, bx, by, bz, o) {
@@ -145,15 +142,11 @@
     const PN = 48000;
     const pPos = new Float32Array(PN * 3), pVel = new Float32Array(PN * 3), pCol = new Float32Array(PN * 4), pT = new Float32Array(PN * 4), pS = new Float32Array(PN * 2);
     for (let i = 0; i < PN; i++) pT[i * 4] = 1e9;                    // 預設為「尚未出生」
-    const pGeo = new THREE.BufferGeometry();
-    const aPosA = new THREE.BufferAttribute(pPos, 3).setUsage(THREE.DynamicDrawUsage), aVelA = new THREE.BufferAttribute(pVel, 3).setUsage(THREE.DynamicDrawUsage), aColA = new THREE.BufferAttribute(pCol, 4).setUsage(THREE.DynamicDrawUsage),
-      aTA = new THREE.BufferAttribute(pT, 4).setUsage(THREE.DynamicDrawUsage), aSA = new THREE.BufferAttribute(pS, 2).setUsage(THREE.DynamicDrawUsage);
-    pGeo.setAttribute('position', aPosA); pGeo.setAttribute('aVel', aVelA); pGeo.setAttribute('aColor', aColA); pGeo.setAttribute('aT', aTA); pGeo.setAttribute('aS', aSA);
-    const partMat = new THREE.ShaderMaterial({
-      uniforms: { scale: { value: 500 }, uTime: { value: 0 } }, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
-      vertexShader: PART_VS, fragmentShader: PART_FS
-    });
-    const points = new THREE.Points(pGeo, partMat); points.frustumCulled = false; points.renderOrder = 6; scene.add(points);
+    const aPosA = new THREE.InstancedBufferAttribute(pPos, 3).setUsage(THREE.DynamicDrawUsage), aVelA = new THREE.InstancedBufferAttribute(pVel, 3).setUsage(THREE.DynamicDrawUsage), aColA = new THREE.InstancedBufferAttribute(pCol, 4).setUsage(THREE.DynamicDrawUsage),
+      aTA = new THREE.InstancedBufferAttribute(pT, 4).setUsage(THREE.DynamicDrawUsage), aSA = new THREE.InstancedBufferAttribute(pS, 2).setUsage(THREE.DynamicDrawUsage);
+    const pGeo = window.SW2.nodes.quadGeometry(PN, { aPos: aPosA, aVel: aVelA, aColor: aColA, aT: aTA, aS: aSA });
+    const partMat = window.SW2.nodes.particleMaterial();
+    const points = new THREE.Mesh(pGeo, partMat); points.frustumCulled = false; points.renderOrder = 6; scene.add(points);
     let pi = 0, dirtyLo = 1e9, dirtyHi = -1, wrapped = false;
     fx.particleCount = 0;
     fx.emit = function (x, y, z, vx, vy, vz, r, g, b, size, life, drag, type, grow) {
@@ -220,7 +213,7 @@
       const aD = new THREE.InstancedBufferAttribute(new Float32Array(N * 4), 4).setUsage(THREE.DynamicDrawUsage);
       const aC = new THREE.InstancedBufferAttribute(new Float32Array(N * 3), 3).setUsage(THREE.DynamicDrawUsage);
       g.setAttribute('aPos', aPos); g.setAttribute('aD', aD); g.setAttribute('aC', aC); g.instanceCount = N;
-      const m = new THREE.ShaderMaterial({ vertexShader: VOL_VS, fragmentShader: fs, transparent: true, depthWrite: false, blending, side: THREE.DoubleSide });
+      const m = window.SW2.nodes.puffMaterial(fs === FIRE_FS ? 'fire' : 'smoke');
       const mesh = new THREE.Mesh(g, m); mesh.frustumCulled = false; mesh.renderOrder = order; scene.add(mesh);
       return { N, i: 0, aPos, aD, aC, vel: new Float32Array(N * 3), age: new Float32Array(N), life: new Float32Array(N).fill(0), s0: new Float32Array(N), s1: new Float32Array(N), drag: new Float32Array(N), amp: new Float32Array(N), seed: new Float32Array(N) };
     }

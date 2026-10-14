@@ -4,9 +4,10 @@
 'use strict';
 const cv = $('#b-canvas'), hudCv = $('#b-hud'), hx = hudCv.getContext('2d');
 const coarse = matchMedia('(pointer: coarse)').matches;
-let QUALITY = Q.get('q') || (coarse ? 'low' : 'high');
-const renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: QUALITY === 'high' && !coarse });
+let QUALITY = window.SW2.QUALITY;          // 由 boot.js 決定（與 v1 相同的規則）
+const renderer = window.SW2.renderer;      // WebGPURenderer（不支援時自動退回 WebGL2），已在 boot.js 初始化完成
 renderer.setPixelRatio(Math.min(devicePixelRatio || 1, QUALITY === 'high' ? 1.5 : 1.25));
+renderer.setClearColor(0x000000, 0);      // 駕駛艙疊層以 alpha 0 當背景
 const scene = new THREE.Scene(); scene.background = new THREE.Color(0x03050c);
 const camera = new THREE.PerspectiveCamera(FOV, 1, 1, 60000);
 const sky = SWEnv.makeSky(30000, { linear: true }); scene.add(sky);
@@ -40,13 +41,10 @@ const tombGlow2 = glowSprite(0xff5a30, 4200, 0.38, 2.0); tombGlow2.position.copy
 const tombLight = new THREE.PointLight(0xff2a45, 6.0, 26000, 1.05); tombLight.position.copy(TOMB_POS); scene.add(tombLight);
 
 const DUST = 900;
-const dustGeo = new THREE.BufferGeometry(); const dp = new Float32Array(DUST * 3); for (let i = 0; i < dp.length; i++) dp[i] = Math.random();
-dustGeo.setAttribute('position', new THREE.BufferAttribute(dp, 3));
-const dustMat = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
-  uniforms: { uCam: { value: new THREE.Vector3() }, uBox: { value: 700 }, uScale: { value: 500 } },
-  vertexShader: 'uniform vec3 uCam; uniform float uBox; uniform float uScale; varying float vA; void main(){ vec3 p = mod(position * uBox - uCam, uBox) - uBox * 0.5; vec4 mv = viewMatrix * vec4(p + uCam, 1.0); float d = length(p); vA = smoothstep(uBox*0.5, uBox*0.15, d); gl_PointSize = clamp(uScale * 1.1 / max(1.0, -mv.z), 1.0, 3.2); gl_Position = projectionMatrix * mv; }',
-  fragmentShader: 'varying float vA; void main(){ float d = length(gl_PointCoord - 0.5); gl_FragColor = vec4(vec3(0.75,0.85,1.0) * smoothstep(0.5, 0.1, d) * vA * 0.8, 1.0); }' });
-const dust = new THREE.Points(dustGeo, dustMat); dust.frustumCulled = false; scene.add(dust);
+const dp = new Float32Array(DUST * 3); for (let i = 0; i < dp.length; i++) dp[i] = Math.random();
+const dustGeo = window.SW2.nodes.quadGeometry(DUST, { aPos: new THREE.InstancedBufferAttribute(dp, 3) });
+const dustMat = window.SW2.nodes.dustMaterial();
+const dust = new THREE.Mesh(dustGeo, dustMat); dust.frustumCulled = false; scene.add(dust);
 
 const STARS = 7000, stP = new Float32Array(STARS * 3), stC = new Float32Array(STARS * 3), stS = new Float32Array(STARS);
 const STAR_TINT = [[1, 0.82, 0.66], [0.78, 0.86, 1], [1, 1, 1], [1, 0.66, 0.5], [0.7, 0.8, 1]];
@@ -55,11 +53,9 @@ for (let i = 0; i < STARS; i++) {
   stP[i * 3] = Math.cos(a) * r * 24000; stP[i * 3 + 1] = u * 24000; stP[i * 3 + 2] = Math.sin(a) * r * 24000;
   stC[i * 3] = c[0] * b; stC[i * 3 + 1] = c[1] * b; stC[i * 3 + 2] = c[2] * b; stS[i] = 1 + Math.min(4, b) * 0.9;
 }
-const starGeo = new THREE.BufferGeometry(); starGeo.setAttribute('position', new THREE.BufferAttribute(stP, 3)); starGeo.setAttribute('aCol', new THREE.BufferAttribute(stC, 3)); starGeo.setAttribute('aSize', new THREE.BufferAttribute(stS, 1));
-const starMat = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, depthTest: true, blending: THREE.AdditiveBlending, uniforms: { uPR: { value: 1 } },   // 深度測試開啟＋深度壓到遠平面：星星只會畫在「沒有任何東西」的地方，不會透過艦體顯示
-  vertexShader: 'attribute vec3 aCol; attribute float aSize; uniform float uPR; varying vec3 vC; void main(){ vC = aCol; gl_PointSize = aSize * uPR; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); gl_Position.z = gl_Position.w * 0.99999; }',
-  fragmentShader: 'varying vec3 vC; void main(){ float d = length(gl_PointCoord - 0.5); float a = smoothstep(0.5, 0.0, d); gl_FragColor = vec4(vC * a * a, 1.0); }' });
-const stars = new THREE.Points(starGeo, starMat); stars.frustumCulled = false; stars.renderOrder = -9; scene.add(stars);
+const starGeo = window.SW2.nodes.quadGeometry(STARS, { aPos: new THREE.InstancedBufferAttribute(stP, 3), aCol: new THREE.InstancedBufferAttribute(stC, 3), aSize: new THREE.InstancedBufferAttribute(stS, 1) });
+const starMat = window.SW2.nodes.starMaterial();   // 深度測試開啟＋深度壓到遠平面：星星只會畫在「沒有任何東西」的地方，不會透過艦體顯示
+const stars = new THREE.Mesh(starGeo, starMat); stars.frustumCulled = false; stars.renderOrder = -9; scene.add(stars);
 
 /* ── 爆炸閃光燈（固定 3 盞）、材質處理 ── */
 const BL = []; for (let i = 0; i < 3; i++) { const l = new THREE.PointLight(0xffaa66, 0, 1500, 1.4); scene.add(l); BL.push({ l, k: 0, size: 1 }); }
@@ -67,27 +63,17 @@ let bli = 0;
 function boomLight(x, y, z, size, col) { const p = BL[bli++ % 3]; p.l.position.set(x, y, z); p.l.color.setRGB(col[0], col[1], col[2]); p.k = 1; p.size = size; p.l.distance = 300 + size * 240; }
 function updateBoomLights(dt) { for (const p of BL) { p.k *= Math.exp(-dt * 4.2); p.l.intensity = p.k * (4 + p.size * 7); } }
 
-const LINEARIZED = new Set();
-function prepMaterial(m, panelK) {   // sRGB 顯示色 → 線性；硬表面加程序化面板接縫
-  if (LINEARIZED.has(m)) return; LINEARIZED.add(m);
+const LINEARIZED = new Map();
+function prepMaterial(m, panelK) {   // sRGB 顯示色 → 線性；轉成節點材質；硬表面加程序化面板接縫
+  if (LINEARIZED.has(m)) return LINEARIZED.get(m);
   if (m.color) m.color.convertSRGBToLinear();
   const emissive = m.emissive && (m.emissive.r + m.emissive.g + m.emissive.b) > 0.01;
   if (m.emissive) m.emissive.convertSRGBToLinear();
-  if (!panelK || emissive) return;
-  m.onBeforeCompile = (sh) => {
-    sh.vertexShader = 'varying vec3 vLoc;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vLoc = position;');
-    sh.fragmentShader = ('varying vec3 vLoc;\nfloat ph3(vec3 p){ p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }\n' + sh.fragmentShader).replace('#include <color_fragment>', `#include <color_fragment>
-      vec3 pq = vLoc * ${panelK.toFixed(4)};
-      vec3 pd = 0.5 - abs(fract(pq) - 0.5);
-      vec3 pw = fwidth(pq);
-      vec3 pm = 1.0 - smoothstep(vec3(0.0), vec3(0.03) + pw * 1.5, pd);
-      float pl = max(pm.x, max(pm.y, pm.z)) * (1.0 - smoothstep(0.25, 0.55, max(pw.x, max(pw.y, pw.z))));
-      float ph = ph3(floor(pq + 0.001));
-      diffuseColor.rgb *= (0.86 + 0.28 * ph) * (1.0 - 0.5 * pl);`);
-  };
-  m.customProgramCacheKey = () => 'panel' + panelK.toFixed(3);
+  const nm = window.SW2.nodes.toNode(renderer, m);
+  if (panelK && !emissive) window.SW2.nodes.panelize(nm, panelK);
+  LINEARIZED.set(m, nm); return nm;
 }
-function prepAsset(a, panelK) { a.parts.forEach((p) => prepMaterial(p.material, panelK)); }
+function prepAsset(a, panelK) { a.parts.forEach((p) => { p.material = prepMaterial(p.material, panelK); }); }
 
 let fx = null, fleet = null, assets = null, tombMeshes = null;
 
@@ -111,24 +97,7 @@ const mobius = (function () {
     for (let i = 0; i < U; i++) for (let j = 0; j < V; j++) { const a = i * (V + 1) + j, b = a + V + 1; idx.push(a, b, a + 1, b, b + 1, a + 1); }
     const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx); return g;
   };
-  const mat = (halo) => new THREE.ShaderMaterial({
-    uniforms: { uTime: { value: 0 }, uHalo: { value: halo ? 1 : 0 } }, transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending,
-    vertexShader: 'varying vec2 vUv; varying float vD; void main(){ vUv = uv; vec4 mv = modelViewMatrix * vec4(position, 1.0); vD = length(mv.xyz); gl_Position = projectionMatrix * mv; }',
-    fragmentShader: [
-      'varying vec2 vUv; varying float vD; uniform float uTime; uniform float uHalo;',
-      'void main(){',
-      '  float a = abs(vUv.y), u = vUv.x;',
-      '  float flow = pow(0.5 + 0.5 * sin(u * 6.2832 * 7.0 - uTime * 0.7), 6.0), flow2 = pow(0.5 + 0.5 * sin(u * 6.2832 * 3.0 + uTime * 0.35), 4.0);',
-      '  vec3 col; float al;',
-      '  if (uHalo > 0.5) { al = exp(-a * a * 2.2) * 0.11; col = vec3(0.45, 0.3, 1.0) * (0.7 + 0.5 * flow2); }',
-      '  else {',
-      '    float edge = smoothstep(0.9, 0.99, a) + 0.25 * smoothstep(0.6, 0.9, a), core = exp(-a * a * 40.0);',
-      '    col = mix(vec3(0.22, 0.2, 0.9), vec3(0.55, 0.3, 0.95), a) * (0.3 + 0.35 * flow2) + vec3(0.9, 1.25, 2.3) * edge * (0.8 + 0.7 * flow) + vec3(0.4, 0.3, 0.7) * core * 0.35;',
-      '    al = 1.0;',
-      '  }',
-      '  gl_FragColor = vec4(col * al * smoothstep(300.0, 2200.0, vD), 1.0);',   // 鏡頭貼近光帶時淡出，不遮住視線
-      '}'].join('\n')
-  });
+  const mat = (halo) => window.SW2.nodes.mobiusMaterial(halo);
   const strip = new THREE.Mesh(mkGeo(1300), mat(false)), halo = new THREE.Mesh(mkGeo(2900), mat(true));
   strip.frustumCulled = halo.frustumCulled = false; strip.renderOrder = 3; halo.renderOrder = 2; grp.add(halo, strip);
   grp.position.set(TOMB_POS.x, MOBIUS_CY, TOMB_POS.z); grp.rotation.set(0, 0, 0); scene.add(grp); grp.userData.mats = [strip.material, halo.material]; return grp;
@@ -136,24 +105,9 @@ const mobius = (function () {
 
 /* ── 能量護盾泡泡：被擊中的艦艇罩上一層六角格能量球，命中點擴散漣漪，護盾破裂時整顆閃白 ── */
 const SHIELD_K = 12, shieldGeo = new THREE.IcosahedronGeometry(1, 4);
-const shieldFS = [
-  'varying vec3 vObj; varying vec3 vN; varying vec3 vV; uniform vec3 uCol; uniform float uTime, uFade, uBreak; uniform vec4 uH0, uH1, uH2;',
-  'float hexd(vec2 p){ p = abs(p); return max(dot(p, normalize(vec2(1.0, 1.7320508))), p.x); }',
-  'float hexLine(vec2 uv){ vec2 r = vec2(1.0, 1.7320508), h = r * 0.5, a = mod(uv, r) - h, b = mod(uv - h, r) - h; vec2 gv = dot(a, a) < dot(b, b) ? a : b; return 1.0 - smoothstep(0.0, 0.085, 0.5 - hexd(gv)); }',
-  'float ripple(vec3 n, vec4 hh){ if (hh.w < 0.0) return 0.0; float age = uTime - hh.w; if (age < 0.0 || age > 1.2) return 0.0; float d = acos(clamp(dot(n, hh.xyz), -1.0, 1.0));',
-  '  float ring = exp(-pow((d - age * 2.2) * 5.5, 2.0)) * (1.0 - age / 1.2), flash = exp(-d * d * 9.0) * max(0.0, 1.0 - age / 0.45); return ring * 1.6 + flash * 2.2; }',
-  'void main(){ vec3 n = normalize(vObj); float fres = pow(1.0 - abs(dot(normalize(vN), normalize(vV))), 2.2);',
-  '  vec2 uv = vec2(atan(n.z, n.x) / 6.2832 * 46.0, asin(clamp(n.y, -1.0, 1.0)) / 3.1416 * 23.0); float hx = hexLine(uv);',
-  '  float rp = ripple(n, uH0) + ripple(n, uH1) + ripple(n, uH2);',
-  '  float e = fres * 0.55 + hx * (0.12 + rp * 1.6) + rp * 0.5 + uBreak * (0.6 + fres * 1.5);',
-  '  vec3 col = uCol * e * uFade; col = mix(col, vec3(1.0) * e * uFade, clamp(uBreak, 0.0, 1.0) * 0.5); gl_FragColor = vec4(col, 1.0); }'
-].join('\n');
 const shieldViz = [];
 for (let i = 0; i < SHIELD_K; i++) {
-  const m = new THREE.ShaderMaterial({
-    uniforms: { uCol: { value: new THREE.Vector3(0.3, 0.6, 1) }, uTime: { value: 0 }, uFade: { value: 0 }, uBreak: { value: 0 }, uH0: { value: new THREE.Vector4(0, 0, 1, -1) }, uH1: { value: new THREE.Vector4(0, 0, 1, -1) }, uH2: { value: new THREE.Vector4(0, 0, 1, -1) } },
-    vertexShader: 'varying vec3 vObj; varying vec3 vN; varying vec3 vV; void main(){ vObj = position; vN = normalMatrix * normal; vec4 mv = modelViewMatrix * vec4(position, 1.0); vV = -mv.xyz; gl_Position = projectionMatrix * mv; }',
-    fragmentShader: shieldFS, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
+  const m = window.SW2.nodes.shieldMaterial();
   const me = new THREE.Mesh(shieldGeo, m); me.frustumCulled = false; me.visible = false; me.matrixAutoUpdate = false; me.renderOrder = 3; scene.add(me); shieldViz.push(me);
 }
 const _sc0 = new THREE.Vector3(), _sc1 = new THREE.Vector3(), _sc2 = new THREE.Vector3();
@@ -198,10 +152,7 @@ function buildDoomVisuals() {
   const halo = glowSprite(0xff3a55, 6000, 0.8, 1.6); halo.position.y = 120;
   sw.add(blade, bladeCore, guard, grip, halo); sw.visible = false; scene.add(sw);
   const L = new THREE.PointLight(0xff4060, 0, 16000, 1.1); scene.add(L);
-  const waveMat = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending,
-    uniforms: { uA: { value: 1 } },
-    vertexShader: 'varying vec3 vN; varying vec3 vV; void main(){ vN = normalize(normalMatrix * normal); vec4 mv = modelViewMatrix * vec4(position, 1.0); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }',
-    fragmentShader: 'uniform float uA; varying vec3 vN; varying vec3 vV; void main(){ float f = pow(1.0 - abs(dot(normalize(vN), normalize(vV))), 2.2); vec3 c = mix(vec3(4.0, 0.7, 1.0), vec3(8.0, 7.0, 7.0), f); gl_FragColor = vec4(c * (0.05 + f * 1.1) * uA, 1.0); }' });
+  const waveMat = window.SW2.nodes.fresnelShellMaterial('wave');
   const ws = new THREE.Mesh(new THREE.SphereGeometry(1, 64, 40), waveMat); ws.visible = false; ws.frustumCulled = false; scene.add(ws);
   const wr = new THREE.Mesh(new THREE.RingGeometry(0.97, 1, 160), new THREE.MeshBasicMaterial({ color: new THREE.Color(6, 1.4, 2), transparent: true, opacity: 0.9, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false }));
   wr.rotation.x = -Math.PI / 2; wr.visible = false; wr.frustumCulled = false; scene.add(wr);
@@ -289,7 +240,7 @@ function render() {
       const lp = toScreen(TOMB_POS.x, TOMB_POS.y + 2890, TOMB_POS.z), lu = lp.x / W, lv = 1 - lp.y / H, off = Math.max(Math.abs(lu - 0.5), Math.abs(lv - 0.5)), cu = post.cinema.u;
       cu.uLight.value.set(lu, lv); cu.uInt.value = lp.ok ? clamp(1.6 - off * 1.6, 0, 1) * 0.45 * (G.doom > 1 ? 0.4 : 1) : 0;
     }
-    post.cockpit.enabled = cockOn; const u = post.u; u.uTime.value = performance.now() / 1000; u.uSpeed.value = 0;   // 已移除：加速時的徑向速度模糊 u.uHurt.value = hurtK;
+    post.cockpit.enabled = cockOn; const u = post.u; u.uTime.value = performance.now() / 1000; u.uSpeed.value = 0; u.uHurt.value = hurtK;   // 已移除：加速時的徑向速度模糊
     post.composer.render();
   } else {
     renderer.render(scene, camera);
@@ -310,22 +261,15 @@ function frameUpdate(dt) {
 function darkenTomb(m) {
   if (m.color) m.color.multiplyScalar(0.34);
   const emissive = m.emissive && m.emissive.r + m.emissive.g + m.emissive.b > 0.01; if (emissive) m.emissiveIntensity = 1.5;
-  m.envMapIntensity = 0.22;
-  const prev = m.onBeforeCompile;
-  m.onBeforeCompile = (sh) => {
-    if (prev) prev(sh);
-    sh.fragmentShader = sh.fragmentShader.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n float tRim = pow(1.0 - clamp(dot(normalize(normal), normalize(vViewPosition)), 0.0, 1.0), 3.4); totalEmissiveRadiance += vec3(3.0, 0.12, 0.24) * tRim * 0.85;');
-  };
-  m.customProgramCacheKey = () => 'tomb' + (m.color ? m.color.getHex() : 0);
+  m.envMapIntensity = 0.22; if (window.SW2.envTex) m.envMap = window.SW2.envTex;
+  window.SW2.nodes.tombize(m, 1.0);
 }
 
 /* ── 螺絲咕姆的光束泡與爆炸衝擊球 ── */
 const bubViz = [], blastViz = [];
 (function () {
   for (let i = 0; i < 8; i++) { const o = glowSprite(0xffd84a, 500, 0.9, 2.6), c = glowSprite(0xffffff, 220, 1, 4); o.visible = c.visible = false; scene.add(o, c); bubViz.push({ o, c }); }
-  const mat = () => new THREE.ShaderMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, uniforms: { uA: { value: 1 } },
-    vertexShader: 'varying vec3 vN; varying vec3 vV; void main(){ vN = normalize(normalMatrix * normal); vec4 mv = modelViewMatrix * vec4(position, 1.0); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }',
-    fragmentShader: 'uniform float uA; varying vec3 vN; varying vec3 vV; void main(){ float f = pow(1.0 - abs(dot(normalize(vN), normalize(vV))), 2.0); gl_FragColor = vec4(vec3(5.0, 3.6, 1.0) * (0.06 + f * 1.0) * uA, 1.0); }' });
+  const mat = () => window.SW2.nodes.fresnelShellMaterial('blast');
   for (let i = 0; i < 6; i++) { const m = new THREE.Mesh(new THREE.SphereGeometry(1, 40, 28), mat()); m.visible = false; m.frustumCulled = false; scene.add(m); blastViz.push(m); }
 })();
 function updateBubbleViz() {
@@ -355,8 +299,11 @@ function setupRender(a) {
     tombMeshes.position.copy(TOMB_POS); tombMeshes.scale.setScalar(TOMB_SCALE); scene.add(tombMeshes);
   }
   if (a.cockpit) a.cockpit.parts.forEach((p) => { const m = p.material; if (m.emissive && m.emissive.r + m.emissive.g + m.emissive.b > 0.01) m.emissiveIntensity = 2.2; const me = new THREE.Mesh(p.geometry, m); me.frustumCulled = false; cockRoot.add(me); });
-  Object.keys(fleet.kinds).forEach((k) => fleet.kinds[k].meshes.forEach((me) => { if (me.material.emissive && me.material.emissive.r + me.material.emissive.g + me.material.emissive.b > 0.01) me.material.emissiveIntensity = 1.8; me.material.envMapIntensity = 0.28; }));
-  if (QUALITY === 'high') { post = FPVPost.create(renderer, scene, camera, cockScene, cockCam, { width: innerWidth, height: innerHeight, strength: 0.55, threshold: 2.0, radius: 0.6, cinema: true, streak: 0.4, ghost: 0.3 }); post.u.uContrast.value = 1.15; post.u.uGrain.value = 0.03; post.u.uVig.value = 0.5; post.u.uSat.value = 1.15; }
-  else { renderer.outputEncoding = THREE.sRGBEncoding; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.0; }
+  Object.keys(fleet.kinds).forEach((k) => fleet.kinds[k].meshes.forEach((me) => { if (me.material.emissive && me.material.emissive.r + me.material.emissive.g + me.material.emissive.b > 0.01) me.material.emissiveIntensity = 1.8; me.material.envMapIntensity = 0.28; if (window.SW2.envTex) me.material.envMap = window.SW2.envTex; }));
+  // 高畫質：4× MSAA + 泛光 + 電影感；低畫質：只有最終合成（調色／暈邊／顆粒），不開泛光與電影感
+  post = FPVPost.create(renderer, scene, camera, cockScene, cockCam, QUALITY === 'high'
+    ? { width: innerWidth, height: innerHeight, samples: 4, strength: 0.55, threshold: 2.0, radius: 0.6, cinema: true, streak: 0.4, ghost: 0.3 }
+    : { width: innerWidth, height: innerHeight, samples: 0, bloom: false, cinema: false });
+  post.u.uContrast.value = 1.15; post.u.uGrain.value = 0.03; post.u.uVig.value = 0.5; post.u.uSat.value = 1.15;
   buildDoomVisuals(); resize();
 }

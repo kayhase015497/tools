@@ -5,36 +5,10 @@
 (function (global) {
   'use strict';
 
-  const SKY_VS = 'varying vec3 vDir; void main(){ vDir = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }';
-  const SKY_FS = [
-    'varying vec3 vDir; uniform float uTime; uniform float uDoom;',
-    'float hash(vec3 p){ p = fract(p*0.3183099+.1); p*=17.0; return fract(p.x*p.y*p.z*(p.x+p.y+p.z)); }',
-    'float vnoise(vec3 x){ vec3 i=floor(x), f=fract(x); f=f*f*(3.0-2.0*f);',
-    '  return mix(mix(mix(hash(i),hash(i+vec3(1,0,0)),f.x), mix(hash(i+vec3(0,1,0)),hash(i+vec3(1,1,0)),f.x),f.y),',
-    '             mix(mix(hash(i+vec3(0,0,1)),hash(i+vec3(1,0,1)),f.x), mix(hash(i+vec3(0,1,1)),hash(i+vec3(1,1,1)),f.x),f.y), f.z); }',
-    'float fbm(vec3 p){ float a=.5,s=0.; for(int i=0;i<5;i++){ s+=a*vnoise(p); p=p*2.03+vec3(1.7,9.2,3.1); a*=.5; } return s; }',
-    'void main(){',
-    '  vec3 d = normalize(vDir);',
-    '  vec3 col = mix(vec3(0.010,0.014,0.036), vec3(0.030,0.020,0.070), d.y*0.5+0.5);',
-    '  float n1 = fbm(d*1.7 + vec3(0.0, uTime*0.002, 0.0)), n2 = fbm(d*3.4 + 7.3);',
-    '  float neb = smoothstep(0.45,0.85,n1) * smoothstep(0.35,0.8,n2);',
-    '  vec3 nc = mix(vec3(0.42,0.10,0.55), vec3(0.78,0.12,0.26), smoothstep(0.3,0.9,fbm(d*2.1+3.0)));',
-    '  nc = mix(nc, vec3(0.10,0.28,0.78), smoothstep(0.55,0.85,fbm(d*1.3+11.0)));',
-    '  col += nc * neb * 0.55;',
-    '  vec3 bn = normalize(vec3(0.3,0.8,0.5)); float bt = dot(d,bn)*5.0; float band = exp(-bt*bt); float dust = fbm(d*6.0+2.0);',
-    '  col += vec3(0.50,0.45,0.70) * band * (0.10 + 0.35*dust*dust) * 0.9;',
-    '  col = mix(col, col * vec3(1.7, 0.45, 0.55) + vec3(0.07, 0.0, 0.02), uDoom);',
-    '  gl_FragColor = vec4(col, 1.0);',
-    '}'
-  ].join('\n');
-
-  /** opts.linear：場景走線性色彩管線時，天空色從顯示色轉為線性（FPV 版使用） */
+  /** 天空：星雲只在啟動時烘焙成立方體貼圖，之後每幀只取樣一次（v1 每幀對全螢幕算 30 次噪聲）。 */
   function makeSky(radius, opts) {
-    const mat = new THREE.ShaderMaterial({
-      uniforms: { uTime: { value: 0 }, uDoom: { value: 0 } }, vertexShader: SKY_VS, fragmentShader: opts && opts.linear ? SKY_FS.replace('gl_FragColor = vec4(col, 1.0);', 'gl_FragColor = vec4(pow(col, vec3(2.2)) * 1.25, 1.0);') : SKY_FS,
-      side: THREE.BackSide, depthWrite: false, fog: false
-    });
-    const m = new THREE.Mesh(new THREE.SphereGeometry(radius || 3200, 40, 28), mat);
+    const V = window.SW2; if (!V.skyTex) V.skyTex = V.nodes.bakeSkyCube(V.renderer, V.isGPU ? 1024 : 512);
+    const m = new THREE.Mesh(new THREE.SphereGeometry(radius || 3200, 40, 28), V.nodes.skyMaterial(V.skyTex));
     m.frustumCulled = false; m.renderOrder = -10;
     return m;
   }
@@ -62,7 +36,7 @@
       es.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide })));
       const pm = new THREE.PMREMGenerator(renderer);
       const rt = pm.fromScene(es, 0.03, 1, 200);
-      scene.environment = rt.texture;
+      scene.environment = rt.texture; window.SW2.envTex = rt.texture;
       pm.dispose();
       return rt.texture;
     } catch (e) { console.warn('PMREM 環境建立失敗', e); return null; }

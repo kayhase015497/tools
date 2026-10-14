@@ -72,21 +72,9 @@
   function create(opts) {
     const scene = opts.scene, assets = opts.assets;
     const fleet = { kinds: {} }, _o = new THREE.Vector3();
-    const dmgFx = !!opts.damageFx, dmgTime = { value: 0 };
-    /* 艦體損傷（僅統一版）：每個實例一個 aDmg（0~1），材質依此把艦體燒黑、並讓「裂縫」發出熔岩般的橘光 */
-    const DMG_NOISE = 'float dh(vec3 p){ p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }\n' +
-      'float dn(vec3 p){ vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(mix(dh(i), dh(i + vec3(1,0,0)), f.x), mix(dh(i + vec3(0,1,0)), dh(i + vec3(1,1,0)), f.x), f.y), mix(mix(dh(i + vec3(0,0,1)), dh(i + vec3(1,0,1)), f.x), mix(dh(i + vec3(0,1,1)), dh(i + vec3(1,1,1)), f.x), f.y), f.z); }\n';
-    function damageMaterial(m) {
-      m.onBeforeCompile = (sh) => {
-        sh.uniforms.uDmgTime = dmgTime;
-        sh.vertexShader = 'attribute float aDmg; varying float vDmg; varying vec3 vObjP;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vDmg = aDmg; vObjP = position;');
-        sh.fragmentShader = 'varying float vDmg; varying vec3 vObjP; uniform float uDmgTime;\n' + DMG_NOISE + sh.fragmentShader
-          .replace('#include <color_fragment>', '#include <color_fragment>\n if (vDmg > 0.02) { float dsc = smoothstep(0.05, 0.85, vDmg) * (0.3 + 0.7 * dn(vObjP * 0.55)); diffuseColor.rgb *= 1.0 - 0.88 * dsc; }')
-          .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n if (vDmg > 0.3) { float cr = 1.0 - abs(2.0 * dn(vObjP * 0.42 + 3.1) - 1.0); cr = smoothstep(0.9, 0.985, cr * (0.75 + 0.25 * dn(vObjP * 1.3))); float pulse = 0.75 + 0.25 * sin(uDmgTime * 5.0 + vObjP.x * 0.4); totalEmissiveRadiance += vec3(3.2, 0.7, 0.1) * cr * smoothstep(0.3, 0.8, vDmg) * pulse; }');
-      };
-      m.customProgramCacheKey = () => 'dmgfx';
-      m.needsUpdate = true;
-    }
+    const dmgFx = !!opts.damageFx, dmgTime = window.SW2 ? window.SW2.nodes.damageTime : { value: 0 };
+    /* 艦體損傷（僅統一版）：每個實例一個 aDmg（0~1），材質依此把艦體燒黑、並讓「裂縫」發出熔岩般的橘光（TSL 節點，見 v2/engine/nodes.js） */
+    function damageMaterial(m) { if (m.isNodeMaterial) window.SW2.nodes.damageize(m); }
 
     Object.keys(KIND_MODEL).forEach((kind) => {
       const a = assets[KIND_MODEL[kind]]; if (!a) return;
@@ -109,13 +97,11 @@
     /* 引擎光暈（全艦隊合併成一個 Points） */
     const EN = 4200;
     const ePos = new Float32Array(EN * 3), eSize = new Float32Array(EN), eCol = new Float32Array(EN * 3);
-    const eGeo = new THREE.BufferGeometry();
-    eGeo.setAttribute('position', new THREE.BufferAttribute(ePos, 3).setUsage(THREE.DynamicDrawUsage));
-    eGeo.setAttribute('size', new THREE.BufferAttribute(eSize, 1).setUsage(THREE.DynamicDrawUsage));
-    eGeo.setAttribute('aColor', new THREE.BufferAttribute(eCol, 3).setUsage(THREE.DynamicDrawUsage));
-    const eMat = new THREE.ShaderMaterial({ uniforms: { scale: { value: 500 } }, vertexShader: GLOW_VS, fragmentShader: GLOW_FS, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
-    const ePoints = new THREE.Points(eGeo, eMat); ePoints.frustumCulled = false; ePoints.renderOrder = 4; scene.add(ePoints);
-    eGeo.setDrawRange(0, 0);
+    const ePosA = new THREE.InstancedBufferAttribute(ePos, 3).setUsage(THREE.DynamicDrawUsage), eSizeA = new THREE.InstancedBufferAttribute(eSize, 1).setUsage(THREE.DynamicDrawUsage), eColA = new THREE.InstancedBufferAttribute(eCol, 3).setUsage(THREE.DynamicDrawUsage);
+    const eGeo = window.SW2.nodes.quadGeometry(EN, { aPos: ePosA, aSize: eSizeA, aColor: eColA });
+    const eMat = window.SW2.nodes.glowPointMaterial();
+    const ePoints = new THREE.Mesh(eGeo, eMat); ePoints.frustumCulled = false; ePoints.renderOrder = 4; scene.add(ePoints);
+    eGeo.instanceCount = 0;
     fleet.setPixelScale = (v) => { eMat.uniforms.scale.value = v; };
 
     /* 選取環 */
@@ -153,8 +139,8 @@
       proc(listA); if (listB) proc(listB);
       dmgTime.value += 0.016;
       for (const k in ks) { const K = ks[k]; K.attr.needsUpdate = true; if (K.dmg) K.dmg.needsUpdate = true; K.meshes.forEach((m) => { m.count = K.n; }); }
-      eGeo.setDrawRange(0, ne);
-      eGeo.attributes.position.needsUpdate = true; eGeo.attributes.size.needsUpdate = true; eGeo.attributes.aColor.needsUpdate = true;
+      eGeo.instanceCount = ne;
+      ePosA.needsUpdate = true; eSizeA.needsUpdate = true; eColA.needsUpdate = true;
       ringMesh.count = nr; ringAttr.needsUpdate = true;
     };
 
