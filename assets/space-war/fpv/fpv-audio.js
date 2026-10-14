@@ -103,8 +103,8 @@
       if (!pos) return play('explosion_' + kind, { vol: 1, wet: 0.3, max: 4 });
       play('explosion_' + kind, { pos, vol: kind === 'big' ? 1.6 : 1.2, ref, wet: kind === 'small' ? 0.22 : 0.35, max: kind === 'small' ? 5 : 4 });
     },
-    hit() { play('hit_hull', { vol: 1, wet: 0.15 }); }, shield() { play('shield_hit', { vol: 0.9, wet: 0.2 }); },
-    missile() { play('missile_launch', { vol: 0.95, wet: 0.2 }); },
+    hit() { play('hit_hull', { vol: 1, wet: 0.15 }); }, shield() { play('shield_hit', { vol: 1, wet: 0.2 }); },
+    missile() { play('missile_launch', { vol: 1, wet: 0.2 }); },
     lance(pos) { play('lance', { vol: 1, wet: 0.45, max: 2 }); },
     alarm() { if (rate('alarm', 1.4)) play('alarm', { vol: 0.5, wet: 0.08 }); },
     lock(acquired) { play(acquired ? 'lock_acquired' : 'lock_tick', { vol: 0.8, wet: 0.1 }); },

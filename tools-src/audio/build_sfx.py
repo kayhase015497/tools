@@ -193,17 +193,23 @@ def cannon(i):
 
 
 def missile_launch(i):
-    d = 2.0
+    """低沉厚重、帶一點「水下」悶響的飛彈發射：整體低通、無高頻嘶聲，次聲重擊＋緩慢升起的渾厚低頻噴流＋氣泡般的低頻顫動"""
+    d = 2.6
     n = int(d * SR)
+    t = T(d)
     y = np.zeros(n)
-    whoosh = swept_noise(d, 250, 3600, 0.55, 0.45, 0.8)
-    thump = np.sin(sweep_phase(95, 40, 0.35)) * expenv(int(0.35 * SR), 0.1, 0.003)
-    crack = hp(noise(0.04), 1500) * expenv(int(0.04 * SR), 0.01, 0.0003)
-    rumble = lp(noise(1.6), 380) * expenv(int(1.6 * SR), 0.6, 0.05)
-    place(y, whoosh, 0, 0.9); place(y, thump, 0, 1.0); place(y, crack, 0, 0.6); place(y, rumble, 0, 0.6)
-    y = sat(y, 1.5)
-    y = reverb(y, 1.0, 0.3, 4000)
-    return norm(trim(y), 0.88)
+    thump = np.sin(sweep_phase(78, 28, 0.6)) * expenv(int(0.6 * SR), 0.17, 0.004)
+    boom2 = np.sin(sweep_phase(46, 24, 1.2)) * expenv(int(1.2 * SR), 0.4, 0.01)
+    jet = lp(noise(d), 260, 3) * (np.minimum(t / 0.5, 1.0)) * np.exp(-t / 0.95)            # 低頻噴流：慢升、慢衰
+    jet2 = bp(noise(d), 80, 480, 2) * (np.minimum(t / 0.35, 1.0)) * np.exp(-t / 0.7)
+    wob = 0.6 + 0.4 * np.sin(2 * np.pi * (6.5 - 2.5 * t) * t)                               # 水下般的緩慢起伏
+    place(y, thump, 0, 1.0); place(y, boom2, 0.02, 0.8); place(y, jet * wob, 0, 1.0); place(y, jet2 * wob, 0.04, 0.9)
+    place(y, lp(noise(0.05), 700) * expenv(int(0.05 * SR), 0.012, 0.0005), 0, 0.5)         # 極低調的起爆「咚」
+    y = lp(y, 900, 3)                                                                       # 整體悶住（像隔著水）
+    y = sat(y, 1.6)
+    y = reverb(y, 1.8, 0.4, 1400, 0.01)
+    y = lp(y, 1100, 2)
+    return norm(trim(y), 0.9)
 
 
 def explosion(kind, i):
@@ -265,19 +271,22 @@ def hit_hull(i):
 
 
 def shield_hit(i):
-    d = 0.7
+    """深層的重低音護盾聲：次聲重擊＋低頻共鳴嗡鳴＋悶住的能量漣漪，沒有尖銳的電子嗶聲"""
+    d = 1.5
     n = int(d * SR)
-    y = np.zeros(n)
     t = T(d)
-    zap = bp(noise(d), 900, 5000) * (0.5 + 0.5 * np.sign(np.sin(2 * np.pi * 65 * t))) * np.exp(-t / 0.12)
-    ph = sweep_phase(1500, 240, 0.45)
-    tone = np.sin(ph + 3 * np.sin(2 * np.pi * 90 * T(0.45))) * np.exp(-T(0.45) / 0.14)
-    thump = np.sin(sweep_phase(120, 50, 0.25)) * expenv(int(0.25 * SR), 0.07, 0.002)
-    place(y, zap, 0, 0.8); place(y, tone, 0, 0.7); place(y, thump, 0, 1.1)
-    place(y, hp(noise(0.03), 2500) * expenv(int(0.03 * SR), 0.005, 0.0002), 0, 0.9)
-    y = sat(y, 2.0)
-    y = reverb(y, 0.6, 0.3, 5500)
-    return norm(trim(y), 0.85)
+    y = np.zeros(n)
+    f0 = rng.uniform(52, 64)
+    sub = np.sin(sweep_phase(f0 * 1.9, f0 * 0.62, 0.5)) * expenv(int(0.5 * SR), 0.16, 0.003)
+    hum = (np.sin(2 * np.pi * f0 * t) + 0.5 * np.sin(2 * np.pi * f0 * 1.5 * t + 0.6)) * np.exp(-t / 0.55) * (0.75 + 0.25 * np.sin(2 * np.pi * 7 * t))
+    ripple = lp(noise(d), 420, 2) * (0.5 + 0.5 * np.sin(2 * np.pi * 14 * t)) * np.exp(-t / 0.28)
+    body = lp(noise(d), 180, 3) * np.exp(-t / 0.4)
+    place(y, sub, 0, 1.2); place(y, hum, 0, 0.7); place(y, ripple, 0.01, 0.45); place(y, body, 0, 0.7)
+    y = lp(y, 800, 3)
+    y = sat(y, 1.8)
+    y = reverb(y, 1.2, 0.34, 1500, 0.01)
+    y = lp(y, 900, 2)
+    return norm(trim(y), 0.9)
 
 
 def lance(i):

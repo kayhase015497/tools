@@ -26,8 +26,8 @@
  "lance": 9.22,
  "lock_acquired": 0.37,
  "lock_tick": 0.23,
- "missile_launch": 2.67,
+ "missile_launch": 3.63,
  "respawn": 2.69,
- "shield_hit_1": 0.88,
- "shield_hit_2": 0.87
+ "shield_hit_1": 2.31,
+ "shield_hit_2": 2.42
 }
