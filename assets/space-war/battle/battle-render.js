@@ -118,16 +118,16 @@ const mobius = (function () {
       '  vec3 col; float al;',
       '  if (uHalo > 0.5) { al = exp(-a * a * 2.2) * 0.2; col = vec3(0.45, 0.3, 1.0) * (0.7 + 0.5 * flow2); }',
       '  else {',
-      '    float edge = smoothstep(0.78, 0.97, a), core = exp(-a * a * 14.0);',
-      '    col = vec3(0.32, 0.22, 0.95) * (0.18 + 0.25 * flow2) + vec3(4.4, 3.9, 5.4) * edge * (0.8 + 0.9 * flow) + vec3(1.2, 1.1, 1.8) * core * 0.35;',
+      '    float edge = smoothstep(0.9, 0.99, a) + 0.25 * smoothstep(0.6, 0.9, a), core = exp(-a * a * 40.0);',
+      '    col = mix(vec3(0.22, 0.2, 0.9), vec3(0.55, 0.3, 0.95), a) * (0.3 + 0.35 * flow2) + vec3(3.2, 4.0, 5.6) * edge * (0.8 + 0.9 * flow) + vec3(1.0, 0.8, 1.6) * core * 0.5;',
       '    al = 1.0;',
       '  }',
       '  gl_FragColor = vec4(col * al, 1.0);',
       '}'].join('\n')
   });
-  const strip = new THREE.Mesh(mkGeo(300), mat(false)), halo = new THREE.Mesh(mkGeo(1500), mat(true));
+  const strip = new THREE.Mesh(mkGeo(1500), mat(false)), halo = new THREE.Mesh(mkGeo(3200), mat(true));
   strip.frustumCulled = halo.frustumCulled = false; strip.renderOrder = 3; halo.renderOrder = 2; grp.add(halo, strip);
-  grp.position.set(TOMB_POS.x, MOBIUS_CY, TOMB_POS.z); grp.rotation.set(0.2, 0.4, 0.06); scene.add(grp); grp.userData.mats = [strip.material, halo.material]; return grp;
+  grp.position.set(TOMB_POS.x, MOBIUS_CY, TOMB_POS.z); grp.rotation.set(0.42, 0.4, 0.1); scene.add(grp); grp.userData.mats = [strip.material, halo.material]; return grp;
 })();
 
 /* ── 末日視覺：巨劍與衝擊波 ── */
@@ -236,7 +236,7 @@ function frameUpdate(dt) {
   gridMesh.visible = auraLine.visible = G.role === 'commander' && G.doom === 0;
   cockRoot.visible = cockpitVisible();
   if (tombMeshes) tombMeshes.rotation.y = Math.sin(G.t * 0.05) * 0.03;
-  mobius.userData.mats.forEach((m) => { m.uniforms.uTime.value = G.t; }); mobius.rotation.y = 0.4 + G.t * 0.004;
+  mobius.userData.mats.forEach((m) => { m.uniforms.uTime.value = G.t; }); mobius.rotation.y = 0.4 + G.t * 0.006;
   updateDoomVisuals(dt); updateBubbleViz();
 }
 
