@@ -45,9 +45,20 @@
     '}'
   ].join('\n');
 
+  /* GPU 粒子：每顆粒子只在「發射時」寫入一次初始位置／速度／顏色／壽命，之後的位移、衰減、縮放、淡出全由頂點著色器依時間解析計算——
+     CPU 每幀不再逐顆更新，粒子池可放大到 4 萬顆以上 */
   const PART_VS = [
-    'attribute vec4 aColor; attribute float size; attribute float aType; uniform float scale; varying vec4 vC; varying float vT;',
-    'void main(){ vC = aColor; vT = aType; vec4 mv = modelViewMatrix * vec4(position, 1.0);',
+    'attribute vec3 aVel; attribute vec4 aColor; attribute vec4 aT; attribute vec2 aS; uniform float scale; uniform float uTime; varying vec4 vC; varying float vT;',
+    // aT = (出生時間, 壽命, 阻力, 成長)；aS = (初始大小, 類型)
+    'void main(){',
+    '  float age = uTime - aT.x;',
+    '  if (age < 0.0 || age > aT.y) { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); gl_PointSize = 0.0; vC = vec4(0.0); vT = 0.0; return; }',
+    '  float k = 1.0 - age / aT.y, dr = aT.z;',
+    '  float travel = dr > 0.001 ? (1.0 - exp(-dr * age)) / dr : age;',
+    '  vec3 p = position + aVel * travel;',
+    '  float size = aT.w > 0.0 ? aS.x * (0.25 + aT.w * (1.0 - k)) : aS.x * (0.4 + 0.6 * k);',
+    '  vC = vec4(aColor.rgb, aS.y > 1.5 ? k : k * k); vT = aS.y;',
+    '  vec4 mv = modelViewMatrix * vec4(p, 1.0);',
     '  gl_PointSize = clamp(size * scale / max(1.0, -mv.z), 0.0, 420.0); gl_Position = projectionMatrix * mv; }'
   ].join('\n');
   const PART_FS = [
@@ -83,7 +94,7 @@
     '  float dens = smoothstep(0.0, 0.5, n * 0.9 + n2 * 0.4 + core * 1.2 - 0.5 - age * 0.6);',
     '  if (dens < 0.01) discard;',
     '  float heat = clamp(core * 1.15 + n * 0.55 - age * 1.15, 0.0, 1.0);',
-    '  vec3 hot = vec3(1.0, 0.93, 0.78) * 5.5, mid = vC * 2.6, cool = vC * vec3(0.55, 0.14, 0.08) * 0.8;',
+    '  vec3 hot = vec3(1.0, 0.9, 0.7) * 3.3, mid = vC * 1.9, cool = vC * vec3(0.55, 0.14, 0.08) * 0.8;',
     '  vec3 col = mix(cool, mid, smoothstep(0.1, 0.55, heat)); col = mix(col, hot, smoothstep(0.62, 1.0, heat));',
     '  gl_FragColor = vec4(col * dens * pow(1.0 - age, 1.3) * vD.w, 1.0);',
     '}'
@@ -131,43 +142,33 @@
     };
 
     /* ── 粒子 ── */
-    const PN = 9000;
-    const pPos = new Float32Array(PN * 3), pVel = new Float32Array(PN * 3), pCol = new Float32Array(PN * 4), pBase = new Float32Array(PN * 4);
-    const pSize = new Float32Array(PN), pSize0 = new Float32Array(PN), pLife = new Float32Array(PN), pMax = new Float32Array(PN), pDrag = new Float32Array(PN);
-    const pType = new Float32Array(PN), pGrow = new Float32Array(PN);
+    const PN = 48000;
+    const pPos = new Float32Array(PN * 3), pVel = new Float32Array(PN * 3), pCol = new Float32Array(PN * 4), pT = new Float32Array(PN * 4), pS = new Float32Array(PN * 2);
+    for (let i = 0; i < PN; i++) pT[i * 4] = 1e9;                    // 預設為「尚未出生」
     const pGeo = new THREE.BufferGeometry();
-    pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
-    pGeo.setAttribute('aColor', new THREE.BufferAttribute(pCol, 4));
-    pGeo.setAttribute('size', new THREE.BufferAttribute(pSize, 1));
-    pGeo.setAttribute('aType', new THREE.BufferAttribute(pType, 1));
+    const aPosA = new THREE.BufferAttribute(pPos, 3).setUsage(THREE.DynamicDrawUsage), aVelA = new THREE.BufferAttribute(pVel, 3).setUsage(THREE.DynamicDrawUsage), aColA = new THREE.BufferAttribute(pCol, 4).setUsage(THREE.DynamicDrawUsage),
+      aTA = new THREE.BufferAttribute(pT, 4).setUsage(THREE.DynamicDrawUsage), aSA = new THREE.BufferAttribute(pS, 2).setUsage(THREE.DynamicDrawUsage);
+    pGeo.setAttribute('position', aPosA); pGeo.setAttribute('aVel', aVelA); pGeo.setAttribute('aColor', aColA); pGeo.setAttribute('aT', aTA); pGeo.setAttribute('aS', aSA);
     const partMat = new THREE.ShaderMaterial({
-      uniforms: { scale: { value: 500 } }, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+      uniforms: { scale: { value: 500 }, uTime: { value: 0 } }, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
       vertexShader: PART_VS, fragmentShader: PART_FS
     });
     const points = new THREE.Points(pGeo, partMat); points.frustumCulled = false; points.renderOrder = 6; scene.add(points);
-    let pi = 0;
+    let pi = 0, dirtyLo = 1e9, dirtyHi = -1, wrapped = false;
+    fx.particleCount = 0;
     fx.emit = function (x, y, z, vx, vy, vz, r, g, b, size, life, drag, type, grow) {
-      const i = (pi++) % PN;
-      pPos[i * 3] = x; pPos[i * 3 + 1] = y; pPos[i * 3 + 2] = z;
-      pVel[i * 3] = vx; pVel[i * 3 + 1] = vy; pVel[i * 3 + 2] = vz;
-      pBase[i * 4] = r; pBase[i * 4 + 1] = g; pBase[i * 4 + 2] = b; pBase[i * 4 + 3] = 1;
-      pSize0[i] = size; pSize[i] = size; pLife[i] = pMax[i] = life; pDrag[i] = drag || 0; pType[i] = type || 0; pGrow[i] = grow || 0;
+      const i = (pi++) % PN; if (i === 0 && pi > 1) wrapped = true;
+      pPos[i * 3] = x; pPos[i * 3 + 1] = y; pPos[i * 3 + 2] = z; pVel[i * 3] = vx; pVel[i * 3 + 1] = vy; pVel[i * 3 + 2] = vz;
+      pCol[i * 4] = r; pCol[i * 4 + 1] = g; pCol[i * 4 + 2] = b; pCol[i * 4 + 3] = 1;
+      pT[i * 4] = fx.time; pT[i * 4 + 1] = life; pT[i * 4 + 2] = drag || 0; pT[i * 4 + 3] = grow || 0; pS[i * 2] = size; pS[i * 2 + 1] = type || 0;
+      if (i < dirtyLo) dirtyLo = i; if (i > dirtyHi) dirtyHi = i; fx.particleCount++;
     };
-    function updateParticles(dt) {
-      for (let i = 0; i < PN; i++) {
-        const l = pLife[i];
-        if (l <= 0) { if (pCol[i * 4 + 3] !== 0) { pCol[i * 4 + 3] = 0; pSize[i] = 0; } continue; }
-        pLife[i] = l - dt;
-        const k = Math.max(0, pLife[i]) / pMax[i], dr = Math.max(0, 1 - pDrag[i] * dt);
-        pVel[i * 3] *= dr; pVel[i * 3 + 1] *= dr; pVel[i * 3 + 2] *= dr;
-        pPos[i * 3] += pVel[i * 3] * dt; pPos[i * 3 + 1] += pVel[i * 3 + 1] * dt; pPos[i * 3 + 2] += pVel[i * 3 + 2] * dt;
-        pCol[i * 4] = pBase[i * 4]; pCol[i * 4 + 1] = pBase[i * 4 + 1]; pCol[i * 4 + 2] = pBase[i * 4 + 2];
-        const ty = pType[i];
-        pCol[i * 4 + 3] = ty > 1.5 ? k : k * k;
-        pSize[i] = pGrow[i] ? pSize0[i] * (0.25 + pGrow[i] * (1 - k)) : pSize0[i] * (0.4 + 0.6 * k);
-      }
-      pGeo.attributes.position.needsUpdate = true; pGeo.attributes.aColor.needsUpdate = true; pGeo.attributes.size.needsUpdate = true;
-      pGeo.attributes.aType.needsUpdate = true;
+    function updateParticles() {                                     // 只把「這一幀新發射」的那一段上傳到 GPU
+      partMat.uniforms.uTime.value = fx.time;
+      if (dirtyHi < 0) return;
+      const lo = wrapped ? 0 : dirtyLo, n = wrapped ? PN : dirtyHi - dirtyLo + 1;
+      [[aPosA, 3], [aVelA, 3], [aColA, 4], [aTA, 4], [aSA, 2]].forEach((e) => { e[0].updateRange.offset = lo * e[1]; e[0].updateRange.count = n * e[1]; e[0].needsUpdate = true; });
+      dirtyLo = 1e9; dirtyHi = -1; wrapped = false;
     }
 
     /* ── 碎片（實體，會翻滾） ── */
@@ -287,7 +288,7 @@
     /* 擬真爆炸：白熱閃光 → 翻騰的火球（噪聲著色器）→ 緩慢擴散的黑煙，另有迸射的火星、衝擊環與碎片 */
     function proExplode(x, y, z, kk, enemy, U) {
       const R = (4 + 4 * Math.sqrt(kk)) * U, flame = enemy ? [0.8, 0.28, 1.0] : [1.0, 0.5, 0.12];
-      fx.emit(x, y, z, 0, 0, 0, 1, 0.95, 0.85, R * 3.2, 0.2, 0, 0, 1.2);                     // 瞬間白閃（柔光）
+      fx.emit(x, y, z, 0, 0, 0, 1, 0.9, 0.75, R * 2.2, 0.16, 0, 0, 1.1);                     // 瞬間白閃（柔光）
       fx.emit(x, y, z, 0, 0, 0, 1, 0.8, 0.5, R * 2.0, 0.11, 0, 1);                          // 極短的星芒，只留一點鏡頭感
       const nf = Math.min(16, 3 + Math.floor(kk * 1.4));
       for (let i = 0; i < nf; i++) {
@@ -322,7 +323,7 @@
       fx.time += dt;
       beamMat.uniforms.uTime.value = fx.time;
       if (beamDirty) { aA.needsUpdate = aB.needsUpdate = aC.needsUpdate = aP.needsUpdate = true; beamDirty = false; }
-      updateParticles(dt); updateDebris(dt); updatePuffs(fireSys, dt); updatePuffs(smokeSys, dt);
+      updateParticles(); updateDebris(dt); updatePuffs(fireSys, dt); updatePuffs(smokeSys, dt);
       for (let i = queue.length - 1; i >= 0; i--) if (queue[i].t <= fx.time) { const f = queue[i].fn; queue.splice(i, 1); f(); }
     };
     fx.setPixelScale = (v) => { partMat.uniforms.scale.value = v; };

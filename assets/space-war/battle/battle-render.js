@@ -11,7 +11,7 @@ const scene = new THREE.Scene(); scene.background = new THREE.Color(0x03050c);
 const camera = new THREE.PerspectiveCamera(FOV, 1, 1, 60000);
 const sky = SWEnv.makeSky(30000, { linear: true }); scene.add(sky);
 SWEnv.makeEnvironment(renderer, scene);
-const lights = SWEnv.addLights(scene, { hemi: 0.34, key: 5.2, rim: 0.8 });   // 低環境光＋強主光：明暗反差大
+const lights = SWEnv.addLights(scene, { hemi: 0.24, key: 3.0, rim: 0.7 });   // 低環境光＋強主光：明暗反差大
 let W = 1, H = 1, post = null, hurtK = 0, fovCur = FOV, speedFx = 0;
 
 // 駕駛艙疊加層：獨立的場景＋相機（近平面極近），畫在主場景之後
@@ -34,8 +34,8 @@ const sun = glowSprite(0xfff1d6, 5200, 0.95, 2.6); sun.position.set(26000 * 0.55
 const sunCore = glowSprite(0xffffff, 1500, 1, 9); sunCore.position.copy(sun.position); scene.add(sunCore);
 lights.key.position.copy(sun.position).normalize().multiplyScalar(500);
 const SUN_DIR = sun.position.clone().normalize();
-const tombGlow = glowSprite(0xff2040, 9500, 0.62, 1.5); tombGlow.position.copy(TOMB_POS).add(new THREE.Vector3(0, 300, 0)); scene.add(tombGlow);
-const tombGlow2 = glowSprite(0xff5a30, 4200, 0.5, 2.0); tombGlow2.position.copy(TOMB_POS); scene.add(tombGlow2);
+const tombGlow = glowSprite(0xff2040, 9500, 0.42, 1.5); tombGlow.position.copy(TOMB_POS).add(new THREE.Vector3(0, 300, 0)); scene.add(tombGlow);
+const tombGlow2 = glowSprite(0xff5a30, 4200, 0.38, 2.0); tombGlow2.position.copy(TOMB_POS); scene.add(tombGlow2);
 // 紅光從鐵墓體內向外照：艦隊被染成血紅，而鐵墓自己的表面背向光源，反而是陰暗的剪影
 const tombLight = new THREE.PointLight(0xff2a45, 6.0, 26000, 1.05); tombLight.position.copy(TOMB_POS); scene.add(tombLight);
 
@@ -113,26 +113,69 @@ const mobius = (function () {
   };
   const mat = (halo) => new THREE.ShaderMaterial({
     uniforms: { uTime: { value: 0 }, uHalo: { value: halo ? 1 : 0 } }, transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending,
-    vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+    vertexShader: 'varying vec2 vUv; varying float vD; void main(){ vUv = uv; vec4 mv = modelViewMatrix * vec4(position, 1.0); vD = length(mv.xyz); gl_Position = projectionMatrix * mv; }',
     fragmentShader: [
-      'varying vec2 vUv; uniform float uTime; uniform float uHalo;',
+      'varying vec2 vUv; varying float vD; uniform float uTime; uniform float uHalo;',
       'void main(){',
       '  float a = abs(vUv.y), u = vUv.x;',
       '  float flow = pow(0.5 + 0.5 * sin(u * 6.2832 * 7.0 - uTime * 0.7), 6.0), flow2 = pow(0.5 + 0.5 * sin(u * 6.2832 * 3.0 + uTime * 0.35), 4.0);',
       '  vec3 col; float al;',
-      '  if (uHalo > 0.5) { al = exp(-a * a * 2.2) * 0.2; col = vec3(0.45, 0.3, 1.0) * (0.7 + 0.5 * flow2); }',
+      '  if (uHalo > 0.5) { al = exp(-a * a * 2.2) * 0.11; col = vec3(0.45, 0.3, 1.0) * (0.7 + 0.5 * flow2); }',
       '  else {',
       '    float edge = smoothstep(0.9, 0.99, a) + 0.25 * smoothstep(0.6, 0.9, a), core = exp(-a * a * 40.0);',
-      '    col = mix(vec3(0.22, 0.2, 0.9), vec3(0.55, 0.3, 0.95), a) * (0.3 + 0.35 * flow2) + vec3(3.2, 4.0, 5.6) * edge * (0.8 + 0.9 * flow) + vec3(1.0, 0.8, 1.6) * core * 0.5;',
+      '    col = mix(vec3(0.22, 0.2, 0.9), vec3(0.55, 0.3, 0.95), a) * (0.3 + 0.35 * flow2) + vec3(0.9, 1.25, 2.3) * edge * (0.8 + 0.7 * flow) + vec3(0.4, 0.3, 0.7) * core * 0.35;',
       '    al = 1.0;',
       '  }',
-      '  gl_FragColor = vec4(col * al, 1.0);',
+      '  gl_FragColor = vec4(col * al * smoothstep(300.0, 2200.0, vD), 1.0);',   // 鏡頭貼近光帶時淡出，不遮住視線
       '}'].join('\n')
   });
   const strip = new THREE.Mesh(mkGeo(1300), mat(false)), halo = new THREE.Mesh(mkGeo(2900), mat(true));
   strip.frustumCulled = halo.frustumCulled = false; strip.renderOrder = 3; halo.renderOrder = 2; grp.add(halo, strip);
   grp.position.set(TOMB_POS.x, MOBIUS_CY, TOMB_POS.z); grp.rotation.set(0, 0, 0); scene.add(grp); grp.userData.mats = [strip.material, halo.material]; return grp;
 })();
+
+/* ── 能量護盾泡泡：被擊中的艦艇罩上一層六角格能量球，命中點擴散漣漪，護盾破裂時整顆閃白 ── */
+const SHIELD_K = 12, shieldGeo = new THREE.IcosahedronGeometry(1, 4);
+const shieldFS = [
+  'varying vec3 vObj; varying vec3 vN; varying vec3 vV; uniform vec3 uCol; uniform float uTime, uFade, uBreak; uniform vec4 uH0, uH1, uH2;',
+  'float hexd(vec2 p){ p = abs(p); return max(dot(p, normalize(vec2(1.0, 1.7320508))), p.x); }',
+  'float hexLine(vec2 uv){ vec2 r = vec2(1.0, 1.7320508), h = r * 0.5, a = mod(uv, r) - h, b = mod(uv - h, r) - h; vec2 gv = dot(a, a) < dot(b, b) ? a : b; return 1.0 - smoothstep(0.0, 0.085, 0.5 - hexd(gv)); }',
+  'float ripple(vec3 n, vec4 hh){ if (hh.w < 0.0) return 0.0; float age = uTime - hh.w; if (age < 0.0 || age > 1.2) return 0.0; float d = acos(clamp(dot(n, hh.xyz), -1.0, 1.0));',
+  '  float ring = exp(-pow((d - age * 2.2) * 5.5, 2.0)) * (1.0 - age / 1.2), flash = exp(-d * d * 9.0) * max(0.0, 1.0 - age / 0.45); return ring * 1.6 + flash * 2.2; }',
+  'void main(){ vec3 n = normalize(vObj); float fres = pow(1.0 - abs(dot(normalize(vN), normalize(vV))), 2.2);',
+  '  vec2 uv = vec2(atan(n.z, n.x) / 6.2832 * 46.0, asin(clamp(n.y, -1.0, 1.0)) / 3.1416 * 23.0); float hx = hexLine(uv);',
+  '  float rp = ripple(n, uH0) + ripple(n, uH1) + ripple(n, uH2);',
+  '  float e = fres * 0.55 + hx * (0.12 + rp * 1.6) + rp * 0.5 + uBreak * (0.6 + fres * 1.5);',
+  '  vec3 col = uCol * e * uFade; col = mix(col, vec3(1.0) * e * uFade, clamp(uBreak, 0.0, 1.0) * 0.5); gl_FragColor = vec4(col, 1.0); }'
+].join('\n');
+const shieldViz = [];
+for (let i = 0; i < SHIELD_K; i++) {
+  const m = new THREE.ShaderMaterial({
+    uniforms: { uCol: { value: new THREE.Vector3(0.3, 0.6, 1) }, uTime: { value: 0 }, uFade: { value: 0 }, uBreak: { value: 0 }, uH0: { value: new THREE.Vector4(0, 0, 1, -1) }, uH1: { value: new THREE.Vector4(0, 0, 1, -1) }, uH2: { value: new THREE.Vector4(0, 0, 1, -1) } },
+    vertexShader: 'varying vec3 vObj; varying vec3 vN; varying vec3 vV; void main(){ vObj = position; vN = normalMatrix * normal; vec4 mv = modelViewMatrix * vec4(position, 1.0); vV = -mv.xyz; gl_Position = projectionMatrix * mv; }',
+    fragmentShader: shieldFS, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
+  const me = new THREE.Mesh(shieldGeo, m); me.frustumCulled = false; me.visible = false; me.matrixAutoUpdate = false; me.renderOrder = 3; scene.add(me); shieldViz.push(me);
+}
+const _sc0 = new THREE.Vector3(), _sc1 = new THREE.Vector3(), _sc2 = new THREE.Vector3();
+function shieldColor(s) { return s.side === 'e' ? [0.62, 0.28, 1.0] : s.kind === 'ipc' ? [1.0, 0.28, 0.25] : [0.3, 0.65, 1.0]; }
+function updateShieldViz() {
+  const cand = []; const f = (list) => { for (let i = 0; i < list.length; i++) { const s = list[i]; if (!s.dead && s.shMax && !s.hidden && G.t - s.shT < 1.35) cand.push(s); } }; f(allies); f(enemies);
+  cand.sort((a, b) => b.shT - a.shT);
+  for (let i = 0; i < SHIELD_K; i++) {
+    const me = shieldViz[i], s = cand[i]; if (!s) { me.visible = false; continue; }
+    const K = fleet && fleet.kinds[s.kind], sz = K ? K.size : null, sc = s.scale || 1;
+    const rx = Math.max(sz ? sz.x * sc * 0.62 : 0, s.rad * 0.95), ry = Math.max(sz ? sz.y * sc * 0.8 : 0, s.rad * 0.85), rz = Math.max(sz ? sz.z * sc * 0.58 : 0, s.rad * 1.05);
+    const cy = Math.cos(s.h), sn = Math.sin(s.h), cp = Math.cos(s.p), sp = Math.sin(s.p);
+    _sc0.set(cy, 0, -sn); _sc1.set(-sn * sp, cp, -cy * sp); _sc2.set(sn * cp, sp, cy * cp);
+    me.matrix.makeBasis(_sc0.clone().multiplyScalar(rx), _sc1.clone().multiplyScalar(ry), _sc2.clone().multiplyScalar(rz)); me.matrix.setPosition(s.x, s.y, s.z); me.matrixWorldNeedsUpdate = true; me.visible = true;
+    const u = me.material.uniforms, col = shieldColor(s); u.uCol.value.set(col[0], col[1], col[2]); u.uTime.value = G.t;
+    const age = G.t - s.shT; u.uFade.value = (0.45 + 0.55 * (s.sh / s.shMax)) * Math.min(1, (1.35 - age) / 0.5) * 1.5;
+    u.uBreak.value = Math.max(0, 1 - (G.t - s.shBreakT) / 0.7);
+    [u.uH0, u.uH1, u.uH2].forEach((uh, k) => { const h = s.hits[s.hits.length - 1 - k]; if (!h) { uh.value.set(0, 0, 1, -1); return; }
+      const wx = h.x, wy = h.y, wz = h.z, lx = (wx * _sc0.x + wy * _sc0.y + wz * _sc0.z) / rx, ly = (wx * _sc1.x + wy * _sc1.y + wz * _sc1.z) / ry, lz = (wx * _sc2.x + wy * _sc2.y + wz * _sc2.z) / rz, l = Math.hypot(lx, ly, lz) || 1;
+      uh.value.set(lx / l, ly / l, lz / l, h.t); });
+  }
+}
 
 /* ── 末日視覺：巨劍與衝擊波 ── */
 const doomObj = { sword: null, light: null, waveS: null, waveR: null };
@@ -227,7 +270,11 @@ function cockpitVisible() { return G.role === 'pilot' && cam.mode === 'cockpit' 
 function render() {
   const cockOn = cockpitVisible();
   if (post) {
-    post.cockpit.enabled = cockOn; const u = post.u; u.uTime.value = performance.now() / 1000; u.uSpeed.value = G.role === 'pilot' ? speedFx : 0; u.uHurt.value = hurtK;
+    if (post.god) {   // 體積光的光源：鐵墓胸口的核心；轉成螢幕座標，位於鏡頭後方時關閉
+      const lp = toScreen(TOMB_POS.x, TOMB_POS.y + 2890, TOMB_POS.z), lu = lp.x / W, lv = 1 - lp.y / H, off = Math.max(Math.abs(lu - 0.5), Math.abs(lv - 0.5));
+      post.god.uniforms.uLight.value.set(lu, lv); post.god.uniforms.uInt.value = lp.ok ? clamp(1.6 - off * 1.6, 0, 1) * 0.45 * (G.doom > 1 ? 0.4 : 1) : 0;
+    }
+    post.cockpit.enabled = cockOn; const u = post.u; u.uTime.value = performance.now() / 1000; u.uSpeed.value = 0;   // 已移除：加速時的徑向速度模糊 u.uHurt.value = hurtK;
     post.composer.render();
   } else {
     renderer.render(scene, camera);
@@ -241,7 +288,7 @@ function frameUpdate(dt) {
   cockRoot.visible = cockpitVisible();
   if (tombMeshes) tombMeshes.rotation.y = Math.sin(G.t * 0.05) * 0.03;
   mobius.userData.mats.forEach((m) => { m.uniforms.uTime.value = G.t; }); mobius.rotation.x = Math.sin(G.t * 0.07) * 0.06; mobius.rotation.y = Math.sin(G.t * 0.05) * 0.08;   // 只輕微晃動，始終正對聯軍陣線
-  updateDoomVisuals(dt); updateBubbleViz();
+  updateDoomVisuals(dt); updateBubbleViz(); updateShieldViz();
 }
 
 /* 鐵墓：本體壓暗、環境反射降到最低，只保留邊緣的紅色輪廓光（菲涅爾），像被體內的紅光逆光照亮的巨大剪影 */
@@ -286,15 +333,15 @@ function setupRender(a) {
   assets = a;
   Object.keys(a).forEach((k) => { if (k === 'debris') return; prepAsset(a[k], k === 'cockpit' || k === 'moon' ? 0 : 18 / Math.max(a[k].length, 1)); });
   fx = SWFx.create({ scene, debrisParts: a.debris && a.debris.parts, pro: true });
-  fleet = SWFleet.create({ scene, assets: a });
+  fleet = SWFleet.create({ scene, assets: a, damageFx: true });
   if (a.irontomb) {
     tombMeshes = new THREE.Group();
     a.irontomb.parts.forEach((p) => { const m = p.material; darkenTomb(m); const me = new THREE.Mesh(p.geometry, m); me.frustumCulled = false; tombMeshes.add(me); });
     tombMeshes.position.copy(TOMB_POS); tombMeshes.scale.setScalar(TOMB_SCALE); scene.add(tombMeshes);
   }
   if (a.cockpit) a.cockpit.parts.forEach((p) => { const m = p.material; if (m.emissive && m.emissive.r + m.emissive.g + m.emissive.b > 0.01) m.emissiveIntensity = 2.2; const me = new THREE.Mesh(p.geometry, m); me.frustumCulled = false; cockRoot.add(me); });
-  Object.keys(fleet.kinds).forEach((k) => fleet.kinds[k].meshes.forEach((me) => { if (me.material.emissive && me.material.emissive.r + me.material.emissive.g + me.material.emissive.b > 0.01) me.material.emissiveIntensity = 2.6; me.material.envMapIntensity = 0.7; }));
-  if (QUALITY === 'high') { post = FPVPost.create(renderer, scene, camera, cockScene, cockCam, { width: innerWidth, height: innerHeight, strength: 1.0, threshold: 1.3, radius: 0.75 }); post.u.uContrast.value = 1.15; post.u.uVig.value = 0.5; post.u.uSat.value = 1.15; }
+  Object.keys(fleet.kinds).forEach((k) => fleet.kinds[k].meshes.forEach((me) => { if (me.material.emissive && me.material.emissive.r + me.material.emissive.g + me.material.emissive.b > 0.01) me.material.emissiveIntensity = 1.8; me.material.envMapIntensity = 0.28; }));
+  if (QUALITY === 'high') { post = FPVPost.create(renderer, scene, camera, cockScene, cockCam, { width: innerWidth, height: innerHeight, strength: 0.55, threshold: 2.0, radius: 0.6, cinema: true, streak: 0.4, ghost: 0.3 }); post.u.uContrast.value = 1.15; post.u.uGrain.value = 0; post.u.uVig.value = 0.5; post.u.uSat.value = 1.15; }
   else { renderer.outputEncoding = THREE.sRGBEncoding; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.0; }
   buildDoomVisuals(); resize();
 }

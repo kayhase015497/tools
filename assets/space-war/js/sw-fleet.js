@@ -72,13 +72,29 @@
   function create(opts) {
     const scene = opts.scene, assets = opts.assets;
     const fleet = { kinds: {} }, _o = new THREE.Vector3();
+    const dmgFx = !!opts.damageFx, dmgTime = { value: 0 };
+    /* 艦體損傷（僅統一版）：每個實例一個 aDmg（0~1），材質依此把艦體燒黑、並讓「裂縫」發出熔岩般的橘光 */
+    const DMG_NOISE = 'float dh(vec3 p){ p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }\n' +
+      'float dn(vec3 p){ vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(mix(dh(i), dh(i + vec3(1,0,0)), f.x), mix(dh(i + vec3(0,1,0)), dh(i + vec3(1,1,0)), f.x), f.y), mix(mix(dh(i + vec3(0,0,1)), dh(i + vec3(1,0,1)), f.x), mix(dh(i + vec3(0,1,1)), dh(i + vec3(1,1,1)), f.x), f.y), f.z); }\n';
+    function damageMaterial(m) {
+      m.onBeforeCompile = (sh) => {
+        sh.uniforms.uDmgTime = dmgTime;
+        sh.vertexShader = 'attribute float aDmg; varying float vDmg; varying vec3 vObjP;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vDmg = aDmg; vObjP = position;');
+        sh.fragmentShader = 'varying float vDmg; varying vec3 vObjP; uniform float uDmgTime;\n' + DMG_NOISE + sh.fragmentShader
+          .replace('#include <color_fragment>', '#include <color_fragment>\n float dsc = smoothstep(0.05, 0.85, vDmg) * (0.3 + 0.7 * dn(vObjP * 0.55)); diffuseColor.rgb *= 1.0 - 0.88 * dsc;')
+          .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n { float cr = 1.0 - abs(2.0 * dn(vObjP * 0.42 + 3.1) - 1.0); cr = smoothstep(0.9, 0.985, cr * (0.75 + 0.25 * dn(vObjP * 1.3))); float pulse = 0.75 + 0.25 * sin(uDmgTime * 5.0 + vObjP.x * 0.4); totalEmissiveRadiance += vec3(3.2, 0.7, 0.1) * cr * smoothstep(0.3, 0.8, vDmg) * pulse; }');
+      };
+      m.customProgramCacheKey = () => 'dmgfx';
+      m.needsUpdate = true;
+    }
 
     Object.keys(KIND_MODEL).forEach((kind) => {
       const a = assets[KIND_MODEL[kind]]; if (!a) return;
       const cap = CAPACITY[kind];
       const attr = new THREE.InstancedBufferAttribute(new Float32Array(cap * 16), 16).setUsage(THREE.DynamicDrawUsage);
+      const dmgAttr = dmgFx ? new THREE.InstancedBufferAttribute(new Float32Array(cap), 1).setUsage(THREE.DynamicDrawUsage) : null;
       const meshes = a.parts.map((p) => {
-        const m = p.material;
+        const m = p.material; if (dmgFx) { p.geometry.setAttribute('aDmg', dmgAttr); damageMaterial(m); }
         if (m.emissive) m.emissiveIntensity = 1.7;
         m.envMapIntensity = 0.9;
         const im = new THREE.InstancedMesh(p.geometry, m, cap);
@@ -87,7 +103,7 @@
       });
       const engines = [], guns = [];
       Object.keys(a.anchors).sort().forEach((n) => { if (n.indexOf('HP_ENGINE') === 0) engines.push(a.anchors[n]); else if (n.indexOf('HP_GUN') === 0) guns.push(a.anchors[n]); });
-      fleet.kinds[kind] = { cap, attr, meshes, n: 0, anchors: a.anchors, engines, guns, length: a.length, size: a.size };
+      fleet.kinds[kind] = { cap, attr, dmg: dmgAttr, meshes, n: 0, anchors: a.anchors, engines, guns, length: a.length, size: a.size };
     });
 
     /* 引擎光暈（全艦隊合併成一個 Points） */
@@ -119,6 +135,7 @@
           const K = ks[s.kind]; if (!K || K.n >= K.cap) continue;
           const sc = s.scale || 1;
           if (s.q) writeQuat(K.attr.array, K.n * 16, s.x, s.y, s.z, s.q.x, s.q.y, s.q.z, s.q.w, sc); else writeMat(K.attr.array, K.n * 16, s.x, s.y, s.z, s.h, s.p, s.roll || 0, (s.sx || 1) * sc, sc, sc);
+          if (K.dmg) K.dmg.array[K.n] = (s.d && s.d.hp > 1000 && s.hpMax) ? Math.min(1, Math.max(0, (1 - s.hp / s.hpMax - 0.1) / 0.8)) : 0;
           K.n++;
           const en = ENGINE[s.kind];
           if (en && en[0] > 0 && K.engines.length) {
@@ -134,7 +151,8 @@
         }
       };
       proc(listA); if (listB) proc(listB);
-      for (const k in ks) { const K = ks[k]; K.attr.needsUpdate = true; K.meshes.forEach((m) => { m.count = K.n; }); }
+      dmgTime.value += 0.016;
+      for (const k in ks) { const K = ks[k]; K.attr.needsUpdate = true; if (K.dmg) K.dmg.needsUpdate = true; K.meshes.forEach((m) => { m.count = K.n; }); }
       eGeo.setDrawRange(0, ne);
       eGeo.attributes.position.needsUpdate = true; eGeo.attributes.size.needsUpdate = true; eGeo.attributes.aColor.needsUpdate = true;
       ringMesh.count = nr; ringAttr.needsUpdate = true;

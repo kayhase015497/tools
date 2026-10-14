@@ -17,7 +17,7 @@ const FWD = (s, out) => { const cp = Math.cos(s.p); return out.set(Math.sin(s.h)
 /* ═════════ 艦艇與生成 ═════════ */
 function mkShip(kind, x, y, z, h, o) {
   const d = DEF[kind], s = Object.assign({ kind, d, side: d.side, hp: d.hp, hpMax: d.hp, x, y, z, h: h || 0, p: 0, roll: 0, sx: 1, ph: rnd(0, 100), thr: 0.6,
-    scale: d.sc * (o && o.k ? o.k : 1), rad: d.rad * (o && o.k ? o.k : 1), vx: 0, vy: 0, vz: 0, cd: rnd(0, d.cd || 1), hx: x, hy: y, hz: z, tgt: null, mode: 0, mt: 0, id: ++nameN, cs: makeCallsign(kind), order: null, awTgt: null }, o || {});
+    scale: d.sc * (o && o.k ? o.k : 1), rad: d.rad * (o && o.k ? o.k : 1), vx: 0, vy: 0, vz: 0, cd: rnd(0, d.cd || 1), hx: x, hy: y, hz: z, tgt: null, mode: 0, mt: 0, id: ++nameN, cs: makeCallsign(kind), order: null, awTgt: null, sh: d.shield || 0, shMax: d.shield || 0, shT: -99, shDown: 0, shBreakT: -99, hits: [], dmgFx: rnd(0, 1) }, o || {});
   (d.side === 'a' ? allies : enemies).push(s); return s;
 }
 /* 聯軍集中在鐵墓的同一側對陣（球冠形立體分布：方位角 ±SIDE_AZ、俯仰各層錯開，不擺在同一平面）；敵軍自鐵墓外圍湧出 */
@@ -122,11 +122,50 @@ function smokeCloud(x, y, z, R, n) {
     fx.later(dl, () => fx.smoke(x + Math.cos(a) * c * off, y + u * off, z + Math.sin(a) * c * off, Math.cos(a) * c * sp, u * sp + R * 0.06, Math.sin(a) * c * sp, R * rnd(0.6, 1.0), R * rnd(2.2, 3.8), rnd(4.5, 8.0), black ? [0.03, 0.02, 0.02] : [1.0, 0.5, 0.2], 0.5, black ? 1.6 : 1.25));
   }
 }
+/* 能量護盾：傷害先由護盾吸收；被擊中時記下命中點供護盾泡泡顯示漣漪，護盾歸零後 7 秒內無法恢復，之後閒置 5 秒開始回充 */
+function shieldAbsorb(s, dmg, x, y, z) {
+  const take = Math.min(s.sh, dmg); s.sh -= take; s.shT = G.t;
+  s.hits.push({ x: x - s.x, y: y - s.y, z: z - s.z, t: G.t }); if (s.hits.length > 3) s.hits.shift();
+  if (G.t - (s.shSnd || -9) > 0.32) { s.shSnd = G.t; FPVAudio.play('shield_hit', { pos: { x, y, z }, vol: 0.75, wet: 0.2 }); }
+  if (s.sh <= 0.5) { s.sh = 0; s.shDown = G.t + 7; s.shBreakT = G.t; fx.emit(s.x, s.y, s.z, 0, 0, 0, 0.7, 0.85, 1, s.rad * 5, 0.5, 0, 0, 1.4); if (s.side === 'a' && G.doom === 0 && s.d.hp >= 8000) say(s.d.name + ' shields down', s.d.name + ' 護盾失效', true); }
+  return dmg - take;
+}
+function stepShields(dt) {
+  const f = (list) => { for (let i = 0; i < list.length; i++) { const s = list[i]; if (s.dead || !s.shMax || s.sh >= s.shMax) continue; if (G.t > s.shT + 5 && G.t > s.shDown) s.sh = Math.min(s.shMax, s.sh + s.shMax * 0.05 * dt); } };
+  f(allies); f(enemies);
+}
+/* 艦體損傷：受損的主力艦冒煙、噴火花、起火，重傷時偶爾發生小型二次爆炸（艦體的焦黑與裂縫發光在 sw-fleet 的材質裡） */
+function stepDamageFx(dt) {
+  if (!fx.smoke) return;
+  const f = (list) => {
+    for (let i = 0; i < list.length; i++) {
+      const s = list[i]; if (s.dead || s.d.hp < 2500 || s.isPlayer) continue;
+      const dm = 1 - s.hp / s.hpMax; if (dm < 0.3) continue;
+      if (Math.abs(s.x - camera.position.x) > 22000 || Math.abs(s.z - camera.position.z) > 22000) continue;
+      const k = clamp((dm - 0.3) / 0.7, 0, 1), R = s.rad * 0.8;
+      if (Math.random() < dt * (1.2 + 3.5 * k)) {                              // 傷口冒煙
+        const u = rnd(-0.5, 0.8), a = rnd(0, TAU), c = Math.sqrt(1 - u * u);
+        fx.smoke(s.x + Math.cos(a) * c * R, s.y + u * R, s.z + Math.sin(a) * c * R, s.vx * 0.2 + rnd(-8, 8), s.vy * 0.2 + rnd(6, 20), s.vz * 0.2 + rnd(-8, 8), R * 0.12, R * rnd(0.4, 0.8), rnd(3, 6), [0.04, 0.03, 0.03], 0.4, 1.3);
+      }
+      if (k > 0.35 && Math.random() < dt * (1 + 5 * k)) {                       // 火舌與火花
+        const u = rnd(-0.5, 0.8), a = rnd(0, TAU), c = Math.sqrt(1 - u * u), px = s.x + Math.cos(a) * c * R, py = s.y + u * R, pz = s.z + Math.sin(a) * c * R;
+        fx.fire(px, py, pz, rnd(-6, 6), rnd(4, 16), rnd(-6, 6), R * 0.07, R * rnd(0.18, 0.32), rnd(0.5, 1.1), s.side === 'e' ? [0.75, 0.3, 1.0] : [1.0, 0.5, 0.12], 1.2, 1);
+        for (let j = 0; j < 3; j++) fx.emit(px, py, pz, rnd(-1, 1) * R * 0.3, rnd(-0.2, 1) * R * 0.3, rnd(-1, 1) * R * 0.3, 1, rnd(0.5, 0.8), 0.25, Math.max(2, R * 0.015), rnd(0.5, 1.4), 1.2);
+      }
+      if (k > 0.7 && Math.random() < dt * 0.12 * k) {                           // 重傷：小型二次爆炸
+        const a = rnd(0, TAU), px = s.x + Math.cos(a) * R * 0.7, pz = s.z + Math.sin(a) * R * 0.7, py = s.y + rnd(-0.3, 0.5) * R;
+        fx.explode(px, py, pz, clamp(s.d.boom * 0.12, 0.8, 2.2), s.side === 'e', clamp(R / 160, 1, 6)); FPVAudio.explode(2, { x: px, y: py, z: pz });
+      }
+    }
+  };
+  f(allies); f(enemies);
+}
 function damage(s, dmg, x, y, z, src) {
   if (s.dead) return;
   if (s.isPlayer) { hurtPlayer(dmg); return; }
   if (src) { const k = src.kind + '>' + s.kind; DBG.hits[k] = (DBG.hits[k] || 0) + 1; DBG.dmg[k] = (DBG.dmg[k] || 0) + dmg; }
   if (s.d.hp > 1000 && src && src.kind === 'fgt') dmg *= dmg > 100 ? 10 : 6;   // 戰機武器針對艦艇的反艦倍率
+  if (s.sh > 0) { dmg = shieldAbsorb(s, dmg, x, y, z); if (dmg <= 0) return; }
   s.hp -= dmg; s.hitT = G.t;
   if (s.side === 'a' && s.hp > 0 && s.hp < s.hpMax * 0.5 && !s.hitCalled) { s.hitCalled = true; radioSay(s, 'hit'); }
   if (s.hp <= 0) killShip(s, src);
@@ -349,10 +388,10 @@ function aiCapital(s, dt) {
   const isFgt = (e) => e.d.cls === 'fgt', isBig = (e) => e.d.cls !== 'fgt';
   // 主力光束砲（藍：聯軍／紅：反物質軍團）：瞬發的粗光束，優先打大型目標；月球艦改發範圍轟炸的光束泡
   s.bcd = (s.bcd == null ? rnd(0, 2) : s.bcd) - dt;
-  if (d.bubble) {
-    if (s.bcd <= 0) { s.bcd = d.cd * rnd(0.8, 1.2); const tg = fireTarget && fireTarget.isTomb ? fireTarget : bubbleTarget(s, d.range * 1.15); if (tg) launchBubble(s, tg); }
-  } else if (d.beam && s.bcd <= 0) {
-    s.bcd = d.beam.cd * rnd(0.8, 1.25);
+  if (d.bubble && s.bcd <= 0) { s.bcd = d.cd * rnd(0.8, 1.2); const tg = fireTarget && fireTarget.isTomb ? fireTarget : bubbleTarget(s, d.range * 1.15); if (tg) launchBubble(s, tg); }   // 螺絲咕姆的範圍轟炸
+  s.bmcd = (s.bmcd == null ? rnd(0, 2) : s.bmcd) - dt;
+  if (d.beam && s.bmcd <= 0) {
+    s.bmcd = d.beam.cd * rnd(0.8, 1.25);
     const range = d.range * 1.25;
     for (let v = 0; v < d.beam.n; v++) {
       let tg = fireTarget && isBig(fireTarget) && Math.hypot(fireTarget.x - s.x, fireTarget.y - s.y, fireTarget.z - s.z) < range ? fireTarget : null;
@@ -706,7 +745,7 @@ function stepWorld(dt) {
   awacsLifecycle();
   for (let i = 0; i < allies.length; i++) { const s = allies[i]; if (s.dead || s.isPlayer) continue; if (s.kind === 'fgt') aiFighter(s, dt); else if (s.kind === 'awacs') aiAwacs(s, dt); else aiCapital(s, dt); }
   for (let i = 0; i < enemies.length; i++) { const s = enemies[i]; if (s.dead) continue; if (s.kind === 'fly') aiFighter(s, dt); else aiCapital(s, dt); }
-  separateCaps(); stepPlayer(dt); stepShots(dt); stepBubbles(dt); stepBeams(dt); flybys();
+  separateCaps(); stepPlayer(dt); stepShots(dt); stepBubbles(dt); stepBeams(dt); stepShields(dt); stepDamageFx(dt); flybys();
   for (let i = allies.length - 1; i >= 0; i--) if (allies[i].dead) allies.splice(i, 1);
   for (let i = enemies.length - 1; i >= 0; i--) if (enemies[i].dead) enemies.splice(i, 1);
   if (player.target && player.target.dead) player.target = null;

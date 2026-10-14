@@ -137,7 +137,7 @@ function drawPilotHud(dt) {
     const r = clamp(e.rad / c.d * pxr, 7, 160), col = isT ? '#ffd24a' : 'rgba(255,90,110,.85)';
     if (n++ > 24 && !isT && !isS) continue; bracket(s.x, s.y, r, col, isT ? 2 : 1.2);
     if (isS && !isT) { hx.strokeStyle = '#7dffb0'; hx.beginPath(); hx.moveTo(s.x, s.y - r - 12); hx.lineTo(s.x + 7, s.y - r - 5); hx.lineTo(s.x, s.y - r + 2); hx.lineTo(s.x - 7, s.y - r - 5); hx.closePath(); hx.stroke(); hx.fillStyle = '#7dffb0'; hx.textAlign = 'center'; hx.fillText(S.tasking, s.x, s.y - r - 20); }
-    if (isT || r > 30) { hx.fillStyle = col; hx.textAlign = 'left'; hx.fillText(e.d.name + ' · ' + fmtD(c.d), s.x + r + 6, s.y - 4); hx.fillStyle = 'rgba(255,90,110,.25)'; hx.fillRect(s.x + r + 6, s.y + 5, 60, 4); hx.fillStyle = col; hx.fillRect(s.x + r + 6, s.y + 5, 60 * clamp(e.hp / e.hpMax, 0, 1), 4); }
+    if (isT || r > 30) { hx.fillStyle = col; hx.textAlign = 'left'; hx.fillText(e.d.name + ' · ' + fmtD(c.d), s.x + r + 6, s.y - 4); hx.fillStyle = 'rgba(255,90,110,.25)'; hx.fillRect(s.x + r + 6, s.y + 5, 60, 4); hx.fillStyle = col; hx.fillRect(s.x + r + 6, s.y + 5, 60 * clamp(e.hp / e.hpMax, 0, 1), 4); if (e.shMax) { hx.fillStyle = 'rgba(90,170,255,.25)'; hx.fillRect(s.x + r + 6, s.y + 11, 60, 3); hx.fillStyle = e.sh > 0 ? '#5aaaff' : 'rgba(255,255,255,.35)'; hx.fillRect(s.x + r + 6, s.y + 11, 60 * clamp(e.sh / e.shMax, 0, 1), 3); } }
   }
   const T_ = P.target;
   if (T_ && !T_.dead) {
