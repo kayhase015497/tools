@@ -37,8 +37,9 @@ export function createPost(renderer, scene, camera, cockScene, cockCam, o) {
   const bloomStrength = bloomPass ? bloomPass.strength : null;
 
   // ── 電影感：全部在 1/4 解析度的小圖上算，最後以雙線性放大疊回 ──
-  const cu = { uLight: uniform(new W.Vector2(0.5, 0.5)), uInt: uniform(0), uStreak: uniform(o.streak != null ? o.streak : 0.4), uGhost: uniform(o.ghost != null ? o.ghost : 0.3), uThrG: uniform(4.5), uThrS: uniform(2.6), uThrR: uniform(1.3), uTint: uniform(new W.Vector3(1.0, 0.35, 0.5)) };
+  const cu = { uLight: uniform(new W.Vector2(0.5, 0.5)), uInt: uniform(0), uStreak: uniform(o.streak || 0), uGhost: uniform(o.ghost || 0), uThrG: uniform(4.5), uThrS: uniform(2.6), uThrR: uniform(1.3), uTint: uniform(new W.Vector3(1.0, 0.35, 0.5)) };
   let small = null, cinRtt = null, cinNode = vec3(0);
+  const useStreak = (o.streak || 0) > 0, useGhost = (o.ghost || 0) > 0;   // 兩者預設 0＝不編譯、不執行
   const cinemaState = { enabled: !!o.cinema, u: cu };
   if (o.cinema) {
     const px = renderer.getPixelRatio(), qw = Math.max(1, ((o.width || innerWidth) * px / 4) | 0), qh = Math.max(1, ((o.height || innerHeight) * px / 4) | 0);
@@ -52,15 +53,17 @@ export function createPost(renderer, scene, camera, cockScene, cockCam, o) {
       const d = cu.uLight.sub(vUv), dist = length(d), stp = d.div(28.0).mul(0.92), p = vUv.toVar(), w = float(1.0).toVar(), acc = vec3(0).toVar();
       Loop(28, () => { p.addAssign(stp); acc.addAssign(bt(p, cu.uThrR).mul(w)); w.mulAssign(0.93); });
       add.addAssign(cu.uTint.mul(dot(acc.div(28.0), LUMW)).mul(2.2).mul(cu.uInt).mul(exp(dist.mul(-1.6))));
-      // 藍色橫向拉絲光
-      const s = vec3(0).toVar(), ws = float(0).toVar();
-      Loop({ start: -12, end: 13, type: 'int', condition: '<' }, ({ i }) => { const f = float(i), wg = exp(abs(f).mul(-0.2)); s.addAssign(bt(vUv.add(vec2(f.mul(texS.x).mul(1.5), 0.0)), cu.uThrS).mul(wg)); ws.addAssign(wg); });
-      s.divAssign(ws); add.addAssign(vec3(0.35, 0.6, 1.0).mul(dot(s, LUMW)).add(s.mul(0.35)).mul(cu.uStreak).mul(2.2));
-      // 鏡頭鬼影
-      const c = vUv.sub(0.5), g = vec3(0).toVar();
-      const cols = [vec3(0.5, 0.7, 1.0), vec3(1.0, 0.5, 0.45), vec3(0.5, 1.0, 0.7)];
-      for (let i = 1; i <= 3; i++) { const uvg = vec2(0.5).add(c.mul(-0.4 * i)), edge = smoothstep(0.55, 0.15, length(uvg.sub(0.5).mul(vec2(aspect, 1.0)))); g.addAssign(bt(uvg, cu.uThrG).mul(cols[i - 1]).mul(edge).mul(0.55 / i)); }
-      add.addAssign(g.mul(cu.uGhost).mul(1.4));
+      if (useStreak) {   // 藍色橫向拉絲光（預設關閉：會在畫面上留下大片模糊光團）
+        const s = vec3(0).toVar(), ws = float(0).toVar();
+        Loop({ start: -12, end: 13, type: 'int', condition: '<' }, ({ i }) => { const f = float(i), wg = exp(abs(f).mul(-0.2)); s.addAssign(bt(vUv.add(vec2(f.mul(texS.x).mul(1.5), 0.0)), cu.uThrS).mul(wg)); ws.addAssign(wg); });
+        s.divAssign(ws); add.addAssign(vec3(0.35, 0.6, 1.0).mul(dot(s, LUMW)).add(s.mul(0.35)).mul(cu.uStreak).mul(2.2));
+      }
+      if (useGhost) {   // 鏡頭鬼影（預設關閉：看起來像座艙玻璃上的反光，非常擋畫面）
+        const c = vUv.sub(0.5), g = vec3(0).toVar();
+        const cols = [vec3(0.5, 0.7, 1.0), vec3(1.0, 0.5, 0.45), vec3(0.5, 1.0, 0.7)];
+        for (let i = 1; i <= 3; i++) { const uvg = vec2(0.5).add(c.mul(-0.4 * i)), edge = smoothstep(0.55, 0.15, length(uvg.sub(0.5).mul(vec2(aspect, 1.0)))); g.addAssign(bt(uvg, cu.uThrG).mul(cols[i - 1]).mul(edge).mul(0.55 / i)); }
+        add.addAssign(g.mul(cu.uGhost).mul(1.4));
+      }
       return vec4(add, 1.0);
     })();
     cinRtt = rtt(cin, qw, qh); cinNode = cinRtt.rgb;

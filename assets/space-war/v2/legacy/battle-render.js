@@ -302,7 +302,7 @@ function setupRender(a) {
   Object.keys(fleet.kinds).forEach((k) => fleet.kinds[k].meshes.forEach((me) => { if (me.material.emissive && me.material.emissive.r + me.material.emissive.g + me.material.emissive.b > 0.01) me.material.emissiveIntensity = 1.8; me.material.envMapIntensity = 0.28; if (window.SW2.envTex) me.material.envMap = window.SW2.envTex; }));
   // 高畫質：4× MSAA + 泛光 + 電影感；低畫質：只有最終合成（調色／暈邊／顆粒），不開泛光與電影感
   post = FPVPost.create(renderer, scene, camera, cockScene, cockCam, QUALITY === 'high'
-    ? { width: innerWidth, height: innerHeight, samples: 4, strength: 0.55, threshold: 2.0, radius: 0.6, cinema: true, streak: 0.4, ghost: 0.3 }
+    ? { width: innerWidth, height: innerHeight, samples: 4, strength: 0.55, threshold: 2.0, radius: 0.6, cinema: true, streak: 0, ghost: 0 }   // v2：拿掉拉絲光與鏡頭鬼影（座艙裡像玻璃反光，太擋畫面）；保留體積光
     : { width: innerWidth, height: innerHeight, samples: 0, bloom: false, cinema: false });
   post.u.uContrast.value = 1.15; post.u.uGrain.value = 0.03; post.u.uVig.value = 0.5; post.u.uSat.value = 1.15;
   buildDoomVisuals(); resize();
