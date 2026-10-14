@@ -61,3 +61,9 @@ Tab 隨時切換：指揮官 → 飛行員時可選「回原機」或「從 HSS 
 - HUD top-left (`#b-left`): pinned objective (`#b-obj`, large gold text) → story briefing (`#b-brief`, `say(..., true)`, stays ~16 s, separate from chatter) → fleet chatter (`#b-log`).
 - Script mode: a Herta cue flagged `obj:1` ends, then `setObjective(true)` pins "Protect the Herta Space Station" (free mode pins it at start).
 - `reinforce()` every 11 s brings more ships; `rallyPoint()` picks a Screwllum moon or the HSS, warps in behind it and sets `s.rally` so capitals gather there first. Free-mode waves scale up to keep the fight contested.
+
+## New ships, colours, missiles
+
+- `xzd` (Xianzhou Alliance dreadnought, one unit, larger than the HSS, 6 beams + 8-missile salvos + heavy flak) and `ipc` (Interastral Peace Corp cruiser, red beams) — models built by `capital(..., theme='xz'|'ipc')` in build_ships.py; both are `fpv:true` in the manifest so the classic pages do not download them.
+- Beam colours: Alliance blue, IPC red, Antimatter Legion purple (beams, flak and fighter shots). The beam shader now keeps the beam's own colour (white only at the very core) so bloom no longer turns everything white.
+- Ship missiles: `fireShipMissiles` (homing, reuses `stepMissile`; `big:true` enlarges the trail).

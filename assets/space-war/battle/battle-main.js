@@ -33,7 +33,7 @@ function trails(dt, running) {   // 戰機尾焰：鏡頭附近的戰機在引�
     }
   }
 }
-const MODELS = ['frigate', 'cruiser', 'dread', 'hss', 'moon', 'whale', 'butterfly', 'debris', 'irontomb', 'fighter', 'cockpit', 'sentinel'];
+const MODELS = ['frigate', 'cruiser', 'dread', 'hss', 'xzd', 'ipc', 'moon', 'whale', 'butterfly', 'debris', 'irontomb', 'fighter', 'cockpit', 'sentinel'];
 function modelsLoaded(a) { setupRender(a); assetsReady = true; const go = $('#b-go'); go.disabled = false; go.textContent = L().go; go.dataset.i = 'go'; }
 SWAssets.loadAll('../assets/space-war/models/', null, MODELS).then(modelsLoaded).catch((e) => { $('#b-go').textContent = 'Model load failed'; console.error(e); });
 

@@ -40,7 +40,7 @@
     '  float a = abs(vUv.x - 0.5) * 2.0;',
     '  float core = exp(-a * a * 7.0), glow = exp(-a * a * 1.6) * 0.55;',
     '  float along = smoothstep(0.0, 0.12, vUv.y) * smoothstep(1.0, 0.88, vUv.y);',
-    '  vec3 c = mix(vCol, vec3(1.0), core * 0.85) * (core * 1.5 + glow) * along * vAlpha;',
+    '  vec3 c = mix(vCol, vec3(1.0), core * 0.3) * (core * 1.25 + glow * 0.9) * along * vAlpha;',   // 以光束本色為主，只有最中心才偏白
     '  gl_FragColor = vec4(c, 1.0);',
     '}'
   ].join('\n');

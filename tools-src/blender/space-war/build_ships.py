@@ -57,7 +57,19 @@ def frigate(out):
 # ═════════════════ 聯軍：巡洋艦／無畏艦（共用生成器） ═════════════════
 # 參照影片 0:49–0:50 的聯軍主力艦：深藍細長艦體、沿舷線的白色發光描邊、
 # 船尾多層「寶塔」艦橋、向後掃的弧形尾翼、背部雙聯裝砲塔。
-def _capital_mats():
+def _capital_mats(theme=None):
+    if theme == 'xz':   # 仙舟聯盟：深青藍艦體、銀白裝甲、金色窗與描邊
+        return {
+            'hull': make_mat('hull', hexc('#1c3358'), 0.7, 0.38), 'plate': make_mat('plate', hexc('#b9c6e0'), 0.6, 0.4),
+            'dark': make_mat('dark', hexc('#070b18'), 0.3, 0.7), 'trim': make_mat('trim', hexc('#0a1830'), 0.2, 0.6, emit=hexc('#ffe2a0'), emit_strength=1.0),
+            'win': make_mat('win', hexc('#1a1208'), 0.2, 0.6, emit=hexc('#ffd98a'), emit_strength=1.0), 'glow': make_mat('glow', hexc('#0a1830'), 0.2, 0.6, emit=hexc('#9fe4ff'), emit_strength=1.0),
+            'nav': make_mat('nav', hexc('#300000'), 0.2, 0.6, emit=hexc('#ff4455'), emit_strength=1.0)}
+    if theme == 'ipc':   # 星際和平公司：炭黑艦體、赤橙發光線條、紅色砲口
+        return {
+            'hull': make_mat('hull', hexc('#2a2124'), 0.7, 0.42), 'plate': make_mat('plate', hexc('#6d5a55'), 0.55, 0.45),
+            'dark': make_mat('dark', hexc('#0a0607'), 0.3, 0.7), 'trim': make_mat('trim', hexc('#200808'), 0.2, 0.6, emit=hexc('#ff7a3a'), emit_strength=1.0),
+            'win': make_mat('win', hexc('#200a04'), 0.2, 0.6, emit=hexc('#ff9a4a'), emit_strength=1.0), 'glow': make_mat('glow', hexc('#200808'), 0.2, 0.6, emit=hexc('#ff6a3a'), emit_strength=1.0),
+            'nav': make_mat('nav', hexc('#300000'), 0.2, 0.6, emit=hexc('#ff2a3a'), emit_strength=1.0)}
     return {
         'hull': make_mat('hull', hexc('#1a2750'), 0.65, 0.42),
         'plate': make_mat('plate', hexc('#7d89b8'), 0.5, 0.48),
@@ -69,9 +81,9 @@ def _capital_mats():
     }
 
 
-def capital(out, name, H, big):
+def capital(out, name, H, big, theme=None):
     reset()
-    sb = ShipBuilder(name, _capital_mats())
+    sb = ShipBuilder(name, _capital_mats(theme))
     r = (H / 10.5)
     W, T = 1.7 * r ** 0.85, 1.0 * r ** 0.8          # 半寬與半高
     secs = [(1.00 * H, .05, .05, .05), (.86 * H, .32 * W, .5 * T, .4 * T), (.57 * H, .68 * W, .8 * T, .6 * T),
@@ -93,14 +105,14 @@ def capital(out, name, H, big):
             w = W * (0.9 if f > -.5 * H else 0.7)
             sb.box((sg * (w + 0.04), f, 0.5 * T), (0.06, 0.34, 0.14), 'win')
     # 寶塔艦橋
-    tiers = 6 if big else 4
+    tiers = 7 if (big and theme == 'xz') else 6 if big else 2 if theme == 'ipc' else 4
     top = pagoda(sb, -.33 * H, ztop, tiers, base_w=(1.5 if big else 1.15) * W, base_l=(.2 if big else .3) * H, tier_h=0.55 * r ** 0.55 * (0.9 if big else 1.0),
                  mat_hull='hull', mat_plate='plate', mat_trim='trim', window_mat='win', shrink=0.8 if big else 0.77)
     sb.cyl((0, -.33 * H, top + 0.5), 0.07, 1.0, 'plate', axis='z', sides=6)
     sb.anchor('HP_COCKPIT', (0, -.33 * H + 0.4, top - 0.3 * r ** 0.4))
     sb.box((0, -.33 * H, top + 1.05), (0.5, 0.5, 0.1), 'nav')
     # 雙聯裝砲塔
-    tpos = ([.78, .62, .46, -.52, -.68, -.84] if big else [.52, .74])
+    tpos = ([.78, .62, .46, .30, -.40, -.52, -.68, -.84] if (big and theme == 'xz') else [.78, .62, .46, -.52, -.68, -.84] if big else [.52, .74] if theme != 'ipc' else [.6, .35, -.2])
     ts = 0.75 if big else 0.55
     for gi, fr in enumerate(tpos):
         f = fr * H
@@ -129,13 +141,28 @@ def capital(out, name, H, big):
             sb.anchor('HP_GUN_%d' % (len(tpos) + (1 if sg > 0 else 2)), (sg * (W + 0.1), .1 * H + 2.9, -.1 * T))
     # 向後掃的弧形尾翼 + 航行燈
     pairs = [(-.45 * H, 0.35 * T, 1.0), (-.55 * H, -0.55 * T, -0.7)] + ([(-.35 * H, 0.1 * T, 0.5)] if big else [])
-    for (rf, rz, curl) in pairs:
+    for (rf, rz, curl) in ([] if theme == 'ipc' else pairs):
         for sg in (1, -1):
             swept_fin(sb, sg, rf, sg * W * 0.82, rz, length=.2 * H, span=.42 * H + 1.2, sweep=.34 * H, thick=0.14 * r ** 0.5, mat='hull', curl=curl * 0.08 * H)
-    for sg in (1, -1):
+    for sg in ((1, -1) if theme != 'ipc' else ()):
         sb.box((sg * (W * 0.82 + .42 * H + 1.2), -.45 * H - .34 * H + .1 * H, .35 * T + .1 * H * .08 * 4), (0.18, 0.4, 0.18), 'nav')
     # 腹龍骨
     sb.box((0, -.05 * H, -(T * 0.78) - 0.15), (.55 * W, .9 * H, .5), 'hull', taper=(0.85, 0.8))
+    if theme == 'xz':   # 舷側飛彈發射陣列與金色艦首刃脊
+        for sg in (1, -1):
+            for k in range(5):
+                f = (.5 - k * .16) * H
+                sb.box((sg * (W + 1.9), f, .25 * T), (0.9, 2.4, 0.55), 'plate', taper=(0.9, 0.9))
+                for j in (-1, 0, 1):
+                    sb.cyl((sg * (W + 1.9 + j * 0.28), f + 1.4, .25 * T + 0.1), 0.09, 0.5, 'dark', axis='f', sides=6)
+            sb.anchor('HP_MSL_%d' % (1 if sg > 0 else 2), (sg * (W + 1.9), .3 * H, .25 * T))
+        sb.box((0, .9 * H, 0.05), (0.12, 0.35 * H, T * 1.4), 'trim')
+    if theme == 'ipc':   # 背部發光脊線 + 艦首方形砲口
+        sb.box((0, .1 * H, ztop + 0.3 * T), (0.35 * W, 1.1 * H, 0.3 * T), 'trim', taper=(0.7, 0.8))
+        sb.box((0, .9 * H, 0), (0.7 * W, 0.2 * H, 0.9 * T), 'plate', taper=(0.6, 0.8))
+        for sg in (1, -1):
+            sb.cyl((sg * W * 0.4, .98 * H, 0.0), 0.22 * r ** 0.5, 1.6, 'dark', axis='f', sides=8)
+        sb.anchor('HP_GUN_%d' % (len(tpos) + 1), (W * 0.4, .98 * H + 1.2, 0.0)); sb.anchor('HP_GUN_%d' % (len(tpos) + 2), (-W * 0.4, .98 * H + 1.2, 0.0))
     # 引擎
     ne = 5 if big else 3
     xs = [0, 1, -1, 2, -2][:ne]
@@ -153,6 +180,14 @@ def cruiser(out):
 
 def dread(out):
     capital(out, 'dread', 26.0, True)
+
+
+def xzd(out):   # 仙舟聯盟無畏艦：比黑塔空間站更大
+    capital(out, 'xzd', 40.0, True, 'xz')
+
+
+def ipc(out):   # 星際和平公司巡洋艦
+    capital(out, 'ipc', 12.0, False, 'ipc')
 
 
 # ═════════════════ 聯軍：HSS 旗艦（黑塔太空站旗艦；美術圖：尾部有輪輻圓環的長矛形主力艦） ═════════════════
@@ -723,7 +758,7 @@ def sentinel(out):
     sb.export(os.path.join(out, 'sentinel.glb'))
 
 
-BUILDERS = {'frigate': frigate, 'cruiser': cruiser, 'dread': dread, 'hss': hss, 'moon': moon, 'whale': whale, 'butterfly': butterfly, 'debris': debris, 'irontomb': irontomb, 'fighter': fighter, 'cockpit': cockpit, 'sentinel': sentinel}
+BUILDERS = {'frigate': frigate, 'cruiser': cruiser, 'dread': dread, 'xzd': xzd, 'ipc': ipc, 'hss': hss, 'moon': moon, 'whale': whale, 'butterfly': butterfly, 'debris': debris, 'irontomb': irontomb, 'fighter': fighter, 'cockpit': cockpit, 'sentinel': sentinel}
 
 if __name__ == '__main__':
     ap = argparse.ArgumentParser()
