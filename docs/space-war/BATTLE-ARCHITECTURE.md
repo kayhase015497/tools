@@ -84,3 +84,13 @@ Tab 隨時切換：指揮官 → 飛行員時可選「回原機」或「從 HSS 
 ### Möbius ring v3 (∞)
 
 The centreline is now a lemniscate (∞, half-width `MOBIUS_A` = 6,200 m) lying in a plane whose normal faces the HSS (+Z), so the alliance side sees a clean ∞. The ribbon twists 3 half-turns along it (odd → still a true Möbius strip) and narrows to a thin line where it turns edge-on. It only sways slightly instead of spinning.
+
+## Cinematic pass (shields, damage, god rays, flare, GPU particles)
+
+- **Shields**: ships carry `sh`/`shMax` (`DEF.*.shield`); `damage()` → `shieldAbsorb()` soaks damage first, records up to 3 hit points, breaks at 0 (no regen for 7 s), regens 5%/s after 5 s idle (`stepShields`). `updateShieldViz()` (battle-render.js) drives a pool of 12 hex-grid ellipsoid bubbles with ripples from the hit points. Target brackets show a shield bar.
+- **Hull damage**: sw-fleet's `damageFx` option adds a per-instance `aDmg`; the material darkens with noise and shows glowing orange cracks above ~30% damage. `stepDamageFx()` adds smoke, flames, sparks and secondary explosions to wounded capital ships.
+- **God rays / flare / streak**: `FPVPost.create(..., { cinema: true })` inserts a radial light-shaft pass (light = Irontomb core, before bloom) and a flare pass (blue anamorphic horizontal streak + ghosts, after bloom). High quality only.
+- **GPU particles**: `fx.emit` now writes birth time/velocity/drag once; the vertex shader integrates motion, shrink and fade (pool 48,000, partial buffer uploads).
+- **Look**: key light 3.0, env 0.28, bloom threshold 2.0 / strength 0.55 (ships no longer blow out to white); film grain and the radial speed blur were removed from the battle page.
+- **Moon armament** = dreadnought (flak + 2 beams) plus its bubble bombardment. **Irontomb** second arms are now in a mudra pose.
+- Not done: WebGPU / upgrading three.js past r128 (see the discussion in the session; needs an ES-module migration of all scripts).

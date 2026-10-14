@@ -501,7 +501,7 @@ def irontomb(out):
     sb = ShipBuilder('irontomb', M)
     ZA = 86.0                                    # 主臂高度（與兜帽同高）
 
-    def hand(c, d, fingers=4, flen=11.0, spread=3.2, palm=(7.0, 1.6, 7.0), thumb=True):
+    def hand(c, d, fingers=4, flen=11.0, spread=3.2, palm=(7.0, 1.6, 7.0), thumb=True, lift=(0, 0.7, 0)):
         """修長的開掌：掌板＋兩節指骨＋拇指；d 為指尖方向單位向量。"""
         sb.box(c, palm, 'hand')
         dv = Vector(d).normalized()
@@ -509,17 +509,17 @@ def irontomb(out):
         if side.length < 0.1:
             side = Vector((1, 0, 0))
         side.normalize()
-        half = palm[0] / 2.0 if abs(dv.x) > 0.5 else palm[2] / 2.0
+        half = palm[1] / 2.0 if abs(dv.y) >= max(abs(dv.x), abs(dv.z)) else (palm[0] / 2.0 if abs(dv.x) > 0.5 else palm[2] / 2.0)
         for k in range(fingers):
             o = (k - (fingers - 1) / 2.0) * spread
             base = Vector(c) + dv * half + side * o
             mid = base + dv * flen * 0.55 + side * o * 0.10
-            tip = mid + dv * flen * 0.45 + Vector((0, 0.7, 0)) + side * o * 0.08
+            tip = mid + dv * flen * 0.45 + Vector(lift) + side * o * 0.08
             sb.bar(tuple(base), tuple(mid), 0.55, 'hand', sides=5, r2=0.45)
             sb.bar(tuple(mid), tuple(tip), 0.45, 'hand', sides=5, r2=0.22)
         if thumb:
             th = Vector(c) + side * (-palm[2] / 2.0 - 0.2)
-            sb.bar(tuple(th), tuple(th + dv * flen * 0.45 + side * -3.4 + Vector((0, 0.8, 0))), 0.6, 'hand', sides=5, r2=0.25)
+            sb.bar(tuple(th), tuple(th + dv * flen * 0.45 + side * -3.4 + Vector(lift)), 0.6, 'hand', sides=5, r2=0.25)
 
     # ── 尖頂：薄刃狀 ──
     sb.prism_xz([(0, 126), (4.5, 112), (8.5, 99), (0, 95), (-8.5, 99), (-4.5, 112)], 4.0, 0.5, 'armor')
@@ -581,12 +581,14 @@ def irontomb(out):
         sb.bar((sg * 88, 0, ZA), (sg * 96, 0, ZA), 2.2, 'bone', sides=8, r2=3.2)
         hand((sg * 100.0, 0, ZA), (sg, 0, 0), fingers=4, flen=17, spread=2.5, palm=(8.0, 1.3, 9.0))
 
-        # ── 第二對手臂：從鎖骨處垂向身側，掌心朝前 ──
+        # ── 第二對手臂：瑜珈手印（mudra）姿態——上臂自然下垂，小臂微微朝前上抬，掌心朝上、手指輕輕彎起 ──
         sb.sphere((sg * 19, 0, 54), 2.6, 'bone', seg=8, rings=5)
-        sb.bar((sg * 19, 0, 54), (sg * 31, 2, 45), 2.8, 'bone', sides=6, r2=2.2)
-        sb.sphere((sg * 31, 2, 45), 2.6, 'bone', seg=8, rings=5)
-        sb.bar((sg * 31, 2, 45), (sg * 46, 3, 15), 2.2, 'bone', sides=6, r2=1.4)
-        hand((sg * 47.5, 3.5, 11.0), (sg * 0.22, 0, -1), fingers=4, flen=10, spread=1.7, palm=(5.0, 1.1, 6.0))
+        sb.bar((sg * 19, 0, 54), (sg * 28, 1, 38), 2.8, 'bone', sides=6, r2=2.2)                 # 上臂：往下、微向外
+        sb.sphere((sg * 28, 1, 38), 2.6, 'bone', seg=8, rings=5)
+        sb.bar((sg * 28, 1, 38), (sg * 34, 15, 46), 2.2, 'bone', sides=6, r2=1.5)                # 小臂：朝前上方抬起
+        sb.sphere((sg * 34, 15, 46), 1.7, 'bone', seg=8, rings=5)                                # 手腕
+        hand((sg * 35.0, 19.0, 47.2), (-sg * 0.18, 1.0, 0.28), fingers=4, flen=9.5, spread=1.6, palm=(5.2, 6.0, 1.0), lift=(0, 0, 2.4))
+        sb.torus((sg * 35.0, 27.0, 49.5), 1.5, 0.22, 'glow', axis='x', major=14, minor=5)         # 指尖前方的小光環（手印）
 
         # ── 髖部垂下的四對細長多節手臂（約 35 單位長） ──
         for k in range(4):
