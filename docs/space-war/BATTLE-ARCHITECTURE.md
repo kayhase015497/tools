@@ -55,3 +55,9 @@ Tab 隨時切換：指揮官 → 飛行員時可選「回原機」或「從 HSS 
 ## Warp-in reinforcements
 
 `warpIn(make, x, y, z, big)` in battle-sim.js: a white traveling beam streaks in from behind (away from the tomb), then a flash + shock ring fires at the arrival point and the ship is created with forward momentum. `reinforce()` uses it for frigates, cruisers, dreadnoughts and 4-fighter wings.
+
+## Objective, briefing split, bigger reinforcements
+
+- HUD top-left (`#b-left`): pinned objective (`#b-obj`, large gold text) → story briefing (`#b-brief`, `say(..., true)`, stays ~16 s, separate from chatter) → fleet chatter (`#b-log`).
+- Script mode: a Herta cue flagged `obj:1` ends, then `setObjective(true)` pins "Protect the Herta Space Station" (free mode pins it at start).
+- `reinforce()` every 11 s brings more ships; `rallyPoint()` picks a Screwllum moon or the HSS, warps in behind it and sets `s.rally` so capitals gather there first. Free-mode waves scale up to keep the fight contested.

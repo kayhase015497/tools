@@ -3,13 +3,15 @@
  */
 'use strict';
 const L = () => STR[G.lang];
-const logEl = $('#b-log'), centerEl = $('#b-center'), flashEl = $('#b-flash'), veil = $('#b-veil'), radioEl = $('#b-radio'), bossEl = $('#b-boss'), topEl = $('#b-top'), cmdEl = $('#b-cmdbar'), hintEl = $('#b-hint');
+const logEl = $('#b-log'), briefEl = $('#b-brief'), objEl = $('#b-obj'), centerEl = $('#b-center'), flashEl = $('#b-flash'), veil = $('#b-veil'), radioEl = $('#b-radio'), bossEl = $('#b-boss'), topEl = $('#b-top'), cmdEl = $('#b-cmdbar'), hintEl = $('#b-hint');
 
 /* ═════════ 訊息與字幕 ═════════ */
-function say(en, zh, warn) {   // 左上角的戰場播報（跟隨語言設定）
-  const d = document.createElement('div'); d.dataset.en = en; d.dataset.zh = zh; d.textContent = G.lang === 'zh' ? zh : en; if (warn) d.className = 'warn'; logEl.appendChild(d);
-  setTimeout(() => d.classList.add('out'), 7000); setTimeout(() => d.remove(), 8200); while (logEl.children.length > 5) logEl.firstChild.remove();
+function say(en, zh, warn, brief) {   // 左上角播報：brief＝故事局勢概況（獨立區塊、停留較久）；其餘為艦隊流水訊息
+  const host = brief ? briefEl : logEl, d = document.createElement('div'); d.dataset.en = en; d.dataset.zh = zh; d.textContent = G.lang === 'zh' ? zh : en; if (warn) d.className = 'warn'; host.appendChild(d);
+  const life = brief ? 16000 : 7000; setTimeout(() => d.classList.add('out'), life); setTimeout(() => d.remove(), life + 1200); while (host.children.length > (brief ? 4 : 5)) host.firstChild.remove();
 }
+let objOn = false;
+function setObjective(on) { if (on === objOn) return; objOn = on; objEl.classList.toggle('on', on); if (on) objEl.innerHTML = '<span class="b-obj-l">' + L().objLabel + '</span><b>' + L().objText + '</b>'; }
 let centerOn = false, centerKey = '';
 function setCenter(key, on) { if (on !== centerOn || (on && centerKey !== key)) { centerKey = key; centerEl.textContent = on ? L()[key] : ''; centerEl.classList.toggle('on', on); centerOn = on; } }
 let flashT = 0;
@@ -31,8 +33,9 @@ let tickIdx = 0;
 function uiScriptTick() {
   const t = G.t;
   if (t >= T.REVEAL && !G.revealed) { G.revealed = true; setVeil('#000', 0, 1.6); hudShow(true); }
-  while (tickIdx < TICKS.length && t >= TICKS[tickIdx][0] && t < T.FLASH) { say(TICKS[tickIdx][2], TICKS[tickIdx][1], false); tickIdx++; }
+  while (tickIdx < TICKS.length && t >= TICKS[tickIdx][0] && t < T.FLASH) { say(TICKS[tickIdx][2], TICKS[tickIdx][1], false, true); tickIdx++; }
   updateSubs(t);
+  if (!objOn) { const oc = CUES.find((c) => c.obj); if (oc && t >= oc.t + oc.dur) setObjective(true); }   // 黑塔台詞淡出後，任務目標釘在左上角
 }
 function uiFlashStart() { flashVeil('#fff', 1, 0.35); setTimeout(() => { setVeil('#000', 1, 0.8); hudShow(false); }, 380); }
 function uiDoomStart() { hudShow(false); setVeil('#000', 0, 1.6); FPVAudio.lance(); }
@@ -66,7 +69,7 @@ function applyLang(l) {
   document.querySelectorAll('[data-i]').forEach((el) => { el.textContent = STR[l][el.dataset.i]; });
   $('#b-sub-t').textContent = STR[l].sub; $('#b-hint-t').textContent = selMode === 'script' ? STR[l].hintScript : STR[l].hintFree;
   $('#b-legal').innerHTML = STR[l].legal; renderKeys(); setQLabel();
-  document.querySelectorAll('#b-log div, #b-radio div').forEach((d) => { if (d.dataset.en) { const sp = d.querySelector('span'); (sp || d).textContent = l === 'zh' ? d.dataset.zh : d.dataset.en; } });
+  document.querySelectorAll('#b-log div, #b-brief div, #b-radio div').forEach((d) => { if (d.dataset.en) { const sp = d.querySelector('span'); (sp || d).textContent = l === 'zh' ? d.dataset.zh : d.dataset.en; } });
   const endLines = $('#b-end').querySelectorAll('.b-end-line'); STR[l].endA.forEach((x, i) => { if (endLines[i]) endLines[i].textContent = x; });
 }
 function renderKeys() { const keys = selRole === 'pilot' ? L().keysPilot : L().keysCmd; $('#b-keys').innerHTML = keys.map((k) => '<span>' + k + '</span>').join(''); }

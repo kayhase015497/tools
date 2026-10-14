@@ -18,7 +18,14 @@
   #b-flash { position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity .35s; }
   #b-veil { position: absolute; inset: 0; background: #000; opacity: 1; pointer-events: none; z-index: 20; }
   /* 戰場播報、區域警告 */
-  #b-log { position: absolute; left: 16px; top: 70px; width: min(40vw, 400px); display: flex; flex-direction: column; gap: 6px; pointer-events: none; font-family: 'Space Mono', monospace; z-index: 5; }
+  #b-left { position: absolute; left: 16px; top: 70px; width: min(40vw, 400px); display: flex; flex-direction: column; gap: 10px; pointer-events: none; font-family: 'Space Mono', monospace; z-index: 5; }
+  #b-obj { display: none; border-left: 3px solid var(--gold); padding: 4px 0 4px 11px; background: linear-gradient(90deg, rgba(40,30,8,.75), transparent); animation: b-in .5s ease-out; }
+  #b-obj.on { display: block; }
+  #b-obj .b-obj-l { display: block; font-size: clamp(9px, 1vw, 11px); letter-spacing: .22em; color: var(--gold); opacity: .8; }
+  #b-obj b { display: block; font-family: 'Noto Sans TC', sans-serif; font-weight: 700; font-size: clamp(16px, 2vw, 21px); color: #fff3cf; text-shadow: 0 0 12px rgba(255,217,138,.45); }
+  #b-brief, #b-log { display: flex; flex-direction: column; gap: 6px; }
+  #b-brief div { border-left: 2px solid var(--gold); padding: 2px 0 2px 9px; background: linear-gradient(90deg, rgba(30,24,8,.7), transparent); font-size: clamp(10px, 1.2vw, 12px); animation: b-in .4s ease-out; transition: opacity 1s; }
+  #b-brief div.out { opacity: 0; }
   #b-log div { border-left: 2px solid var(--cyan); padding: 2px 0 2px 9px; background: linear-gradient(90deg, rgba(10,20,40,.7), transparent); font-size: clamp(10px, 1.2vw, 12px); animation: b-in .4s ease-out; transition: opacity 1s; }
   #b-log div.warn { border-color: var(--red); color: #ffd1da; }
   #b-log div.out, #b-radio div.out { opacity: 0; }
@@ -67,7 +74,7 @@
   #b-choose { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; flex-direction: column; gap: 14px; background: rgba(5,8,16,.78); z-index: 15; }
   #b-choose.on { display: flex; }
   #b-choose h2 { font-family: 'Space Mono', monospace; letter-spacing: .2em; font-size: 16px; color: var(--cyan); }
-  body.hud-off #b-log, body.hud-off #b-boss, body.hud-off #b-top, body.hud-off #b-radio, body.hud-off #b-cmdbar, body.hud-off #b-hint, body.hud-off #b-center, body.hud-off #b-clock-wrap { display: none !important; }
+  body.hud-off #b-left, body.hud-off #b-boss, body.hud-off #b-top, body.hud-off #b-radio, body.hud-off #b-cmdbar, body.hud-off #b-hint, body.hud-off #b-center, body.hud-off #b-clock-wrap { display: none !important; }
   /* 結尾字卡 */
   #b-end { position: absolute; inset: 0; z-index: 22; display: flex; align-items: center; justify-content: center; padding: 24px; text-align: center; pointer-events: none; opacity: 0; transition: opacity 1.6s; }
   #b-end.on { opacity: 1; }
@@ -89,7 +96,7 @@
   <canvas id="b-canvas"></canvas>
   <canvas id="b-hud"></canvas>
   <div id="b-flash"></div>
-  <div id="b-log"></div>
+  <div id="b-left"><div id="b-obj"></div><div id="b-brief"></div><div id="b-log"></div></div>
   <div id="b-center"></div>
   <div id="b-boss"><div class="b-boss-name"><span>IRONTOMB<i>PLANETARY</i></span><b id="b-boss-pct">100.00%</b></div><div class="b-boss-bar"><div id="b-boss-ghost" style="width:100%"></div><div id="b-boss-fill" style="width:100%"></div></div></div>
   <div id="b-clock-wrap" class="mono">T+ <span id="b-clock">00:00</span></div>
