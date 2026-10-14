@@ -1,8 +1,16 @@
 /* battle-main.js — 啟動、載入、主迴圈、除錯介面 */
 'use strict';
 let lastT = 0, assetsReady = false;
+const gov = { ema: 16, slow: 0, stage: 0 };
+function governor(raw) {   // raw = 實際幀間隔(ms)；持續 > 42 ms（約 24 fps 以下）3 秒就降一級
+  if (!G.started || G.paused || raw > 1000 || raw <= 0 || Q.get('gov') === '0') return;
+  gov.ema += (raw - gov.ema) * 0.06;
+  if (gov.ema > 42) gov.slow += raw / 1000; else gov.slow = Math.max(0, gov.slow - raw / 2000);
+  if (gov.slow > 3 && gov.stage < 3) { gov.stage++; gov.slow = 0; gov.ema = 16; degradeQuality(gov.stage); }
+}
 function frame(now) {
   requestAnimationFrame(frame);
+  governor(now - lastT);
   const dt = Math.min(0.05, (now - lastT) / 1000 || 0.016); lastT = now;
   if (!assetsReady) return;
   const running = G.started && !G.paused && !G.choosing;

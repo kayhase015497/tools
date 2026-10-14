@@ -94,3 +94,10 @@ The centreline is now a lemniscate (∞, half-width `MOBIUS_A` = 6,200 m) lying 
 - **Look**: key light 3.0, env 0.28, bloom threshold 2.0 / strength 0.55 (ships no longer blow out to white); film grain and the radial speed blur were removed from the battle page.
 - **Moon armament** = dreadnought (flak + 2 beams) plus its bubble bombardment. **Irontomb** second arms are now in a mudra pose.
 - Not done: WebGPU / upgrading three.js past r128 (see the discussion in the session; needs an ES-module migration of all scripts).
+
+### Performance notes (after the cinematic pass)
+
+- God rays, streak and ghosts now run in `CinemaPass` at 1/4 resolution (1/16 of the pixels, no extra full-res MSAA pass); the final composite adds the result with one texture read. (`ShaderPass` clones uniform textures, so `tCin` must be re-pointed at the render-target texture after the pass is created.)
+- The final pass takes 3 samples instead of 15 when the speed blur is off. Pixel ratio is capped at 1.5 in high quality.
+- Damage shader work is skipped for undamaged hulls (`vDmg` branch); damage smoke/fire is limited to the 6 nearest wounded ships within 9 km, with smaller and rarer puffs; volumetric noise uses 4 octaves.
+- **Governor** (`governor()` in battle-main.js): if the frame time stays > 42 ms for 3 s it steps down: 1 = cinema off, 2 = pixel ratio 1, 3 = bloom off + `G.lite` (no shields viz / damage FX). Disable with `?gov=0` (used by the headless tests).
