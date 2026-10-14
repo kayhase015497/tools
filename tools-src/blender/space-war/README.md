@@ -4,7 +4,7 @@
 
 ## 執行
 - 無頭（CI／雲端）：`pip install bpy`（Python 3.11），然後
-  `python -I build_ships.py --out ../../../assets/space-war/models [frigate cruiser dread hss moon whale butterfly debris irontomb]`
+  `python -I build_ships.py --out ../../../assets/space-war/models [frigate cruiser dread xzd ipc hss moon whale butterfly debris irontomb]`
 - Blender GUI／Blender MCP：在 Scripting 或透過 MCP `execute_blender_code` 載入 `shiplib.py` 與 `build_ships.py`，呼叫 `BUILDERS[name](out_dir)`。
 
 ## 約定

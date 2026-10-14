@@ -33,7 +33,7 @@ function trails(dt, running) {   // 戰機尾焰：鏡頭附近的戰機在引�
     }
   }
 }
-const MODELS = ['frigate', 'cruiser', 'dread', 'hss', 'moon', 'whale', 'butterfly', 'debris', 'irontomb', 'fighter', 'cockpit', 'sentinel'];
+const MODELS = ['frigate', 'cruiser', 'dread', 'hss', 'xzd', 'ipc', 'moon', 'whale', 'butterfly', 'debris', 'irontomb', 'fighter', 'cockpit', 'sentinel'];
 function modelsLoaded(a) { setupRender(a); assetsReady = true; const go = $('#b-go'); go.disabled = false; go.textContent = L().go; go.dataset.i = 'go'; }
 SWAssets.loadAll('../assets/space-war/models/', null, MODELS).then(modelsLoaded).catch((e) => { $('#b-go').textContent = 'Model load failed'; console.error(e); });
 
@@ -43,7 +43,7 @@ $('#b-go').addEventListener('click', () => {
     G.mode = selMode; G.role = selRole; G.started = true;
     document.body.classList.toggle('role-cmd', G.role === 'commander'); document.body.classList.toggle('role-pilot', G.role === 'pilot');
     initWorld(); FPVAudio.setScale(G.role === 'pilot' ? 1 : 6); FPVAudio.musicSeek(0);
-    if (G.mode === 'free') { setVeil('#000', 0, 1.2); hudShow(true); G.revealed = true; say('Welcome aboard. The fleet is engaging the Antimatter Legion.', '歡迎上艦。艦隊正與反物質軍團交火。', false); } else hudShow(false);
+    if (G.mode === 'free') { setVeil('#000', 0, 1.2); hudShow(true); G.revealed = true; setObjective(true); say('Welcome aboard. The fleet is engaging the Antimatter Legion.', '歡迎上艦。艦隊正與反物質軍團交火。', false); } else hudShow(false);
     bossEl.style.display = G.mode === 'script' ? '' : 'none'; $('#b-clock-wrap').style.display = G.mode === 'script' ? '' : 'none';
     hintEl.innerHTML = G.role === 'pilot' ? L().toCmd : L().toPilot;
     $('#b-title').classList.remove('paused');

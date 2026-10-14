@@ -3,13 +3,15 @@
  */
 'use strict';
 const L = () => STR[G.lang];
-const logEl = $('#b-log'), centerEl = $('#b-center'), flashEl = $('#b-flash'), veil = $('#b-veil'), radioEl = $('#b-radio'), bossEl = $('#b-boss'), topEl = $('#b-top'), cmdEl = $('#b-cmdbar'), hintEl = $('#b-hint');
+const logEl = $('#b-log'), briefEl = $('#b-brief'), objEl = $('#b-obj'), centerEl = $('#b-center'), flashEl = $('#b-flash'), veil = $('#b-veil'), radioEl = $('#b-radio'), bossEl = $('#b-boss'), topEl = $('#b-top'), cmdEl = $('#b-cmdbar'), hintEl = $('#b-hint');
 
 /* ═════════ 訊息與字幕 ═════════ */
-function say(en, zh, warn) {   // 左上角的戰場播報（跟隨語言設定）
-  const d = document.createElement('div'); d.dataset.en = en; d.dataset.zh = zh; d.textContent = G.lang === 'zh' ? zh : en; if (warn) d.className = 'warn'; logEl.appendChild(d);
-  setTimeout(() => d.classList.add('out'), 7000); setTimeout(() => d.remove(), 8200); while (logEl.children.length > 5) logEl.firstChild.remove();
+function say(en, zh, warn, brief) {   // 左上角播報：brief＝故事局勢概況（獨立區塊、停留較久）；其餘為艦隊流水訊息
+  const host = brief ? briefEl : logEl, d = document.createElement('div'); d.dataset.en = en; d.dataset.zh = zh; d.textContent = G.lang === 'zh' ? zh : en; if (warn) d.className = 'warn'; host.appendChild(d);
+  const life = brief ? 16000 : 7000; setTimeout(() => d.classList.add('out'), life); setTimeout(() => d.remove(), life + 1200); while (host.children.length > (brief ? 4 : 5)) host.firstChild.remove();
 }
+let objOn = false;
+function setObjective(on) { if (on === objOn) return; objOn = on; objEl.classList.toggle('on', on); if (on) objEl.innerHTML = '<span class="b-obj-l">' + L().objLabel + '</span><b>' + L().objText + '</b>'; }
 let centerOn = false, centerKey = '';
 function setCenter(key, on) { if (on !== centerOn || (on && centerKey !== key)) { centerKey = key; centerEl.textContent = on ? L()[key] : ''; centerEl.classList.toggle('on', on); centerOn = on; } }
 let flashT = 0;
@@ -31,8 +33,9 @@ let tickIdx = 0;
 function uiScriptTick() {
   const t = G.t;
   if (t >= T.REVEAL && !G.revealed) { G.revealed = true; setVeil('#000', 0, 1.6); hudShow(true); }
-  while (tickIdx < TICKS.length && t >= TICKS[tickIdx][0] && t < T.FLASH) { say(TICKS[tickIdx][2], TICKS[tickIdx][1], false); tickIdx++; }
+  while (tickIdx < TICKS.length && t >= TICKS[tickIdx][0] && t < T.FLASH) { say(TICKS[tickIdx][2], TICKS[tickIdx][1], false, true); tickIdx++; }
   updateSubs(t);
+  if (!objOn) { const oc = CUES.find((c) => c.obj); if (oc && t >= oc.t + oc.dur) setObjective(true); }   // 黑塔台詞淡出後，任務目標釘在左上角
 }
 function uiFlashStart() { flashVeil('#fff', 1, 0.35); setTimeout(() => { setVeil('#000', 1, 0.8); hudShow(false); }, 380); }
 function uiDoomStart() { hudShow(false); setVeil('#000', 0, 1.6); FPVAudio.lance(); }
@@ -66,7 +69,7 @@ function applyLang(l) {
   document.querySelectorAll('[data-i]').forEach((el) => { el.textContent = STR[l][el.dataset.i]; });
   $('#b-sub-t').textContent = STR[l].sub; $('#b-hint-t').textContent = selMode === 'script' ? STR[l].hintScript : STR[l].hintFree;
   $('#b-legal').innerHTML = STR[l].legal; renderKeys(); setQLabel();
-  document.querySelectorAll('#b-log div, #b-radio div').forEach((d) => { if (d.dataset.en) { const sp = d.querySelector('span'); (sp || d).textContent = l === 'zh' ? d.dataset.zh : d.dataset.en; } });
+  document.querySelectorAll('#b-log div, #b-brief div, #b-radio div').forEach((d) => { if (d.dataset.en) { const sp = d.querySelector('span'); (sp || d).textContent = l === 'zh' ? d.dataset.zh : d.dataset.en; } });
   const endLines = $('#b-end').querySelectorAll('.b-end-line'); STR[l].endA.forEach((x, i) => { if (endLines[i]) endLines[i].textContent = x; });
 }
 function renderKeys() { const keys = selRole === 'pilot' ? L().keysPilot : L().keysCmd; $('#b-keys').innerHTML = keys.map((k) => '<span>' + k + '</span>').join(''); }
@@ -126,8 +129,8 @@ function drawPilotHud(dt) {
     }
   }
   allies.forEach((a) => {   // 友軍旗艦、月球艦、預警機的標記
-    if (a.dead || (a.kind !== 'hss' && a.kind !== 'moon' && a.kind !== 'awacs')) return; const s = toScreen(a.x, a.y, a.z); if (!s.ok) return; const d = Math.hypot(a.x - P.pos.x, a.y - P.pos.y, a.z - P.pos.z); if (d < a.rad * 1.2) return;
-    hx.fillStyle = a.kind === 'awacs' ? 'rgba(143,230,255,.85)' : 'rgba(255,217,138,.8)'; hx.textAlign = 'center'; hx.fillText(a.kind === 'hss' ? 'HSS' : a.kind === 'moon' ? 'SCREWLLUM' : a.cs, s.x, s.y - 14); hx.fillStyle = 'rgba(255,255,255,.5)'; hx.fillText(fmtD(d), s.x, s.y); });
+    if (a.dead || (a.kind !== 'hss' && a.kind !== 'moon' && a.kind !== 'xzd' && a.kind !== 'awacs')) return; const s = toScreen(a.x, a.y, a.z); if (!s.ok) return; const d = Math.hypot(a.x - P.pos.x, a.y - P.pos.y, a.z - P.pos.z); if (d < a.rad * 1.2) return;
+    hx.fillStyle = a.kind === 'awacs' ? 'rgba(143,230,255,.85)' : 'rgba(255,217,138,.8)'; hx.textAlign = 'center'; hx.fillText(a.kind === 'hss' ? 'HSS' : a.kind === 'moon' ? 'SCREWLLUM' : a.kind === 'xzd' ? 'XIANZHOU' : a.cs, s.x, s.y - 14); hx.fillStyle = 'rgba(255,255,255,.5)'; hx.fillText(fmtD(d), s.x, s.y); });
   const tp = toScreen(TOMB_POS.x, TOMB_POS.y + 800, TOMB_POS.z), td = P.pos.distanceTo(TOMB_POS);
   if (tp.ok) { hx.fillStyle = 'rgba(255,90,120,.9)'; hx.textAlign = 'center'; hx.fillText('IRONTOMB · ' + fmtD(td), tp.x, tp.y - 6); if (G.mode === 'free') { hx.fillStyle = 'rgba(255,170,190,.7)'; hx.fillText(S.integrity + ' ' + (100 - ironDmg / 1e9).toFixed(6) + '%', tp.x, tp.y + 10); } }
   const bx = 18, by = H - 92, bw = 170 * Math.max(0.7, sc); bar(bx, by, bw, 8, P.shield / P.shieldMax, '#4aa8ff', 'SHIELD'); bar(bx, by + 24, bw, 8, P.hull / P.hullMax, P.hull / P.hullMax < 0.35 ? '#ff4466' : '#7dffb0', 'HULL');
@@ -195,7 +198,7 @@ function boxSelect() {
 }
 function selectGroup(n) {
   const all = allies.filter((u) => !u.dead && u.kind !== 'awacs');
-  selectUnits(n === 1 ? all : n === 2 ? all.filter((u) => u.kind === 'fgt') : all.filter((u) => u.d.cls === 'cap' || u.kind === 'cruis'), false);
+  selectUnits(n === 1 ? all : n === 2 ? all.filter((u) => u.kind === 'fgt') : all.filter((u) => u.d.cls === 'cap' || u.kind === 'cruis' || u.kind === 'ipc'), false);
 }
 function updateCommanderCamera(dt) {
   const k = cmdKeys, sp = ccT.dist * 0.8 * dt * (k.ShiftLeft ? 2.5 : 1), f = [-Math.sin(ccT.az), -Math.cos(ccT.az)], r = [Math.cos(ccT.az), -Math.sin(ccT.az)];
@@ -222,7 +225,7 @@ function drawCommanderHud(dt) {
       else if (enemy && u.d.hp > 1000) bracket(s.x, s.y, Math.min(r, 90), '#ff5a6e', 1.2);
       if (isSel && r < 7) { hx.strokeStyle = '#fff'; hx.beginPath(); hx.arc(s.x, s.y, 7, 0, TAU); hx.stroke(); }
       if (u.hp < u.hpMax && (isSel || u.d.hp > 8000)) { const w = 22; hx.fillStyle = 'rgba(0,0,0,.5)'; hx.fillRect(s.x - w / 2, s.y + Math.max(7, r) + 3, w, 3); hx.fillStyle = enemy ? '#ff5a6e' : '#7dffb0'; hx.fillRect(s.x - w / 2, s.y + Math.max(7, r) + 3, w * clamp(u.hp / u.hpMax, 0, 1), 3); }
-      if (!enemy && (u.kind === 'hss' || u.kind === 'moon' || u.kind === 'awacs' || u.isOrig)) { hx.fillStyle = u.isOrig ? '#ffd24a' : u.kind === 'awacs' ? '#7dffb0' : 'rgba(255,217,138,.9)'; hx.textAlign = 'center'; hx.fillText(u.isOrig ? 'YOU · ' + u.cs : u.kind === 'hss' ? 'HSS' : u.kind === 'moon' ? 'SCREWLLUM' : u.cs, s.x, s.y - Math.max(8, Math.min(r, 90)) - 7); }
+      if (!enemy && (u.kind === 'hss' || u.kind === 'moon' || u.kind === 'xzd' || u.kind === 'awacs' || u.isOrig)) { hx.fillStyle = u.isOrig ? '#ffd24a' : u.kind === 'awacs' ? '#7dffb0' : 'rgba(255,217,138,.9)'; hx.textAlign = 'center'; hx.fillText(u.isOrig ? 'YOU · ' + u.cs : u.kind === 'hss' ? 'HSS' : u.kind === 'moon' ? 'SCREWLLUM' : u.kind === 'xzd' ? 'XIANZHOU' : u.cs, s.x, s.y - Math.max(8, Math.min(r, 90)) - 7); }
       else if (enemy && u.kind === 'whale' && r > 4) { hx.fillStyle = 'rgba(255,120,140,.7)'; hx.textAlign = 'center'; hx.fillText('CARRIER', s.x, s.y - Math.max(8, Math.min(r, 90)) - 7); }
     }
   };

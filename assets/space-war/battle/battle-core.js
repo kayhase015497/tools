@@ -26,12 +26,14 @@ const DEF = {
   cruis: { side: 'a', name: 'Cruiser',        hp: 9000,   spd: 24,  turn: 0.14, sc: 11, rad: 95,  range: 1900, boom: 6,  cls: 'ship', flak: { cd: 0.45, dmg: 60, w: 1.6, len: 40, bs: 900, col: [0.5, 0.9, 1.0] }, beam: { cd: 3.5, n: 1, dmg: 600,  w: 9,  col: [0.3, 0.65, 1.0] } },
   cap:   { side: 'a', name: 'Dreadnought',    hp: 42000,  spd: 21,  turn: 0.09, sc: 20, rad: 340, range: 2600, boom: 12, cls: 'cap',  flak: { cd: 0.4, dmg: 90, w: 2.2, len: 60, bs: 900, col: [0.7, 0.95, 1.0] }, beam: { cd: 3.0, n: 2, dmg: 1500, w: 16, col: [0.25, 0.6, 1.0] } },
   hss:   { side: 'a', name: 'HSS',            hp: 160000, spd: 20,  turn: 0.06, sc: 30, rad: 700, range: 3200, boom: 20, cls: 'cap',  flak: { cd: 0.3, dmg: 140, w: 3, len: 80, bs: 900, col: [1.0, 0.9, 0.5] },    beam: { cd: 2.6, n: 3, dmg: 3000, w: 28, col: [1.0, 0.85, 0.45] } },
+  ipc:   { side: 'a', name: 'IPC Cruiser',    hp: 10000,  spd: 25,  turn: 0.14, sc: 11, rad: 105, range: 2000, boom: 6,  cls: 'ship', flak: { cd: 0.4, dmg: 60, w: 1.6, len: 40, bs: 900, col: [1.0, 0.55, 0.3] }, beam: { cd: 3.2, n: 2, dmg: 700, w: 10, col: [1.0, 0.1, 0.16] } },
+  xzd:   { side: 'a', name: 'Xianzhou Dreadnought', hp: 420000, spd: 18, turn: 0.04, sc: 34, rad: 1000, range: 3800, boom: 26, cls: 'cap', flak: { cd: 0.1, dmg: 110, w: 2.6, len: 70, bs: 900, col: [0.75, 0.95, 1.0] }, beam: { cd: 2.2, n: 6, dmg: 2600, w: 24, col: [0.2, 0.55, 1.0] }, msl: { cd: 3.6, n: 8, dmg: 900 } },
   moon:  { side: 'a', name: 'Screwllum Moon', hp: 260000, spd: 16,  turn: 0.03, sc: 45, rad: 740, range: 3400, cd: 5.0, boom: 24, cls: 'cap', bubble: 1 },
   awacs: { side: 'a', name: 'Sentinel AWACS', hp: 9000,   spd: 40,  turn: 0.2,  sc: 1,  rad: 75,  boom: 6, cls: 'ship', noGun: 1 },
   fly:   { side: 'e', name: 'Legion Fighter', hp: 90,     spd: 112, sc: 1.5, rad: 7,  turn: 1.5, boom: 0.8, cls: 'fgt' },
-  whale: { side: 'e', name: 'Legion Carrier', hp: 30000,  spd: 20,  turn: 0.08, sc: 14, rad: 170, range: 1700, boom: 9,  cls: 'cap',  flak: { cd: 0.6, dmg: 45, w: 1.8, len: 50, bs: 800, col: [1.0, 0.4, 0.9] },  beam: { cd: 3.2, n: 1, dmg: 700, w: 14, col: [1.0, 0.18, 0.28] } }
+  whale: { side: 'e', name: 'Legion Carrier', hp: 30000,  spd: 20,  turn: 0.08, sc: 14, rad: 170, range: 1700, boom: 9,  cls: 'cap',  flak: { cd: 0.6, dmg: 45, w: 1.8, len: 50, bs: 800, col: [0.7, 0.3, 1.0] },  beam: { cd: 3.2, n: 1, dmg: 700, w: 14, col: [0.65, 0.2, 1.0] } }
 };
-const SHIP_KINDS = ['frig', 'cruis', 'cap', 'hss', 'moon', 'awacs'];
+const SHIP_KINDS = ['frig', 'cruis', 'ipc', 'cap', 'xzd', 'hss', 'moon', 'awacs'];
 
 /* ═════════ 劇本時間軸（5 分鐘）與台詞 ═════════ */
 // REVEAL：黑幕落下、戰場可見；FLASH：白閃 → 「第四時刻」；DOOM：巨劍降臨；IMPACT：衝擊波；WHITE：全白；END：收尾字卡
@@ -51,6 +53,7 @@ const CUE_BASE = [
   { t: 12.4, dur: 6.5, type: 2.8, box: 'sub', who: 'lyc', en: 'The instant in your calculations bears the name Destruction.', zh: '你計算中的時刻，名為「毀滅」。' },
   { t: 20.5, dur: 4.6, type: 1.8, box: 'sub', who: 'herta', en: 'Who said you could speak, "senior"?', zh: '誰允許你發言了？前輩。' },
   { t: 26.5, dur: 7.8, type: 3.4, box: 'sub', who: 'herta', en: 'Watch closely. See how your chaos ends at the hands of your juniors.', zh: '給我看仔細了，你這收拾不完的爛攤子如何被後進了結。' },
+  { t: 32.5, dur: 5.6, type: 2.6, box: 'sub', who: 'herta', obj: 1, en: 'Screwllum is helping the station search for the signal of Nous. All forces, protect the station.', zh: '螺絲星正在協助黑塔空間站搜索博識尊的信號，全軍保護好空間站。' },
   { t: 35.5, dur: 5.2, type: 2.2, box: 'sub', who: 'cyrene', en: "Don't get too worked up. Take a deep breath.", zh: '別太激動。深呼吸。' },
   { t: 42.5, dur: 5.8, type: 2.4, box: 'sub', who: 'dan', en: "There's not a trace of life in that ominous shell.", zh: '那具不祥的空殼裡，沒有一絲生命的氣息。' },
   { t: 49.8, dur: 5.4, type: 2.4, box: 'sub', who: 'march', en: "We're not going to lose to a hollow husk, right?", zh: '我們不會輸給一具空殼的，對吧？' },
@@ -76,6 +79,7 @@ const TICKS = TICK_BASE.map((x) => [T.REVEAL + 2 + (x[0] - 14) * 1.8, x[1], x[2]
 /* ═════════ 介面文字（預設英文，開局前可切中文） ═════════ */
 const STR = {
   en: {
+    objLabel: 'OBJECTIVE', objText: 'Protect the Herta Space Station',
     title: 'AMPHOREUS FINALE · BATTLE', sub: 'Anti-Irontomb Cosmic Alliance vs the Antimatter Legion. Command the fleet or fly the line yourself.',
     mode: 'MODE', script: 'Story · 5:00', free: 'Free · endless', role: 'ROLE', pilot: 'Pilot', commander: 'Commander', lang: '中文', go: 'ENGAGE', loading: 'LOADING…', resume: 'RESUME',
     qHigh: 'Graphics: High', qLow: 'Graphics: Low', soundOn: 'Sound: On', soundOff: 'Sound: Off',
@@ -91,6 +95,7 @@ const STR = {
     endA: ['The cosmos\' Fourth Instant — the coronation of Irontomb.', 'No victory was ever written into this battle.', 'What is the first cause of life? The ultimate debate with Nous begins.']
   },
   zh: {
+    objLabel: '任務目標', objText: '保護黑塔空間站',
     title: '翁法羅斯終章・戰場', sub: '反鐵墓宇宙聯軍對抗反物質軍團。你可以統率艦隊，也可以親自駕機上陣。',
     mode: '模式', script: '劇本・5 分鐘', free: '自由・無限', role: '角色', pilot: '飛行員', commander: '指揮官', lang: 'English', go: '進入戰場', loading: '載入中…', resume: '繼續',
     qHigh: '畫質：高', qLow: '畫質：低', soundOn: '音效：開', soundOff: '音效：關',
