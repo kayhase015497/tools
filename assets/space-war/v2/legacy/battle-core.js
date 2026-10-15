@@ -54,7 +54,7 @@ const CUE_BASE = [
   { t: 12.4, dur: 6.5, type: 2.8, box: 'sub', who: 'lyc', en: 'The instant in your calculations bears the name Destruction.', zh: '你計算中的時刻，名為「毀滅」。', ja: 'あなたの演算にある刹那、その名は「壊滅」。', ko: '당신의 계산 속 그 순간의 이름은 \'파멸\'.', },
   { t: 20.5, dur: 4.6, type: 1.8, box: 'sub', who: 'herta', en: 'Who said you could speak, "senior"?', zh: '誰允許你發言了？前輩。', ja: '勝手に喋らないでくれる？先輩。', ko: '누가 발언권을 줬지? 선배.', },
   { t: 26.5, dur: 7.8, type: 3.4, box: 'sub', who: 'herta', en: 'Watch closely. See how your chaos ends at the hands of your juniors.', zh: '給我看仔細了，你這收拾不完的爛攤子如何被後進了結。', ja: '黙って見てなさい。先輩のやらかしを、後輩が始末してあげるから。', ko: '똑똑히 봐. 당신이 수습 못한 이 난장판을 후배들이 어떻게 마무리 짓는지.', },
-  { t: 32.5, dur: 5.6, type: 2.6, box: 'sub', who: 'herta', obj: 1, en: 'Screwllum is helping the station search for the signal of Nous. All forces, protect the station.', zh: '螺絲星正在協助黑塔空間站搜索博識尊的信號，全軍保護好空間站。', ja: 'スクリュームはステーションの、ノウスの信号探索に協力している。全軍、ステーションを守り抜いて。', ko: '스크류검이 박식존의 신호를 찾는 스테이션을 돕고 있어. 전군, 스테이션을 지켜.', },
+  { t: 32.5, dur: 5.6, type: 2.6, box: 'sub', who: 'herta', obj: 1, en: 'Screwllum is helping the station search for the signal of Nous. All forces, protect the station.', zh: '螺絲星正在協助黑塔空間站搜索博識尊的信號，全軍保護好空間站。', ja: 'スクリューガムはステーションの、ノウスの信号探索に協力している。全軍、ステーションを守り抜いて。', ko: '스크루룸이 누스의 신호를 찾는 스테이션을 돕고 있어. 전군, 스테이션을 지켜.', },
   { t: 35.5, dur: 5.2, type: 2.2, box: 'sub', who: 'cyrene', en: "Don't get too worked up. Take a deep breath.", zh: '別太激動。深呼吸。', ja: 'リラックスよ。深呼吸して。', ko: '긴장하지 말고, 숨 크게 들이마셔.', },
   { t: 42.5, dur: 5.8, type: 2.4, box: 'sub', who: 'dan', en: "There's not a trace of life in that ominous shell.", zh: '那具不祥的空殼裡，沒有一絲生命的氣息。', ja: 'あの禍々しい殻には、命の気配が微塵もない。', ko: '저 불길한 껍데기에선 생명의 기운이 전혀 느껴지지 않아.', },
   { t: 49.8, dur: 5.4, type: 2.4, box: 'sub', who: 'march', en: "We're not going to lose to a hollow husk, right?", zh: '我們不會輸給一具空殼的，對吧？', ja: '空っぽの殻なんかに負けないでしょ？', ko: '설마 빈 껍데기한테 질 리 없다고, 그치?', },
@@ -166,7 +166,7 @@ STR.ko = {
     focusFire: '집중 사격', chargeCall: '돌격', responding: '응답', noTarget: '락온된 표적 없음 (T)', cooling: '통신 재사용 대기 중', noOne: '사거리 내 아군 없음',
     awacsOn: '조기경보기 온라인', awacsOff: '조기경보기 오프라인 · 각자 전투', tasking: '조기경보기 지시',
     youLost: '파일럿 사망 · 재배치까지', leave: '전투 구역 이탈 중 · 돌아가라', zone: '아이언툼 금지 구역 · 돌아가라', integrity: '완전도',
-    endA: ['우주의 네 번째 순간——아이언툼의 대관식.', '이 전투에는 처음부터 승리가 쓰여 있지 않았다.', '생명의 제1원인은 무엇인가? 「노우스」와의 궁극적인 논쟁이 시작된다.']
+    endA: ['우주의 네 번째 순간——아이언툼의 대관식.', '이 전투에는 처음부터 승리가 쓰여 있지 않았다.', '생명의 제1원인은 무엇인가? 「누스」와의 궁극적인 논쟁이 시작된다.']
   };
 
 /* ═════════ 無線電台詞（20 句，雙語）與呼號生成 ═════════ */
@@ -174,7 +174,7 @@ STR.ko = {
 // 日、韓翻譯：以英文原句為鍵（say／無線電／戰況播報共用）；含變數的句子用 SAY_PATTERNS
 const STATIC_TR = {
   'Welcome aboard. The fleet is engaging the Antimatter Legion.': ['乗艦を歓迎する。艦隊は反物質軍団と交戦中だ。', '승함을 환영한다. 함대가 반물질 군단과 교전 중이다.'],
-  'Cruiser squadron warping in, rallying to the Screwllum fleet and the station': ['巡洋艦隊がワープで到着、スクリュームの艦隊とステーションに合流する', '순양함 전대가 워프로 도착, 스크류검 함대 및 정거장에 합류합니다'],
+  'Cruiser squadron warping in, rallying to the Screwllum fleet and the station': ['巡洋艦隊がワープで到着、スクリューガムの艦隊とステーションに合流する', '순양함 전대가 워프로 도착, 스크루룸 함대 및 정거장에 합류합니다'],
   'Dreadnought warping in behind the line': ['ドレッドノート級が戦列の後方にワープ到着', '드레드노트급이 전열 후방에 워프로 도착'],
   'Alliance reinforcements warping in': ['連合軍の増援がワープで到着', '연합군 증원군이 워프로 도착'],
   'Fighter wing warping in': ['戦闘機隊がワープで到着', '전투기 편대가 워프로 도착'],
@@ -186,9 +186,9 @@ const STATIC_TR = {
   'Flagship: Herta Space Station (HSS) in command position.': ['旗艦：ヘルタ宇宙ステーション（HSS）が指揮位置に就いた。', '기함: 헤르타 우주 정거장(HSS)이 지휘 위치에 도착했다.'],
   'External front: contain the overflow, cover the evacuation.': ['外縁任務：鉄墓の溢出を食い止め、住民の避難を援護せよ。', '외곽 임무: 범람을 저지하고 주민 대피를 엄호하라.'],
   'Exclusion zone marked around the Irontomb. No vessel may enter its energy field.': ['鉄墓の周囲に立入禁止区域を設定。艦艇はそのエネルギー場に進入してはならない。', '아이언툼 주변에 금지 구역을 설정했다. 어떤 함선도 그 에너지장에 진입해서는 안 된다.'],
-  "Screwllum's planetary fleet joins the line. Beam bubbles charged.": ['スクリューム率いる惑星級艦隊が戦線に加わった。ビームバブルのチャージ完了。', '스크류검의 행성급 함대가 전선에 합류했다. 빔 버블 충전 완료.'],
+  "Screwllum's planetary fleet joins the line. Beam bubbles charged.": ['スクリューガム率いる惑星級艦隊が戦線に加わった。ビームバブルのチャージ完了。', '스크루룸의 행성급 함대가 전선에 합류했다. 빔 버블 충전 완료.'],
   'Projected spillover: five neighboring star systems.': ['予測される溢出範囲：近隣の五つの星系。', '예상 범람 범위: 인접한 다섯 개 성계.'],
-  'The Astral Express is breaching the core from within.': ['星穹列車が内部から突入し、鉄墓の核心の瓦解を試みている。', '성궤 열차가 내부로 진입해 아이언툼의 핵심을 무너뜨리려 시도 중이다.'],
+  'The Astral Express is breaching the core from within.': ['星穹列車が内部から突入し、鉄墓の核心の瓦解を試みている。', '은하열차가 내부로 진입해 아이언툼의 핵심을 무너뜨리려 시도 중이다.'],
   'Antimatter Legion forces keep pouring from the Irontomb.': ['反物質軍団が鉄墓の外縁から湧き出し続けている。', '반물질 군단이 아이언툼에서 계속 쏟아져 나오고 있다.'],
   'Warning: Irontomb energy readings climbing.': ['警告：鉄墓のエネルギー値が上昇し続けている。', '경고: 아이언툼의 에너지 수치가 계속 상승하고 있다.'],
   'Alliance losses are mounting.': ['連合軍の損失が拡大している。', '연합군의 피해가 확대되고 있다.'],
@@ -224,7 +224,8 @@ const SAY_PATTERNS = [
 function sayTr(en) {   // → { ja, ko }（找不到翻譯就沿用英文）
   let r = STATIC_TR[en];
   if (!r) for (const [re, f] of SAY_PATTERNS) { const m = re.exec(en); if (m) { r = f(m); break; } }
-  return r ? { ja: r[0], ko: r[1] } : { ja: en, ko: en };
+  if (!r) return { ja: en, ko: en };
+  return { ja: r[0].replace(/Screwllum/g, 'スクリューガム'), ko: r[1].replace(/Screwllum/g, '스크루룸') };   // 艦名中的 Screwllum 也換成日、韓譯名
 }
 const RADIO = {
   lock: [
