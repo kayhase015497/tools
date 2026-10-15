@@ -76,7 +76,9 @@ function applyCueLang(l) {   // 語言切換時重算：字幕長度與浮現速
     c.t = c.t0; c.dur = c.dur0; c.type = c.type0; const nm = VOICE_NAMES[i], vd = VOICE_DUR[l][i];
     if (nm && vd) { c.voice = '../assets/space-war/voice/' + l + '/' + nm + '.mp3'; c.vdur = vd; c.dur = Math.max(c.dur0, vd + 1); c.type = Math.min(c.type0, vd * 0.8); } else { c.voice = null; c.vdur = 0; }
   });
-  const h1 = CUES[2], h2 = CUES[3]; h2.t = h1.t + h1.vdur + 0.5; h1.dur = h1.vdur + 0.5;   // 黑塔兩句連著講，不留空檔
+  const chain = (a, b, gap) => { b.t = a.t + a.vdur + gap; a.dur = a.vdur + gap; };   // 對話連著講：下一句緊接在上一句語音結束後
+  chain(CUES[2], CUES[3], 0.5);                                    // 黑塔兩句
+  chain(CUES[5], CUES[6], 0.45); chain(CUES[6], CUES[7], 0.4); chain(CUES[7], CUES[8], 0.9);   // 昔漣 → 丹恆 → 三月七 → 開拓者
 }
 applyCueLang('en');
 const TICK_BASE = [
@@ -131,10 +133,99 @@ const STR = {
     endA: ['宇宙的第四時刻，鐵墓加冕。', '這場戰鬥，從一開始就沒有被寫下勝利。', '生命的第一因是什麼？一場與「博識尊」（Nous）的終極辯論正式開始。']
   }
 };
-// 日文、韓文：目前只翻譯劇本台詞與角色名；其餘介面文字沿用英文。按鈕上顯示的是「下一個語言」的名字
-STR.ja = Object.assign({}, STR.en, { lang: '한국어' }); STR.ko = Object.assign({}, STR.en, { lang: 'English' }); STR.zh.lang = '日本語'; STR.en.lang = '中文';
+STR.en.langLabel = 'LANGUAGE'; STR.zh.langLabel = '語言';
+STR.ja = {
+    objLabel: '目標', objText: 'ヘルタ宇宙ステーションを守れ', langLabel: '言語',
+    title: 'オンパロス終章・戦場', sub: '反鉄墓宇宙連合軍 対 反物質軍団。艦隊を指揮するもよし、自ら戦闘機で戦線に立つもよし。',
+    mode: 'モード', script: 'ストーリー・5分', free: 'フリー・無限', role: '役割', pilot: 'パイロット', commander: '指揮官', go: '出撃', loading: '読み込み中…', resume: '再開', restart: '最初から',
+    qHigh: '画質：高', qLow: '画質：低', soundOn: 'サウンド：オン', soundOff: 'サウンド：オフ',
+    hintScript: '約5分。戦うことはできるが、勝つことはできない——鉄墓は決して倒れない。', hintFree: '時間制限なし。戦いは終わらない。',
+    keysPilot: ['<b>マウス</b> ピッチ／ヨー', '<b>W / S</b> スロットル', '<b>Q / E</b> ロール', '<b>A D R F</b> 平行移動', '<b>Shift</b> アフターバーナー', '<b>X</b> 急停止', '<b>左クリック／Space</b> レーザー', '<b>右クリック／Ctrl</b> ミサイル', '<b>T</b> ロック · <b>Y</b> 次 · <b>U</b> 哨戒機の指示', '<b>C</b> 集中砲火 · <b>G</b> 突撃（支援要請）', '<b>V</b> 視点 · <b>Z</b> 飛行補助 · <b>I</b> ピッチ反転', '<b>Tab</b> 指揮官に切替 · <b>M</b> 音楽 · <b>P</b> 一時停止'],
+    keysCmd: ['<b>左ドラッグ</b> 範囲選択', '<b>左クリック</b> 移動／敵をクリックで集中砲火', '<b>右ドラッグ</b> 回転', '<b>ホイール</b> ズーム', '<b>WASD</b> 移動（Shiftで高速）', '<b>1 / 2 / 3</b> 全軍・戦闘機・主力艦', '<b>C</b> 突撃 · <b>X</b> 待機 · <b>T</b> 鉄墓を集中砲火', '<b>Tab</b> パイロットに切替', '<b>M</b> 音楽 · <b>P / Esc</b> 一時停止'],
+    legal: '非公式のファン作品であり、ゲームの運営元とは無関係です。作中の台詞・設定の著作権は各権利者に帰属します。<br/>BGM：「Agony Converging into River」© HOYO-MiX。マウスとキーボードのデスクトップ環境を推奨します。',
+    ships: '艦艇', kills: '撃破', sel: '選択中', all: '全選択', charge: '突撃', hold: '待機', tomb: '鉄墓を集中砲火', toPilot: 'パイロット [Tab]', toCmd: '指揮官 [Tab]',
+    chooseTitle: '操縦を引き継ぐ', chooseOrig: '元の戦闘機に戻る', chooseHss: 'HSSから出撃', chooseGone: '元の戦闘機は撃墜された',
+    resupply: 'ミサイル残量わずか・補給地点：', resupplying: '補給中', resupplied: 'ミサイル補給完了',
+    focusFire: '集中砲火', chargeCall: '突撃', responding: '応答', noTarget: '目標未ロック（T）', cooling: '通信クールダウン中', noOne: '射程内に味方なし',
+    awacsOn: '哨戒機オンライン', awacsOff: '哨戒機オフライン・各自で戦闘', tasking: '哨戒機の指示',
+    youLost: 'パイロット死亡・再出撃まで', leave: '戦域を離脱中・引き返せ', zone: '鉄墓の立入禁止区域・引き返せ', integrity: '完全度',
+    endA: ['宇宙の第四の刹那——鉄墓の戴冠。', 'この戦いに、勝利は最初から書かれていなかった。', '生命の第一原因とは何か？「ノウス」との究極の論争が、今始まる。']
+  };
+STR.ko = {
+    objLabel: '목표', objText: '헤르타 우주 정거장을 지켜라', langLabel: '언어',
+    title: '옴파로스 종장 · 전장', sub: '반 아이언툼 우주 연합군 대 반물질 군단. 함대를 지휘하거나 직접 전투기를 몰고 전선에 서십시오.',
+    mode: '모드', script: '스토리 · 5분', free: '자유 · 무한', role: '역할', pilot: '파일럿', commander: '지휘관', go: '출격', loading: '불러오는 중…', resume: '계속', restart: '다시 시작',
+    qHigh: '화질: 높음', qLow: '화질: 낮음', soundOn: '소리: 켜짐', soundOff: '소리: 꺼짐',
+    hintScript: '약 5분. 싸울 수는 있지만 이길 수는 없다——아이언툼은 쓰러지지 않는다.', hintFree: '시간 제한 없음. 전투는 끝나지 않는다.',
+    keysPilot: ['<b>마우스</b> 피치 / 요', '<b>W / S</b> 스로틀', '<b>Q / E</b> 롤', '<b>A D R F</b> 평행 이동', '<b>Shift</b> 애프터버너', '<b>X</b> 급정지', '<b>좌클릭 / Space</b> 레이저', '<b>우클릭 / Ctrl</b> 미사일', '<b>T</b> 락온 · <b>Y</b> 다음 · <b>U</b> 조기경보기 지시', '<b>C</b> 집중 사격 · <b>G</b> 돌격(지원 요청)', '<b>V</b> 시점 · <b>Z</b> 비행 보조 · <b>I</b> 피치 반전', '<b>Tab</b> 지휘관으로 전환 · <b>M</b> 음악 · <b>P</b> 일시정지'],
+    keysCmd: ['<b>좌 드래그</b> 범위 선택', '<b>좌클릭</b> 이동 / 적 클릭으로 집중 사격', '<b>우 드래그</b> 회전', '<b>휠</b> 확대/축소', '<b>WASD</b> 이동(Shift 고속)', '<b>1 / 2 / 3</b> 전군 · 전투기 · 주력함', '<b>C</b> 돌격 · <b>X</b> 대기 · <b>T</b> 아이언툼 집중 사격', '<b>Tab</b> 파일럿으로 전환', '<b>M</b> 음악 · <b>P / Esc</b> 일시정지'],
+    legal: '비공식 팬 작품이며 게임 운영사와 무관합니다. 극중 대사와 설정의 저작권은 각 권리자에게 있습니다.<br/>음악: 「Agony Converging into River」© HOYO-MiX. 마우스와 키보드를 사용하는 데스크톱을 권장합니다.',
+    ships: '함선', kills: '격파', sel: '선택', all: '전체 선택', charge: '돌격', hold: '대기', tomb: '아이언툼 집중 사격', toPilot: '파일럿 [Tab]', toCmd: '지휘관 [Tab]',
+    chooseTitle: '조종 인계', chooseOrig: '원래 전투기로 복귀', chooseHss: 'HSS에서 출격', chooseGone: '원래 전투기가 격추되었습니다',
+    resupply: '미사일 부족 · 보급 지점:', resupplying: '보급 중', resupplied: '미사일 보급 완료',
+    focusFire: '집중 사격', chargeCall: '돌격', responding: '응답', noTarget: '락온된 표적 없음 (T)', cooling: '통신 재사용 대기 중', noOne: '사거리 내 아군 없음',
+    awacsOn: '조기경보기 온라인', awacsOff: '조기경보기 오프라인 · 각자 전투', tasking: '조기경보기 지시',
+    youLost: '파일럿 사망 · 재배치까지', leave: '전투 구역 이탈 중 · 돌아가라', zone: '아이언툼 금지 구역 · 돌아가라', integrity: '완전도',
+    endA: ['우주의 네 번째 순간——아이언툼의 대관식.', '이 전투에는 처음부터 승리가 쓰여 있지 않았다.', '생명의 제1원인은 무엇인가? 「노우스」와의 궁극적인 논쟁이 시작된다.']
+  };
 
 /* ═════════ 無線電台詞（20 句，雙語）與呼號生成 ═════════ */
+
+// 日、韓翻譯：以英文原句為鍵（say／無線電／戰況播報共用）；含變數的句子用 SAY_PATTERNS
+const STATIC_TR = {
+  'Welcome aboard. The fleet is engaging the Antimatter Legion.': ['乗艦を歓迎する。艦隊は反物質軍団と交戦中だ。', '승함을 환영한다. 함대가 반물질 군단과 교전 중이다.'],
+  'Cruiser squadron warping in, rallying to the Screwllum fleet and the station': ['巡洋艦隊がワープで到着、スクリュームの艦隊とステーションに合流する', '순양함 전대가 워프로 도착, 스크류검 함대 및 정거장에 합류합니다'],
+  'Dreadnought warping in behind the line': ['ドレッドノート級が戦列の後方にワープ到着', '드레드노트급이 전열 후방에 워프로 도착'],
+  'Alliance reinforcements warping in': ['連合軍の増援がワープで到着', '연합군 증원군이 워프로 도착'],
+  'Fighter wing warping in': ['戦闘機隊がワープで到着', '전투기 편대가 워프로 도착'],
+  'Sentinel lost — datalink degraded, units on local control': ['哨戒機を喪失——データリンク劣化、各部隊は自律戦闘へ', '조기경보기 상실——데이터링크 저하, 각 부대는 자율 전투로 전환'],
+  'Pilot lost. Re-deploying from the HSS hangar…': ['パイロット死亡。HSS格納庫から再出撃中…', '파일럿 사망. HSS 격납고에서 재배치 중…'],
+  'Missiles resupplied': ['ミサイル補給完了', '미사일 보급 완료'],
+  'Irontomb integrity locked at 60% — it cannot be destroyed': ['鉄墓の完全度が60%で固定——破壊不能', '아이언툼 완전도가 60%에서 고정됨——파괴할 수 없음'],
+  'Anti-Irontomb Cosmic Alliance assembled. All fleets in position.': ['反鉄墓宇宙連合軍の集結が完了。全艦隊、配置につけ。', '반 아이언툼 우주 연합군 집결 완료. 전 함대 배치 완료.'],
+  'Flagship: Herta Space Station (HSS) in command position.': ['旗艦：ヘルタ宇宙ステーション（HSS）が指揮位置に就いた。', '기함: 헤르타 우주 정거장(HSS)이 지휘 위치에 도착했다.'],
+  'External front: contain the overflow, cover the evacuation.': ['外縁任務：鉄墓の溢出を食い止め、住民の避難を援護せよ。', '외곽 임무: 범람을 저지하고 주민 대피를 엄호하라.'],
+  'Exclusion zone marked around the Irontomb. No vessel may enter its energy field.': ['鉄墓の周囲に立入禁止区域を設定。艦艇はそのエネルギー場に進入してはならない。', '아이언툼 주변에 금지 구역을 설정했다. 어떤 함선도 그 에너지장에 진입해서는 안 된다.'],
+  "Screwllum's planetary fleet joins the line. Beam bubbles charged.": ['スクリューム率いる惑星級艦隊が戦線に加わった。ビームバブルのチャージ完了。', '스크류검의 행성급 함대가 전선에 합류했다. 빔 버블 충전 완료.'],
+  'Projected spillover: five neighboring star systems.': ['予測される溢出範囲：近隣の五つの星系。', '예상 범람 범위: 인접한 다섯 개 성계.'],
+  'The Astral Express is breaching the core from within.': ['星穹列車が内部から突入し、鉄墓の核心の瓦解を試みている。', '성궤 열차가 내부로 진입해 아이언툼의 핵심을 무너뜨리려 시도 중이다.'],
+  'Antimatter Legion forces keep pouring from the Irontomb.': ['反物質軍団が鉄墓の外縁から湧き出し続けている。', '반물질 군단이 아이언툼에서 계속 쏟아져 나오고 있다.'],
+  'Warning: Irontomb energy readings climbing.': ['警告：鉄墓のエネルギー値が上昇し続けている。', '경고: 아이언툼의 에너지 수치가 계속 상승하고 있다.'],
+  'Alliance losses are mounting.': ['連合軍の損失が拡大している。', '연합군의 피해가 확대되고 있다.'],
+  'Readings are off the scale.': ['エネルギー値が計測限界を超えた。', '에너지 수치가 측정 한계를 초과했다.'],
+  'Tally ho — target locked.': ['ターゲット発見、ロックした。', '표적 발견, 락온 완료.'],
+  'Radar lock, engaging.': ['レーダーロック、交戦開始。', '레이더 락온, 교전 개시.'],
+  "I've got him in my sights.": ['照準に捉えた。', '조준경에 잡았다.'],
+  'Locked on — fox two!': ['ロックオン——フォックスツー！', '락온 완료——폭스 투!'],
+  'On his tail, pushing in.': ['後ろに食らいついた、追撃を続ける。', '꼬리를 물었다, 계속 추격한다.'],
+  "Chasing — don't let him break away!": ['追跡中——逃がすな！', '추격 중——놓치지 마!'],
+  'Breaking left, following the bandit.': ['左旋回、敵機を追う。', '좌선회, 적기를 따라간다.'],
+  'Closing in, almost in range.': ['接近中、まもなく射程に入る。', '접근 중, 곧 사거리에 들어간다.'],
+  "I'm hit! Systems failing!": ['被弾した！システム異常！', '피격당했다! 시스템 이상!'],
+  'Taking fire — shields down!': ['攻撃を受けている——シールド喪失！', '공격받고 있다——보호막 상실!'],
+  'Hull breach, I need cover!': ['船体破損、援護を頼む！', '선체 파손, 엄호 요청!'],
+  "They're all over me — somebody help!": ['食いつかれた——誰か助けてくれ！', '놈들이 달라붙었다——누가 좀 도와줘!'],
+  'Going down… tell them we held the line.': ['墜落する……戦線は守り抜いたと伝えてくれ。', '추락한다…… 우리가 전선을 지켰다고 전해줘.'],
+  "Can't hold it… it's been an honor.": ['もう持たない……共に戦えて光栄だった。', '더는 못 버텨…… 함께 싸워서 영광이었다.'],
+  "Mayday, mayday — I've lost control!": ['メーデー、メーデー——制御不能！', '메이데이, 메이데이——제어 불능!'],
+  'Engines are gone… so long, everyone.': ['エンジン停止……みんな、さらばだ。', '엔진이 죽었다…… 모두 잘 있어.'],
+  'Tell my wingmate… I kept my promise.': ['僚機に伝えてくれ……約束は守ったと。', '내 윙맨에게 전해줘…… 약속을 지켰다고.'],
+  'Splash one!': ['一機撃墜！', '한 대 격추!'],
+  'Target destroyed, moving on.': ['目標撃破、次へ移る。', '표적 격파, 다음으로 이동.'],
+  "Got him! Who's next?": ['仕留めた！次は誰だ？', '잡았다! 다음은 누구지?']
+};
+const SAY_PATTERNS = [
+  [/^Performance mode (.+): reducing effects$/, (m) => ['パフォーマンスモード ' + m[1] + '：エフェクトを軽減', '성능 모드 ' + m[1] + ': 효과를 줄입니다']],
+  [/^Antimatter Legion wave (\d+) tearing through the void$/, (m) => ['反物質軍団 第' + m[1] + '波が虚空を引き裂いて来襲', '반물질 군단 ' + m[1] + '차 파도가 허공을 찢고 몰려옵니다']],
+  [/^(.+) shields down$/, (m) => [m[1] + ' シールド喪失', m[1] + ' 보호막 상실']],
+  [/^(.+) destroyed(?: · (.+))?$/, (m) => [m[1] + ' 撃破' + (m[2] ? ' · ' + m[2] : ''), m[1] + ' 격파' + (m[2] ? ' · ' + m[2] : '')]],
+  [/^(.+) online — datalink restored, taking over target allocation$/, (m) => [m[1] + ' オンライン——データリンク復旧、目標割り当てを引き継ぐ', m[1] + ' 온라인——데이터링크 복구, 표적 할당을 인계합니다']]
+];
+function sayTr(en) {   // → { ja, ko }（找不到翻譯就沿用英文）
+  let r = STATIC_TR[en];
+  if (!r) for (const [re, f] of SAY_PATTERNS) { const m = re.exec(en); if (m) { r = f(m); break; } }
+  return r ? { ja: r[0], ko: r[1] } : { ja: en, ko: en };
+}
 const RADIO = {
   lock: [
     ['Tally ho — target locked.', '發現目標，已鎖定。'],

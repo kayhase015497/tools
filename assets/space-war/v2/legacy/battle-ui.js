@@ -7,7 +7,7 @@ const logEl = $('#b-log'), briefEl = $('#b-brief'), objEl = $('#b-obj'), centerE
 
 /* ═════════ 訊息與字幕 ═════════ */
 function say(en, zh, warn, brief) {   // 左上角播報：brief＝故事局勢概況（獨立區塊、停留較久）；其餘為艦隊流水訊息
-  const host = brief ? briefEl : logEl, d = document.createElement('div'); d.dataset.en = en; d.dataset.zh = zh; d.textContent = G.lang === 'zh' ? zh : en; if (warn) d.className = 'warn'; host.appendChild(d);
+  const host = brief ? briefEl : logEl, d = document.createElement('div'); const tr = sayTr(en); d.dataset.en = en; d.dataset.zh = zh; d.dataset.ja = tr.ja; d.dataset.ko = tr.ko; d.textContent = d.dataset[G.lang]; if (warn) d.className = 'warn'; host.appendChild(d);
   const life = brief ? 16000 : 7000; setTimeout(() => d.classList.add('out'), life); setTimeout(() => d.remove(), life + 1200); while (host.children.length > (brief ? 4 : 5)) host.firstChild.remove();
 }
 let objOn = false;
@@ -68,9 +68,9 @@ function radioSay(u, cat, force) {
   if (!force) { if (now < radioGate) return; if (radioLast[u.id] && now - radioLast[u.id] < 6) return; if ((cat === 'lock' || cat === 'pursue' || cat === 'kill') && Math.random() > 0.35) return; }
   radioGate = now + 0.9; radioLast[u.id] = now;
   const line = pick(RADIO[cat]), d = document.createElement('div'); d.className = 'rd ' + cat;
-  d.innerHTML = '<b></b><span></span>'; d.children[0].textContent = u.cs; d.children[1].textContent = line[G.lang === 'zh' ? 1 : 0];
+  d.innerHTML = '<b></b><span></span>'; d.children[0].textContent = u.cs; d.children[1].textContent = (G.lang === 'zh' ? line[1] : G.lang === 'en' ? line[0] : sayTr(line[0])[G.lang]);
   if (cat === 'final') d.children[0].textContent = '✕ ' + u.cs;
-  d.dataset.en = line[0]; d.dataset.zh = line[1];
+  { const tr = sayTr(line[0]); d.dataset.en = line[0]; d.dataset.zh = line[1]; d.dataset.ja = tr.ja; d.dataset.ko = tr.ko; }
   radioEl.appendChild(d); while (radioEl.children.length > 6) radioEl.firstChild.remove();
   setTimeout(() => d.classList.add('out'), cat === 'final' ? 11000 : 8000); setTimeout(() => d.remove(), cat === 'final' ? 12400 : 9400);
 }
@@ -80,11 +80,11 @@ const LANGS = ['en', 'zh', 'ja', 'ko'];
 let selMode = 'script', selRole = 'pilot', musicOn = true;
 function applyLang(l) {
   G.lang = l; try { localStorage.setItem('sw-lang', l); } catch (e) {}
-  document.documentElement.lang = SUBLANG[l] || 'en'; document.title = STR[l].title; applyCueLang(l);
+  document.documentElement.lang = SUBLANG[l] || 'en'; document.title = STR[l].title; applyCueLang(l); setSel('#b-langsel', l);
   document.querySelectorAll('[data-i]').forEach((el) => { el.textContent = STR[l][el.dataset.i]; });
   $('#b-sub-t').textContent = STR[l].sub; $('#b-hint-t').textContent = selMode === 'script' ? STR[l].hintScript : STR[l].hintFree;
   $('#b-legal').innerHTML = STR[l].legal; renderKeys(); setQLabel();
-  document.querySelectorAll('#b-log div, #b-brief div, #b-radio div').forEach((d) => { if (d.dataset.en) { const sp = d.querySelector('span'); (sp || d).textContent = l === 'zh' ? d.dataset.zh : d.dataset.en; } });
+  document.querySelectorAll('#b-log div, #b-brief div, #b-radio div').forEach((d) => { if (d.dataset.en) { const sp = d.querySelector('span'); (sp || d).textContent = d.dataset[l] || d.dataset.en; } });
   const endLines = $('#b-end').querySelectorAll('.b-end-line'); STR[l].endA.forEach((x, i) => { if (endLines[i]) endLines[i].textContent = x; });
 }
 function renderKeys() { const keys = selRole === 'pilot' ? L().keysPilot : L().keysCmd; $('#b-keys').innerHTML = keys.map((k) => '<span>' + k + '</span>').join(''); }
@@ -92,7 +92,7 @@ function setQLabel() { const b = $('#b-q'); if (b) b.textContent = QUALITY === '
 function setSel(btnGroup, val) { document.querySelectorAll(btnGroup + ' button').forEach((b) => b.classList.toggle('on', b.dataset.v === val)); }
 document.querySelectorAll('#b-mode button').forEach((b) => b.addEventListener('click', () => { selMode = b.dataset.v; setSel('#b-mode', selMode); $('#b-hint-t').textContent = selMode === 'script' ? L().hintScript : L().hintFree; }));
 document.querySelectorAll('#b-rolesel button').forEach((b) => b.addEventListener('click', () => { selRole = b.dataset.v; setSel('#b-rolesel', selRole); renderKeys(); }));
-$('#b-lang').addEventListener('click', () => applyLang(LANGS[(LANGS.indexOf(G.lang) + 1) % LANGS.length]));
+document.querySelectorAll('#b-langsel button').forEach((b) => b.addEventListener('click', () => applyLang(b.dataset.v)));
 $('#b-q').addEventListener('click', () => { QUALITY = QUALITY === 'high' ? 'low' : 'high'; try { localStorage.setItem('sw-q', QUALITY); } catch (e) {} setQLabel(); });
 function uiRoleChanged() {
   document.body.classList.toggle('role-cmd', G.role === 'commander'); document.body.classList.toggle('role-pilot', G.role === 'pilot');
