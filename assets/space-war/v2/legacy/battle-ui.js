@@ -356,4 +356,6 @@ document.addEventListener('pointerlockchange', () => { if (G.started && G.role =
 $('#b-c-all').addEventListener('click', () => selectGroup(1)); $('#b-c-charge').addEventListener('click', orderCharge); $('#b-c-hold').addEventListener('click', orderHold); $('#b-c-tomb').addEventListener('click', orderTomb);
 $('#b-c-pilot').addEventListener('click', toggleRole);
 let storedLang = 'en'; try { storedLang = localStorage.getItem('sw-lang') === 'zh' ? 'zh' : 'en'; } catch (e) {}
+try { const r = JSON.parse(sessionStorage.getItem('sw2-restart') || 'null'); if (r) { selMode = r.mode || selMode; selRole = r.role || selRole; sessionStorage.removeItem('sw2-restart'); } } catch (e) {}   // 「重新開始」：重新載入後沿用原本的模式與角色
+$('#b-restart').addEventListener('click', () => { try { sessionStorage.setItem('sw2-restart', JSON.stringify({ mode: G.mode, role: G.role })); } catch (e) {} location.reload(); });
 applyLang(storedLang); setSel('#b-mode', selMode); setSel('#b-rolesel', selRole);

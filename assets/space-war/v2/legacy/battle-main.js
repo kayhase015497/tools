@@ -65,4 +65,5 @@ window.battleDebug = { G, player, allies, enemies, shots, input, DBG, cc, ccT, s
   start(mode, role) { selMode = mode || 'script'; selRole = role || 'pilot'; $('#b-go').click(); },
   warp(sec, aim) { const n = Math.round(sec / 0.05); for (let i = 0; i < n; i++) { if (aim) { if (!player.target || player.target.dead) player.target = enemies.filter((e) => e.kind === 'fly').sort((a, b) => Math.hypot(a.x - player.pos.x, a.z - player.pos.z) - Math.hypot(b.x - player.pos.x, b.z - player.pos.z))[0] || null; } stepWorld(0.05); fx.update(0.05); } },
   killShip, setRole, selectGroup, orderMove, orderCharge, orderHold, orderFocus, orderTomb, callSupport, cycleTarget, issueOrder, awacsUnit, allocateTargets, setCam(m) { cam.mode = m; if (player.ship) player.ship.hidden = m === 'cockpit'; } };
+G.lite = true;   // v2 預設：護盾泡泡、艦體損傷、受損冒煙起火全部關閉（F8 可開）
 window.G = G; window.battleKnobs = { get: () => knobs, set: setKnob };   // v2：F3 面板的效能旋鈕

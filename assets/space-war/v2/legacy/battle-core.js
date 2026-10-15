@@ -82,7 +82,7 @@ const STR = {
   en: {
     objLabel: 'OBJECTIVE', objText: 'Protect the Herta Space Station',
     title: 'AMPHOREUS FINALE · BATTLE', sub: 'Anti-Irontomb Cosmic Alliance vs the Antimatter Legion. Command the fleet or fly the line yourself.',
-    mode: 'MODE', script: 'Story · 5:00', free: 'Free · endless', role: 'ROLE', pilot: 'Pilot', commander: 'Commander', lang: '中文', go: 'ENGAGE', loading: 'LOADING…', resume: 'RESUME',
+    mode: 'MODE', script: 'Story · 5:00', free: 'Free · endless', role: 'ROLE', pilot: 'Pilot', commander: 'Commander', lang: '中文', go: 'ENGAGE', loading: 'LOADING…', resume: 'RESUME', restart: 'RESTART',
     qHigh: 'Graphics: High', qLow: 'Graphics: Low', soundOn: 'Sound: On', soundOff: 'Sound: Off',
     hintScript: 'About five minutes. The battle can be fought, but not won — the Irontomb never falls.', hintFree: 'No time limit. The battle never ends.',
     keysPilot: ['<b>Mouse</b> pitch / yaw', '<b>W / S</b> throttle', '<b>Q / E</b> roll', '<b>A D R F</b> strafe', '<b>Shift</b> afterburner', '<b>X</b> full stop', '<b>LMB / Space</b> lasers', '<b>RMB / Ctrl</b> missile', '<b>T</b> lock · <b>Y</b> next · <b>U</b> AWACS tasking', '<b>C</b> focus fire · <b>G</b> charge (call support)', '<b>V</b> camera · <b>Z</b> assist · <b>I</b> invert', '<b>Tab</b> switch to Commander · <b>M</b> music · <b>P</b> pause'],
@@ -99,7 +99,7 @@ const STR = {
   zh: {
     objLabel: '任務目標', objText: '保護黑塔空間站',
     title: '翁法羅斯終章・戰場', sub: '反鐵墓宇宙聯軍對抗反物質軍團。你可以統率艦隊，也可以親自駕機上陣。',
-    mode: '模式', script: '劇本・5 分鐘', free: '自由・無限', role: '角色', pilot: '飛行員', commander: '指揮官', lang: 'English', go: '進入戰場', loading: '載入中…', resume: '繼續',
+    mode: '模式', script: '劇本・5 分鐘', free: '自由・無限', role: '角色', pilot: '飛行員', commander: '指揮官', lang: 'English', go: '進入戰場', loading: '載入中…', resume: '繼續', restart: '重新開始',
     qHigh: '畫質：高', qLow: '畫質：低', soundOn: '音效：開', soundOff: '音效：關',
     hintScript: '約五分鐘。戰鬥可以打，但無法取勝——鐵墓不會倒下。', hintFree: '沒有時間限制，戰鬥永不結束。',
     keysPilot: ['<b>滑鼠</b> 俯仰／偏航', '<b>W / S</b> 油門', '<b>Q / E</b> 翻滾', '<b>A D R F</b> 平移', '<b>Shift</b> 加力', '<b>X</b> 急停', '<b>左鍵／空白</b> 雷射', '<b>右鍵／Ctrl</b> 飛彈', '<b>T</b> 鎖定　<b>Y</b> 下一個　<b>U</b> 預警機指派', '<b>C</b> 集火　<b>G</b> 衝鋒（呼叫支援）', '<b>V</b> 視角　<b>Z</b> 飛行輔助　<b>I</b> 反轉俯仰', '<b>Tab</b> 切換指揮官　<b>M</b> 音樂　<b>P</b> 暫停'],

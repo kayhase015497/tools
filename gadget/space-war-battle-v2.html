@@ -89,6 +89,8 @@
   #b-keys { display: grid; grid-template-columns: auto auto; gap: 4px 22px; font-family: 'Space Mono', monospace; font-size: clamp(10px, 1.25vw, 12px); text-align: left; color: var(--text); max-width: 760px; } #b-keys b { color: var(--gold); }
   #b-legal { font-size: 11px !important; opacity: .7; }
   @media (max-width: 720px) { #b-keys { grid-template-columns: auto; } #b-radio { top: 150px; } }
+  #b-restart { display: none; }
+  #b-title.paused #b-restart { display: inline-block; }
 </style>
 </head>
 <body class="role-pilot">
@@ -126,7 +128,7 @@
     <div class="b-grp" id="b-rolesel"><label data-i="role">ROLE</label><button class="b-btn" data-v="pilot" type="button" data-i="pilot">Pilot</button><button class="b-btn" data-v="commander" type="button" data-i="commander">Commander</button></div>
     <p id="b-hint-t"></p>
     <div id="b-keys"></div>
-    <div class="b-grp"><button class="b-btn" id="b-go" type="button" disabled data-i="loading">LOADING…</button><button class="b-btn" id="b-lang" type="button" data-i="lang">中文</button><button class="b-btn" id="b-q" type="button"></button></div>
+    <div class="b-grp"><button class="b-btn" id="b-go" type="button" disabled data-i="loading">LOADING…</button><button class="b-btn" id="b-restart" type="button" data-i="restart">RESTART</button><button class="b-btn" id="b-lang" type="button" data-i="lang">中文</button><button class="b-btn" id="b-q" type="button"></button></div>
     <p id="b-legal"></p>
   </div>
 </div>
