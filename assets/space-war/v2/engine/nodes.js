@@ -98,7 +98,7 @@ export function puffMaterial(kind) {
     const dens = smoothstep(0.0, 0.5, n.mul(0.9).add(n2.mul(0.4)).add(core.mul(1.2)).sub(0.5).sub(age.mul(0.6)));
     If(dens.lessThan(0.01), () => { Discard(); });
     const heat = clamp(core.mul(1.15).add(n.mul(0.55)).sub(age.mul(1.15)), 0.0, 1.0);
-    const hot = vec3(1.0, 0.9, 0.7).mul(3.3), mid = vC.mul(1.9), cool = vC.mul(vec3(0.55, 0.14, 0.08)).mul(0.8);
+    const hot = vec3(1.0, 0.8, 0.5).mul(1.5), mid = vC.mul(1.15), cool = vC.mul(vec3(0.55, 0.14, 0.08)).mul(0.8);
     const col = mix(mix(cool, mid, smoothstep(0.1, 0.55, heat)), hot, smoothstep(0.62, 1.0, heat));
     return vec4(col.mul(dens).mul(pow(oneMinus(age), 1.3)).mul(vD.w), 1.0);
   })() : Fn(() => {
