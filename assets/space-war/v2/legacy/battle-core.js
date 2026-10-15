@@ -40,11 +40,11 @@ const SHIP_KINDS = ['frig', 'cruis', 'ipc', 'cap', 'xzd', 'hss', 'moon', 'awacs'
 // REVEAL：黑幕落下、戰場可見；FLASH：白閃 → 「第四時刻」；DOOM：巨劍降臨；IMPACT：衝擊波；WHITE：全白；END：收尾字卡
 const T = { REVEAL: 12, FLASH: 236, DOOM: 256, IMPACT: 268, WHITE: 286, END: 300 };
 const WHO = {
-  lyc:    { zh: '來古士', en: 'Lygus', ja: 'ライコス', ko: '라이거스',       c: '#ff6a8a' },
+  lyc:    { zh: '來古士', en: 'Lygus', ja: 'ライコス', ko: '리고스',       c: '#ff6a8a' },
   herta:  { zh: '黑塔',   en: 'Herta', ja: 'ヘルタ', ko: '헤르타', c: '#ffd98a' },
   cyrene: { zh: '昔漣',   en: 'Cyrene', ja: 'キュレネ', ko: '키레네', c: '#ffb3d1' },
   dan:    { zh: '丹恆',   en: 'Dan Heng', ja: '丹恒', ko: '단항', c: '#7fd6ff' },
-  march:  { zh: '三月七', en: 'March 7th', ja: '三月なのか', ko: '3월 7일',   c: '#ff9ad5' },
+  march:  { zh: '三月七', en: 'March 7th', ja: '三月なのか', ko: '삼월칠일',   c: '#ff9ad5' },
   tb:     { zh: '開拓者', en: 'Trailblazer', ja: '開拓者', ko: '개척자', c: '#ffe08a' },
   awacs:  { zh: '預警機', en: 'Sentinel', ja: '哨戒機', ko: '조기경보기',    c: '#8fe6ff' }
 };
