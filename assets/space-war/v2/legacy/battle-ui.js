@@ -21,12 +21,26 @@ function flashVeil(color, opacity, sec) { veil.style.transition = 'none'; veil.s
 
 const subs = {};
 ['cen', 'sub'].forEach((k) => { const el = $('#b-' + k); subs[k] = { el, who: el.querySelector('.b-who'), txt: el.querySelector('.b-txt'), cur: null, n: -1 }; });
-const typed = (txt, p) => { const n = Math.ceil(txt.length * p); return txt.slice(0, n) + '<span class="b-ghost">' + txt.slice(n) + '</span>'; };
+const SUBLANG = { en: 'en', zh: 'zh-Hant', ja: 'ja', ko: 'ko' };
+const whoName = (w) => G.lang === 'en' ? w.en : G.lang === 'zh' ? w.zh + ' · ' + w.en : w[G.lang] + ' · ' + w.en;
+function revealText(el, txt, sec) {   // 逐字「淡入＋由模糊變清晰」，延遲依語音長度平均分配；不需每幀更新 DOM
+  el.textContent = ''; el.lang = SUBLANG[G.lang] || 'en'; const chars = [...txt].filter((c) => c !== ' ').length, step = sec / Math.max(chars, 1); let k = 0;
+  txt.split(' ').forEach((word, wi, arr) => {
+    const w = document.createElement('span'); if (/^[\x21-\x7e]+$/.test(word)) w.className = 'b-w';
+    for (const ch of word) { const c = document.createElement('span'); c.className = 'b-ch'; c.textContent = ch; c.style.animationDelay = (k++ * step).toFixed(3) + 's'; w.appendChild(c); }
+    el.appendChild(w); if (wi < arr.length - 1) el.appendChild(document.createTextNode(' '));
+  });
+}
 function updateSubs(t) {
   for (const k of ['center', 'sub']) {
     const S = subs[k === 'center' ? 'cen' : 'sub'], cur = CUES.find((c) => c.box === k && t >= c.t && t < c.t + c.dur) || null;
-    if (cur !== S.cur) { S.cur = cur; S.n = -1; if (cur && cur.voice) FPVAudio.voice(cur.voice); if (cur) { const w = WHO[cur.who]; S.who.textContent = G.lang === 'zh' ? w.zh + ' · ' + w.en : w.en; S.who.style.color = w.c; S.el.classList.add('on'); } else S.el.classList.remove('on'); }
-    if (cur) { const p = clamp((t - cur.t) / cur.type, 0, 1), n = Math.ceil(p * 200); if (n !== S.n) { S.n = n; S.txt.innerHTML = typed(G.lang === 'zh' ? cur.zh : cur.en, p); } }
+    if (cur !== S.cur) {
+      S.cur = cur; if (cur && cur.voice) FPVAudio.voice(cur.voice);
+      if (cur) {
+        const w = WHO[cur.who]; S.who.textContent = whoName(w); S.who.style.color = w.c; const ln = document.createElement('i'); ln.className = 'b-ln'; S.who.appendChild(ln);
+        revealText(S.txt, cur[G.lang] || cur.en, cur.type); S.el.classList.add('on');
+      } else S.el.classList.remove('on');
+    }
   }
 }
 let tickIdx = 0;
@@ -62,10 +76,11 @@ function radioSay(u, cat, force) {
 }
 
 /* ═════════ 語言、選單、狀態列 ═════════ */
+const LANGS = ['en', 'zh', 'ja', 'ko'];
 let selMode = 'script', selRole = 'pilot', musicOn = true;
 function applyLang(l) {
   G.lang = l; try { localStorage.setItem('sw-lang', l); } catch (e) {}
-  document.documentElement.lang = l === 'zh' ? 'zh-Hant' : 'en'; document.title = STR[l].title;
+  document.documentElement.lang = SUBLANG[l] || 'en'; document.title = STR[l].title; applyCueLang(l);
   document.querySelectorAll('[data-i]').forEach((el) => { el.textContent = STR[l][el.dataset.i]; });
   $('#b-sub-t').textContent = STR[l].sub; $('#b-hint-t').textContent = selMode === 'script' ? STR[l].hintScript : STR[l].hintFree;
   $('#b-legal').innerHTML = STR[l].legal; renderKeys(); setQLabel();
@@ -77,7 +92,7 @@ function setQLabel() { const b = $('#b-q'); if (b) b.textContent = QUALITY === '
 function setSel(btnGroup, val) { document.querySelectorAll(btnGroup + ' button').forEach((b) => b.classList.toggle('on', b.dataset.v === val)); }
 document.querySelectorAll('#b-mode button').forEach((b) => b.addEventListener('click', () => { selMode = b.dataset.v; setSel('#b-mode', selMode); $('#b-hint-t').textContent = selMode === 'script' ? L().hintScript : L().hintFree; }));
 document.querySelectorAll('#b-rolesel button').forEach((b) => b.addEventListener('click', () => { selRole = b.dataset.v; setSel('#b-rolesel', selRole); renderKeys(); }));
-$('#b-lang').addEventListener('click', () => applyLang(G.lang === 'en' ? 'zh' : 'en'));
+$('#b-lang').addEventListener('click', () => applyLang(LANGS[(LANGS.indexOf(G.lang) + 1) % LANGS.length]));
 $('#b-q').addEventListener('click', () => { QUALITY = QUALITY === 'high' ? 'low' : 'high'; try { localStorage.setItem('sw-q', QUALITY); } catch (e) {} setQLabel(); });
 function uiRoleChanged() {
   document.body.classList.toggle('role-cmd', G.role === 'commander'); document.body.classList.toggle('role-pilot', G.role === 'pilot');
@@ -355,7 +370,7 @@ cv.addEventListener('wheel', (e) => { if (G.role !== 'commander' || !G.started) 
 document.addEventListener('pointerlockchange', () => { if (G.started && G.role === 'pilot' && document.pointerLockElement !== cv && !G.paused && !G.choosing && G.doom === 0) setPaused(true); });
 $('#b-c-all').addEventListener('click', () => selectGroup(1)); $('#b-c-charge').addEventListener('click', orderCharge); $('#b-c-hold').addEventListener('click', orderHold); $('#b-c-tomb').addEventListener('click', orderTomb);
 $('#b-c-pilot').addEventListener('click', toggleRole);
-let storedLang = 'en'; try { storedLang = localStorage.getItem('sw-lang') === 'zh' ? 'zh' : 'en'; } catch (e) {}
+let storedLang = 'en'; try { storedLang = localStorage.getItem('sw-lang'); if (!LANGS.includes(storedLang)) storedLang = 'en'; } catch (e) {}
 try { const r = JSON.parse(sessionStorage.getItem('sw2-restart') || 'null'); if (r) { selMode = r.mode || selMode; selRole = r.role || selRole; sessionStorage.removeItem('sw2-restart'); } } catch (e) {}   // 「重新開始」：重新載入後沿用原本的模式與角色
 $('#b-restart').addEventListener('click', () => { try { sessionStorage.setItem('sw2-restart', JSON.stringify({ mode: G.mode, role: G.role })); } catch (e) {} location.reload(); });
 applyLang(storedLang); setSel('#b-mode', selMode); setSel('#b-rolesel', selRole);

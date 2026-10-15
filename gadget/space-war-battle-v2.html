@@ -5,11 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
 <title>[v2] Amphoreus Finale · Battle</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Noto+Sans+JP:wght@400;500;700&family=Noto+Sans+KR:wght@400;500;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"/>
 <style>
   :root { --bg: #0b0f1a; --text: #e2e8f0; --dim: #94a3b8; --cyan: #8fe6ff; --gold: #ffd98a; --red: #ff4466; --green: #7dffb0; --line: rgba(143,230,255,.28); }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body { height: 100%; background: var(--bg); color: var(--text); overflow: hidden; font-family: 'Noto Sans TC', sans-serif; }
+  html, body { height: 100%; background: var(--bg); color: var(--text); overflow: hidden; font-family: 'Noto Sans TC', 'Noto Sans JP', 'Noto Sans KR', sans-serif; }
   .mono { font-family: 'Space Mono', monospace; }
   #b-root { position: fixed; inset: 0; user-select: none; -webkit-user-select: none; }
   body.role-pilot #b-root { cursor: crosshair; }
@@ -63,7 +63,13 @@
   .b-who { font-family: 'Space Mono', monospace; font-size: 12px; letter-spacing: .14em; margin-bottom: 6px; }
   #b-cen .b-who { font-size: 13px; margin-bottom: 14px; }
   .b-txt { font-size: clamp(14px, 2.2vw, 22px); line-height: 1.6; } #b-cen .b-txt { font-size: clamp(18px, 3.2vw, 32px); }
-  .b-ghost { opacity: 0; }
+  .b-txt:lang(ja) { font-family: 'Noto Sans JP', 'Noto Sans TC', sans-serif; } .b-txt:lang(ko) { font-family: 'Noto Sans KR', 'Noto Sans TC', sans-serif; }
+  .b-w { display: inline-block; white-space: nowrap; }
+  .b-ch { display: inline-block; opacity: 0; filter: blur(7px); transform: translateY(6px); text-shadow: 0 0 14px currentColor; animation: b-ch .7s cubic-bezier(.2,.7,.2,1) forwards; }
+  @keyframes b-ch { 55% { text-shadow: 0 0 10px currentColor; } to { opacity: 1; filter: blur(0); transform: none; text-shadow: none; } }
+  .b-ln { display: block; height: 1px; width: min(70%, 320px); margin: 7px auto 0; background: linear-gradient(90deg, transparent, currentColor, transparent); transform-origin: center; transform: scaleX(0); animation: b-ln 1.1s cubic-bezier(.2,.7,.2,1) forwards; }
+  @keyframes b-ln { to { transform: scaleX(1); opacity: .55; } }
+  #b-cen .b-who { margin-bottom: 14px; }
   /* 指揮列、提示、接管選單 */
   #b-cmdbar { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); display: none; gap: 8px; z-index: 6; }
   body.role-cmd #b-cmdbar { display: flex; }

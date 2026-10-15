@@ -40,35 +40,45 @@ const SHIP_KINDS = ['frig', 'cruis', 'ipc', 'cap', 'xzd', 'hss', 'moon', 'awacs'
 // REVEAL：黑幕落下、戰場可見；FLASH：白閃 → 「第四時刻」；DOOM：巨劍降臨；IMPACT：衝擊波；WHITE：全白；END：收尾字卡
 const T = { REVEAL: 12, FLASH: 236, DOOM: 256, IMPACT: 268, WHITE: 286, END: 300 };
 const WHO = {
-  lyc:    { zh: '來古士', en: 'Lygus',       c: '#ff6a8a' },
-  herta:  { zh: '黑塔',   en: 'Herta',       c: '#ffd98a' },
-  cyrene: { zh: '昔漣',   en: 'Cyrene',      c: '#ffb3d1' },
-  dan:    { zh: '丹恆',   en: 'Dan Heng',    c: '#7fd6ff' },
-  march:  { zh: '三月七', en: 'March 7th',   c: '#ff9ad5' },
-  tb:     { zh: '開拓者', en: 'Trailblazer', c: '#ffe08a' },
-  awacs:  { zh: '預警機', en: 'Sentinel',    c: '#8fe6ff' }
+  lyc:    { zh: '來古士', en: 'Lygus', ja: 'ライコス', ko: '라이거스',       c: '#ff6a8a' },
+  herta:  { zh: '黑塔',   en: 'Herta', ja: 'ヘルタ', ko: '헤르타', c: '#ffd98a' },
+  cyrene: { zh: '昔漣',   en: 'Cyrene', ja: 'キュレネ', ko: '키레네', c: '#ffb3d1' },
+  dan:    { zh: '丹恆',   en: 'Dan Heng', ja: '丹恒', ko: '단항', c: '#7fd6ff' },
+  march:  { zh: '三月七', en: 'March 7th', ja: '三月なのか', ko: '3월 7일',   c: '#ff9ad5' },
+  tb:     { zh: '開拓者', en: 'Trailblazer', ja: '開拓者', ko: '개척자', c: '#ffe08a' },
+  awacs:  { zh: '預警機', en: 'Sentinel', ja: '哨戒機', ko: '조기경보기',    c: '#8fe6ff' }
 };
 // 原本 3.5 分鐘版本的台詞時間：戰鬥段（12→140）以 2.6 倍拉長到 12→236 之間的前 130 秒，其餘事件依新時間軸重排
 const CUE_BASE = [
-  { t: 1.5,  dur: 9.5, type: 4.2, box: 'center', who: 'lyc', en: 'Bear witness, monarch of myriad machines, my ridiculous creation.', zh: '敬請見證，萬機之王，我荒謬的造物。', fixed: 1 },
-  { t: 12.4, dur: 6.5, type: 2.8, box: 'sub', who: 'lyc', en: 'The instant in your calculations bears the name Destruction.', zh: '你計算中的時刻，名為「毀滅」。' },
-  { t: 20.5, dur: 4.6, type: 1.8, box: 'sub', who: 'herta', en: 'Who said you could speak, "senior"?', zh: '誰允許你發言了？前輩。' },
-  { t: 26.5, dur: 7.8, type: 3.4, box: 'sub', who: 'herta', en: 'Watch closely. See how your chaos ends at the hands of your juniors.', zh: '給我看仔細了，你這收拾不完的爛攤子如何被後進了結。' },
-  { t: 32.5, dur: 5.6, type: 2.6, box: 'sub', who: 'herta', obj: 1, en: 'Screwllum is helping the station search for the signal of Nous. All forces, protect the station.', zh: '螺絲星正在協助黑塔空間站搜索博識尊的信號，全軍保護好空間站。' },
-  { t: 35.5, dur: 5.2, type: 2.2, box: 'sub', who: 'cyrene', en: "Don't get too worked up. Take a deep breath.", zh: '別太激動。深呼吸。' },
-  { t: 42.5, dur: 5.8, type: 2.4, box: 'sub', who: 'dan', en: "There's not a trace of life in that ominous shell.", zh: '那具不祥的空殼裡，沒有一絲生命的氣息。' },
-  { t: 49.8, dur: 5.4, type: 2.4, box: 'sub', who: 'march', en: "We're not going to lose to a hollow husk, right?", zh: '我們不會輸給一具空殼的，對吧？' },
-  { t: 57.0, dur: 7.0, type: 3.2, box: 'sub', who: 'tb', en: "In the name of trailblazing, we'll reject this false answer.", zh: '以開拓之名，我們將否定這個虛假的答案。' },
-  { t: 143.2, dur: 8.6, type: 3.6, box: 'center', who: 'lyc', en: 'The "Fourth Instant" of the cosmos… is the coronation of Irontomb!', zh: '宇宙的「第四時刻」……就是鐵墓的加冕！', after: 'FLASH' }
+  { t: 1.5,  dur: 9.5, type: 4.2, box: 'center', who: 'lyc', en: 'Bear witness, monarch of myriad machines, my ridiculous creation.', zh: '敬請見證，萬機之王，我荒謬的造物。', ja: '万機の王よ、私の歪な造物を、ご照覧ください。', ko: '만기의 왕이여, 나의 터무니없는 창조물을 똑똑히 지켜보라.', fixed: 1 },
+  { t: 12.4, dur: 6.5, type: 2.8, box: 'sub', who: 'lyc', en: 'The instant in your calculations bears the name Destruction.', zh: '你計算中的時刻，名為「毀滅」。', ja: 'あなたの演算にある刹那、その名は「壊滅」。', ko: '당신의 계산 속 그 순간의 이름은 \'파멸\'.', },
+  { t: 20.5, dur: 4.6, type: 1.8, box: 'sub', who: 'herta', en: 'Who said you could speak, "senior"?', zh: '誰允許你發言了？前輩。', ja: '勝手に喋らないでくれる？先輩。', ko: '누가 발언권을 줬지? 선배.', },
+  { t: 26.5, dur: 7.8, type: 3.4, box: 'sub', who: 'herta', en: 'Watch closely. See how your chaos ends at the hands of your juniors.', zh: '給我看仔細了，你這收拾不完的爛攤子如何被後進了結。', ja: '黙って見てなさい。先輩のやらかしを、後輩が始末してあげるから。', ko: '똑똑히 봐. 당신이 수습 못한 이 난장판을 후배들이 어떻게 마무리 짓는지.', },
+  { t: 32.5, dur: 5.6, type: 2.6, box: 'sub', who: 'herta', obj: 1, en: 'Screwllum is helping the station search for the signal of Nous. All forces, protect the station.', zh: '螺絲星正在協助黑塔空間站搜索博識尊的信號，全軍保護好空間站。', ja: 'スクリュームはステーションの、ノウスの信号探索に協力している。全軍、ステーションを守り抜いて。', ko: '스크류검이 박식존의 신호를 찾는 스테이션을 돕고 있어. 전군, 스테이션을 지켜.', },
+  { t: 35.5, dur: 5.2, type: 2.2, box: 'sub', who: 'cyrene', en: "Don't get too worked up. Take a deep breath.", zh: '別太激動。深呼吸。', ja: 'リラックスよ。深呼吸して。', ko: '긴장하지 말고, 숨 크게 들이마셔.', },
+  { t: 42.5, dur: 5.8, type: 2.4, box: 'sub', who: 'dan', en: "There's not a trace of life in that ominous shell.", zh: '那具不祥的空殼裡，沒有一絲生命的氣息。', ja: 'あの禍々しい殻には、命の気配が微塵もない。', ko: '저 불길한 껍데기에선 생명의 기운이 전혀 느껴지지 않아.', },
+  { t: 49.8, dur: 5.4, type: 2.4, box: 'sub', who: 'march', en: "We're not going to lose to a hollow husk, right?", zh: '我們不會輸給一具空殼的，對吧？', ja: '空っぽの殻なんかに負けないでしょ？', ko: '설마 빈 껍데기한테 질 리 없다고, 그치?', },
+  { t: 57.0, dur: 7.0, type: 3.2, box: 'sub', who: 'tb', en: "In the name of trailblazing, we'll reject this false answer.", zh: '以開拓之名，我們將否定這個虛假的答案。', ja: '開拓の名のもと、私たちはこの偽りの答えを否定する。', ko: '개척의 이름으로, 우리는 이 거짓된 답을 부정하겠다.', },
+  { t: 143.2, dur: 8.6, type: 3.6, box: 'center', who: 'lyc', en: 'The "Fourth Instant" of the cosmos… is the coronation of Irontomb!', zh: '宇宙的「第四時刻」……就是鐵墓的加冕！', ja: '宇宙の「第四の刹那」……それは、鉄墓の戴冠だ！', ko: '우주의 \'네 번째 순간\'… 그것은 아이언툼의 대관식이다!', after: 'FLASH' }
 ];
 const CUES = CUE_BASE.map((c) => c.fixed ? Object.assign({}, c) : c.after ? Object.assign({}, c, { t: T.FLASH + 3.2, dur: 11, type: 4.2 }) : Object.assign({}, c, { t: T.REVEAL + (c.t - 12) * 2.6, dur: c.dur * 1.3, type: c.type * 1.3 }));
-// 英文配音（assets/space-war/voice/en/，由 tools-src/audio/cut_voice.sh 自 UVR5 人聲切出）：依 CUE_BASE 順序對應，null＝尚無配音
-const VOICE_EN = [['lyc1', 8.8], ['lyc2', 7.2], ['herta1', 3.5], ['herta2', 6.7], null, ['cyrene', 4.0], ['dan', 3.1], ['march', 3.3], ['tb', 5.5], null];
-VOICE_EN.forEach((v, i) => {
-  if (!v) return; const c = CUES[i]; c.voice = '../assets/space-war/voice/en/' + v[0] + '.mp3'; c.vdur = v[1];
-  c.dur = Math.max(c.dur, v[1] + 1); c.type = Math.min(c.type, v[1] * 0.8);   // 字幕長度與打字速度跟著語音走
-});
-{ const h1 = CUES[2], h2 = CUES[3]; h2.t = h1.t + h1.vdur + 0.5; h1.dur = h1.vdur + 0.5; }   // 黑塔兩句連著講，不留空檔
+// 配音（assets/space-war/voice/<語言>/，由 tools-src/audio/cut_voice.sh 自 UVR5 人聲切出）：依 CUE_BASE 順序對應，null＝尚無配音
+const VOICE_NAMES = ['lyc1', 'lyc2', 'herta1', 'herta2', null, 'cyrene', 'dan', 'march', 'tb', null];
+const VOICE_DUR = {   // 各語言各句的語音秒數
+  en: [8.8, 7.2, 3.5, 6.7, 0, 4.0, 3.1, 3.4, 5.6, 0],
+  zh: [7.9, 6.7, 4.4, 7.0, 0, 4.3, 3.5, 3.6, 5.7, 0],
+  ja: [7.9, 5.7, 2.8, 5.9, 0, 3.9, 3.6, 3.6, 5.9, 0],
+  ko: [8.4, 6.7, 3.2, 5.6, 0, 3.9, 3.6, 3.9, 7.3, 0]
+};
+CUES.forEach((c) => { c.t0 = c.t; c.dur0 = c.dur; c.type0 = c.type; });
+function applyCueLang(l) {   // 語言切換時重算：字幕長度與浮現速度跟著該語言的語音走
+  CUES.forEach((c, i) => {
+    c.t = c.t0; c.dur = c.dur0; c.type = c.type0; const nm = VOICE_NAMES[i], vd = VOICE_DUR[l][i];
+    if (nm && vd) { c.voice = '../assets/space-war/voice/' + l + '/' + nm + '.mp3'; c.vdur = vd; c.dur = Math.max(c.dur0, vd + 1); c.type = Math.min(c.type0, vd * 0.8); } else { c.voice = null; c.vdur = 0; }
+  });
+  const h1 = CUES[2], h2 = CUES[3]; h2.t = h1.t + h1.vdur + 0.5; h1.dur = h1.vdur + 0.5;   // 黑塔兩句連著講，不留空檔
+}
+applyCueLang('en');
 const TICK_BASE = [
   [14,  '反鐵墓宇宙聯軍已完成集結，各艦隊就位。', 'Anti-Irontomb Cosmic Alliance assembled. All fleets in position.'],
   [18,  '旗艦：黑塔太空站（HSS）已進入指揮位置。', 'Flagship: Herta Space Station (HSS) in command position.'],
@@ -121,6 +131,8 @@ const STR = {
     endA: ['宇宙的第四時刻，鐵墓加冕。', '這場戰鬥，從一開始就沒有被寫下勝利。', '生命的第一因是什麼？一場與「博識尊」（Nous）的終極辯論正式開始。']
   }
 };
+// 日文、韓文：目前只翻譯劇本台詞與角色名；其餘介面文字沿用英文。按鈕上顯示的是「下一個語言」的名字
+STR.ja = Object.assign({}, STR.en, { lang: '한국어' }); STR.ko = Object.assign({}, STR.en, { lang: 'English' }); STR.zh.lang = '日本語'; STR.en.lang = '中文';
 
 /* ═════════ 無線電台詞（20 句，雙語）與呼號生成 ═════════ */
 const RADIO = {
