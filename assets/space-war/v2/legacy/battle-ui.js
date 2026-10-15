@@ -153,7 +153,7 @@ function drawPilotHud(dt) {
     hx.fillStyle = a.kind === 'awacs' ? 'rgba(143,230,255,.85)' : 'rgba(255,217,138,.8)'; hx.textAlign = 'center'; hx.fillText(a.kind === 'hss' ? 'HSS' : a.kind === 'moon' ? 'SCREWLLUM' : a.kind === 'xzd' ? 'XIANZHOU' : a.cs, s.x, s.y - 14); hx.fillStyle = 'rgba(255,255,255,.5)'; hx.fillText(fmtD(d), s.x, s.y); });
   drawSupplyGuide(sc, cx, cy, S);
   const tp = toScreen(TOMB_POS.x, TOMB_POS.y + 800, TOMB_POS.z), td = P.pos.distanceTo(TOMB_POS);
-  if (tp.ok) { hx.fillStyle = 'rgba(255,90,120,.9)'; hx.textAlign = 'center'; hx.fillText('IRONTOMB · ' + fmtD(td), tp.x, tp.y - 6); if (G.mode === 'free') { hx.fillStyle = 'rgba(255,170,190,.7)'; hx.fillText(S.integrity + ' ' + (100 - ironDmg / 1e9).toFixed(6) + '%', tp.x, tp.y + 10); } }
+  if (tp.ok) { hx.fillStyle = 'rgba(255,90,120,.9)'; hx.textAlign = 'center'; hx.fillText('IRONTOMB · ' + fmtD(td), tp.x, tp.y - 6); if (G.mode === 'free') { hx.fillStyle = 'rgba(255,170,190,.7)'; hx.fillText(S.integrity + ' ' + (ironFrac() * 100).toFixed(2) + '%' + (G.ironLocked ? ' · LOCK' : ''), tp.x, tp.y + 10); } }
   const bx = 18, by = H - 92, bw = 170 * Math.max(0.7, sc); bar(bx, by, bw, 8, P.shield / P.shieldMax, '#4aa8ff', 'SHIELD'); bar(bx, by + 24, bw, 8, P.hull / P.hullMax, P.hull / P.hullMax < 0.35 ? '#ff4466' : '#7dffb0', 'HULL');
   bar(bx, by + 48, bw, 6, P.heat / 100, '#ffd24a', 'LASER CAP'); bar(bx + bw + 20, by + 48, 80, 6, P.energy / 100, '#ff9a4a', 'BOOST');
   const aw = awacsUnit(); hx.textAlign = 'left'; hx.fillStyle = aw ? '#7dffb0' : '#ffb04a'; hx.fillText(aw ? S.awacsOn + ' · ' + aw.cs : S.awacsOff, bx, by - 22);
@@ -277,7 +277,7 @@ const MINI = { x: 0, y: 0, w: 0, h: 0, X0: 0, X1: 1, Z0: 0, Z1: 1 };
 let ghostPct = 100;
 function updateHudDom(dt) {
   const f = ironFrac() * 100; if (ghostPct > f) ghostPct = Math.max(f, ghostPct - 0.05); else ghostPct = f;
-  bossEl.style.display = G.mode === 'script' ? '' : 'none';
+  bossEl.style.display = '';   // v2：自由模式也顯示鐵墓血條（鎖血在 60%）
   $('#b-boss-fill').style.width = f + '%'; $('#b-boss-ghost').style.width = ghostPct + '%'; $('#b-boss-pct').textContent = f.toFixed(2) + '%';
   const t = G.mode === 'script' ? Math.max(0, G.t - T.REVEAL) : G.t;
   $('#b-clock').textContent = String(Math.floor(t / 60)).padStart(2, '0') + ':' + String(Math.floor(t % 60)).padStart(2, '0');
