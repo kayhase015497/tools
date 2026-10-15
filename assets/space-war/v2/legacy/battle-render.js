@@ -240,6 +240,15 @@ function render() {
       const lp = toScreen(TOMB_POS.x, TOMB_POS.y + 2890, TOMB_POS.z), lu = lp.x / W, lv = 1 - lp.y / H, off = Math.max(Math.abs(lu - 0.5), Math.abs(lv - 0.5)), cu = post.cinema.u;
       cu.uLight.value.set(lu, lv); cu.uInt.value = lp.ok ? clamp(1.6 - off * 1.6, 0, 1) * 0.45 * (G.doom > 1 ? 0.4 : 1) : 0;
     }
+    { // 劇情分段調色：出征偏冷青 → 交戰漸暖 → 末日血紅（自由模式不調色）
+      const g = post.u; let k = 0, r = 1, gg = 1, bb = 1;
+      if (G.mode === 'script') {
+        if (G.t > T.REVEAL && G.t < T.FLASH) { const p = clamp((G.t - T.REVEAL) / (T.FLASH - T.REVEAL), 0, 1); k = 0.28; r = lerp(0.9, 1.12, p); gg = 1.0; bb = lerp(1.12, 0.92, p); }
+        if (G.t >= T.FLASH - 20 && G.t < T.FLASH) { const p = (G.t - (T.FLASH - 20)) / 20; k = lerp(0.28, 0.55, p); r = lerp(1.12, 1.3, p); gg = lerp(1, 0.82, p); bb = lerp(0.92, 0.78, p); }
+        if (G.doom > 0) { k = 0.75; r = 1.45; gg = 0.7; bb = 0.68; }
+      }
+      g.uGradeK.value += (k - g.uGradeK.value) * 0.05; g.uGradeTint.value.x += (r - g.uGradeTint.value.x) * 0.05; g.uGradeTint.value.y += (gg - g.uGradeTint.value.y) * 0.05; g.uGradeTint.value.z += (bb - g.uGradeTint.value.z) * 0.05;
+    }
     post.cockpit.enabled = cockOn; const u = post.u; u.uTime.value = performance.now() / 1000; u.uSpeed.value = 0; u.uHurt.value = hurtK;   // 已移除：加速時的徑向速度模糊
     post.composer.render();
   } else {
@@ -254,7 +263,7 @@ function frameUpdate(dt) {
   cockRoot.visible = cockpitVisible();
   if (tombMeshes) tombMeshes.rotation.y = Math.sin(G.t * 0.05) * 0.03;
   mobius.userData.mats.forEach((m) => { m.uniforms.uTime.value = G.t; }); mobius.rotation.x = Math.sin(G.t * 0.07) * 0.06; mobius.rotation.y = Math.sin(G.t * 0.05) * 0.08;   // 只輕微晃動，始終正對聯軍陣線
-  updateDoomVisuals(dt); updateBubbleViz(); updateShieldViz();
+  updateDoomVisuals(dt); updateBubbleViz(); updateShieldViz(); updateShadows();
 }
 
 /* 鐵墓：本體壓暗、環境反射降到最低，只保留邊緣的紅色輪廓光（菲涅爾），像被體內的紅光逆光照亮的巨大剪影 */
@@ -306,10 +315,24 @@ function setupRender(a) {
   buildDoomVisuals(); resize();
 }
 
+/* ── 即時陰影（F10，預設關閉）：主光的陰影相機跟著「鏡頭前方約 1.5 km」移動，涵蓋約 ±3 km；大艦的艦橋、砲塔、尾翼會在自己的艦體上投影 ── */
+function setupShadows(on) {
+  renderer.shadowMap.enabled = on; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  const L = lights.key; L.castShadow = on;
+  if (on) { const c = L.shadow.camera; c.left = c.bottom = -3000; c.right = c.top = 3000; c.near = 1; c.far = 12000; L.shadow.mapSize.set(2048, 2048); L.shadow.bias = -0.0004; L.shadow.normalBias = 2; if (!L.target.parent) scene.add(L.target); }
+  if (fleet) Object.keys(fleet.kinds).forEach((k) => fleet.kinds[k].meshes.forEach((me) => { me.castShadow = on; me.receiveShadow = on; me.material.needsUpdate = true; }));
+  if (tombMeshes) tombMeshes.children.forEach((me) => { me.receiveShadow = on; me.material.needsUpdate = true; });
+}
+function updateShadows() {
+  if (!knobs.shadow) return; const L = lights.key;
+  camera.getWorldDirection(V3); const fx_ = camera.position.x + V3.x * 1500, fy_ = camera.position.y + V3.y * 1500, fz_ = camera.position.z + V3.z * 1500;
+  const q = 40; L.target.position.set(Math.round(fx_ / q) * q, Math.round(fy_ / q) * q, Math.round(fz_ / q) * q);   // 吸附到格點，移動時陰影不閃爍
+  L.position.copy(L.target.position).addScaledVector(SUN_DIR, 6000); L.target.updateMatrixWorld();
+}
 /* ── 效能旋鈕（F3 面板顯示；F4 解析度、F5 抗鋸齒、F6 泛光、F7 體積光、F8 護盾／損傷特效） ── */
-const knobs = { res: QUALITY === 'high' ? 1.5 : 1.25, msaa: 0, bloom: false, cinema: false };
+const knobs = { res: QUALITY === 'high' ? 1.5 : 1.25, msaa: 0, bloom: false, cinema: false, shadow: false };
 function rebuildPost() {   // v2：拿掉拉絲光與鏡頭鬼影（座艙裡像玻璃反光，太擋畫面）；保留體積光
-  post = FPVPost.create(renderer, scene, camera, cockScene, cockCam, { width: innerWidth, height: innerHeight, samples: knobs.msaa, strength: 0.55, threshold: 2.0, radius: 0.6, bloom: knobs.bloom, cinema: knobs.cinema, streak: 0, ghost: 0 });
+  post = FPVPost.create(renderer, scene, camera, cockScene, cockCam, { width: innerWidth, height: innerHeight, samples: knobs.msaa, hdrBloom: true, strength: 0.42, threshold: 1.15, radius: 0.55, bloom: knobs.bloom, cinema: knobs.cinema, streak: 0, ghost: 0 });
   post.u.uContrast.value = 1.15; post.u.uGrain.value = 0.03; post.u.uVig.value = 0.5; post.u.uSat.value = 1.15;
 }
 function setKnob(name, v) {
@@ -318,4 +341,5 @@ function setKnob(name, v) {
   else if (name === 'bloom') { knobs.bloom = v; rebuildPost(); }
   else if (name === 'cinema') { knobs.cinema = v; rebuildPost(); }
   else if (name === 'fx') { G.lite = !v; }
+  else if (name === 'shadow') { knobs.shadow = v; setupShadows(v); }
 }

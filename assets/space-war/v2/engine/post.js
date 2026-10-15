@@ -18,7 +18,7 @@ const hash = Fn(([p_]) => { const p = fract(p_.mul(vec2(443.897, 441.423))).toVa
 export function createPost(renderer, scene, camera, cockScene, cockCam, o) {
   o = o || {};
   const u = {
-    uTime: uniform(0), uExposure: uniform(1.0), uCA: uniform(0.0011), uVig: uniform(0.42), uGrain: uniform(0.03), uSpeed: uniform(0), uHurt: uniform(0), uSat: uniform(1.12), uContrast: uniform(1.07), uCinema: uniform(o.cinema ? 1 : 0)
+    uTime: uniform(0), uExposure: uniform(1.0), uCA: uniform(0.0011), uVig: uniform(0.42), uGrain: uniform(0.03), uSpeed: uniform(0), uHurt: uniform(0), uSat: uniform(1.12), uContrast: uniform(1.07), uGradeK: uniform(0), uGradeTint: uniform(new W.Vector3(1, 1, 1)), uCinema: uniform(o.cinema ? 1 : 0)
   };
   const uCockOn = uniform(1);
   const sp = pass(scene, camera, { samples: o.samples || 0 }), cp = pass(cockScene, cockCam);
@@ -30,8 +30,12 @@ export function createPost(renderer, scene, camera, cockScene, cockCam, o) {
   let bloomPass = null, bloomTexNode = vec3(0);
   if (o.bloom !== false) {
     const b0 = baseAt(uv()), lum = dot(b0, LUMW);
+    if (o.hdrBloom) {   // HDR 泛光：直接用場景的 HDR 色彩做高亮篩選（threshold 為線性亮度），爆炸與光束的「超過 1.0」的能量會真的暈開
+      bloomPass = bloomNode(vec4(b0, 1.0), o.strength != null ? o.strength : 0.5, o.radius != null ? o.radius : 0.6, o.threshold != null ? o.threshold : 1.0);
+    } else {
     const bright = b0.mul(smoothstep(bThr, bThr.add(0.01), lum)).min(1.0);
     bloomPass = bloomNode(vec4(bright, 1.0), o.strength != null ? o.strength : 0.75, o.radius != null ? o.radius : 0.7, 0.0);
+    }
     bloomTexNode = bloomPass.rgb;
   }
   const bloomStrength = bloomPass ? bloomPass.strength : null;
@@ -80,6 +84,7 @@ export function createPost(renderer, scene, camera, cockScene, cockCam, o) {
     col.assign(mix(col, col.mul(vec3(0.90, 1.0, 1.12)), oneMinus(smoothstep(0.0, 0.45, l))));
     col.assign(mix(col, col.mul(vec3(1.07, 1.0, 0.92)), smoothstep(0.45, 1.0, l)));
     col.assign(mix(vec3(l), col, u.uSat));
+    col.assign(mix(col, col.mul(u.uGradeTint), u.uGradeK));   // 劇情分段調色
     col.assign(col.sub(0.5).mul(u.uContrast).add(0.5));
     const rr = length(c).mul(1.28);
     col.mulAssign(oneMinus(u.uVig.mul(smoothstep(0.3, 1.0, rr))));
