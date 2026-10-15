@@ -181,8 +181,8 @@ function killShip(s, src) {
   fx.explode(s.x, s.y, s.z, d.boom, s.side === 'e', U);
   boomLight(s.x, s.y, s.z, d.boom, s.side === 'e' ? [1, 0.55, 0.3] : [0.55, 0.8, 1]);
   if (big) {
-    const n = Math.min(14, 3 + Math.floor(d.boom / 2));
-    for (let i = 0; i < n; i++) { const dx = rnd(-1, 1) * s.rad, dy = rnd(-0.5, 0.5) * s.rad, dz = rnd(-1, 1) * s.rad; fx.later(0.2 + i * rnd(0.15, 0.4), () => fx.explode(s.x + dx, s.y + dy, s.z + dz, d.boom * rnd(0.3, 0.8), s.side === 'e', U * 0.7)); }
+    const n = Math.min(5, 2 + Math.floor(d.boom / 4));
+    for (let i = 0; i < n; i++) { const dx = rnd(-1, 1) * s.rad, dy = rnd(-0.5, 0.5) * s.rad, dz = rnd(-1, 1) * s.rad; fx.later(0.25 + i * rnd(0.3, 0.7), () => fx.explode(s.x + dx, s.y + dy, s.z + dz, d.boom * rnd(0.2, 0.5), s.side === 'e', U * 0.6)); }
     if (G.doom === 0) say(d.name + ' destroyed' + (s.side === 'a' ? ' · ' + s.cs : ''), d.name + ' 被擊毀' + (s.side === 'a' ? ' · ' + s.cs : ''), s.side === 'a');
   }
   FPVAudio.explode(d.boom, s);
@@ -453,7 +453,7 @@ function fireBeamCannon(s, tg, spec) {
   const rr = (tg.rad || 10) * 0.75;
   // 命中點記成相對目標中心的偏移，目標移動時光束會跟著
   beams.push({ s, tg, spec, age: 0, tick: 0, ox: V2.x * rr + rnd(-1, 1) * rr * 0.45, oy: V2.y * rr + rnd(-1, 1) * rr * 0.4, oz: V2.z * rr + rnd(-1, 1) * rr * 0.45 });
-  const gun = fleet.gunWorld(s, V); fx.emit(gun.x, gun.y, gun.z, 0, 0, 0, spec.col[0], spec.col[1], spec.col[2], spec.w * 7, 0.5, 0, 1);
+  const gun = fleet.gunWorld(s, V); fx.emit(gun.x, gun.y, gun.z, 0, 0, 0, spec.col[0], spec.col[1], spec.col[2], spec.w * 2.2, 0.35, 0, 1);
   FPVAudio.cannon({ x: gun.x, y: gun.y, z: gun.z });
 }
 function stepBeams(dt) {
@@ -469,16 +469,15 @@ function stepBeams(dt) {
     fx.beam(gx, gy, gz, tx, ty, tz, { color: col, width: w * k * fl, dur: Math.max(dt * 1.8, 0.04), len: 0 });
     fx.beam(gx, gy, gz, tx, ty, tz, { color: [col[0] * 0.5 + 0.5, col[1] * 0.5 + 0.5, col[2] * 0.5 + 0.5], width: w * 0.16 * k, dur: Math.max(dt * 1.8, 0.04), len: 0 });
     // 命中點：同色粒子噴濺 + 橘色火光（燒熔感）
-    fx.emit(tx, ty, tz, 0, 0, 0, col[0], col[1], col[2], w * 6 * k, 0.12, 0, 0, 1);
-    fx.emit(tx, ty, tz, 0, 0, 0, 1, 0.55, 0.15, w * 9 * k, 0.16, 0, 0);
+    // v2：不再在命中點放大塊柔光（那就是畫面上一團團大光芒的來源）；只噴與光束同色的熔渣與火花
     // v2：命中點改成「火花噴濺」——從受擊表面朝射手方向噴出的一束細小火花（高速、有阻力、很快熄滅），加少量慢速熔渣；不再冒大團火球
     V3.set(s.x - tx, s.y - ty, s.z - tz).normalize();                    // 表面外法線的近似：朝向射手
     const nsp = Math.max(2, Math.round(10 * dt * 60 / 3));              // 每幀約 3~6 顆（與幀率無關）
     for (let j = 0; j < nsp; j++) {
       const sp0 = w * rnd(10, 34), sx = V3.x + rnd(-0.75, 0.75), sy = V3.y + rnd(-0.75, 0.75), sz = V3.z + rnd(-0.75, 0.75), hot = j % 3 === 0;
-      fx.emit(tx, ty, tz, sx * sp0, sy * sp0, sz * sp0, hot ? 1 : col[0] * 0.6 + 0.4, hot ? 0.78 : col[1] * 0.6 + 0.3, hot ? 0.4 : col[2] * 0.6 + 0.2, Math.max(1.2, w * rnd(0.12, 0.3)), rnd(0.25, 0.65), 2.2);
+      fx.emit(tx, ty, tz, sx * sp0, sy * sp0, sz * sp0, hot ? col[0] * 0.5 + 0.5 : col[0] * 0.85 + 0.15, hot ? col[1] * 0.5 + 0.5 : col[1] * 0.85 + 0.15, hot ? col[2] * 0.5 + 0.5 : col[2] * 0.85 + 0.15, Math.max(1.0, w * rnd(0.06, 0.14)), rnd(0.25, 0.65), 2.2);
     }
-    if (Math.random() < dt * 14) fx.emit(tx, ty, tz, V3.x * w * 3 + rnd(-1, 1) * w * 2, V3.y * w * 3 + rnd(-1, 1) * w * 2, V3.z * w * 3 + rnd(-1, 1) * w * 2, 1, 0.45, 0.12, w * rnd(0.35, 0.6), rnd(0.8, 1.6), 0.8);   // 慢速熔渣
+    if (Math.random() < dt * 22) fx.emit(tx, ty, tz, V3.x * w * 3 + rnd(-1, 1) * w * 2, V3.y * w * 3 + rnd(-1, 1) * w * 2, V3.z * w * 3 + rnd(-1, 1) * w * 2, col[0] * 0.8 + 0.2, col[1] * 0.8 + 0.2, col[2] * 0.8 + 0.2, Math.max(1.5, w * rnd(0.08, 0.16)), rnd(0.8, 1.6), 0.8);   // 慢速熔渣（與光束同色、小顆）
     if (fx.smoke && !G.lite && Math.random() < dt * 1.5) fx.smoke(tx, ty, tz, V3.x * w, V3.y * w + w * 0.5, V3.z * w, w * 0.8, w * 2.2, 1.8, [0.1, 0.085, 0.08], 0.6, 0.6);
     b.tick += dt;
     if (b.tick >= BEAM_TICK) {
