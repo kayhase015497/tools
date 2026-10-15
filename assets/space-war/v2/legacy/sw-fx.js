@@ -272,15 +272,15 @@
     /* 擬真爆炸：白熱閃光 → 翻騰的火球（噪聲著色器）→ 緩慢擴散的黑煙，另有迸射的火星、衝擊環與碎片 */
     function proExplode(x, y, z, kk, enemy, U) {
       const R = (4 + 4 * Math.sqrt(kk)) * U, flame = enemy ? [0.8, 0.28, 1.0] : [1.0, 0.5, 0.12];
-      fx.emit(x, y, z, 0, 0, 0, 1, 0.85, 0.6, R * 1.1, 0.14, 0, 0, 1.1);                     // 瞬間白閃（柔光）
+      fx.emit(x, y, z, 0, 0, 0, 1, 0.9, 0.75, R * 2.2, 0.16, 0, 0, 1.1);                     // 瞬間白閃（柔光）
       fx.emit(x, y, z, 0, 0, 0, 1, 0.8, 0.5, R * 2.0, 0.11, 0, 1);                          // 極短的星芒，只留一點鏡頭感
-      const nf = Math.min(9, 2 + Math.floor(kk * 0.7));
+      const nf = Math.min(16, 3 + Math.floor(kk * 1.4));
       for (let i = 0; i < nf; i++) {
         const a = rnd(0, 6.28), u = rnd(-1, 1), c = Math.sqrt(1 - u * u), sp = R * rnd(0.3, 1.1), off = R * rnd(0, 0.5);
         const life = rnd(0.7, 1.5) * (0.8 + 0.2 * Math.sqrt(kk));
-        fx.fire(x + Math.cos(a) * c * off, y + u * off, z + Math.sin(a) * c * off, Math.cos(a) * c * sp, u * sp * 0.8 + R * 0.2, Math.sin(a) * c * sp, R * rnd(0.28, 0.45), R * rnd(0.8, 1.2), life, flame, 1.1, 0.85);
+        fx.fire(x + Math.cos(a) * c * off, y + u * off, z + Math.sin(a) * c * off, Math.cos(a) * c * sp, u * sp * 0.8 + R * 0.2, Math.sin(a) * c * sp, R * rnd(0.35, 0.6), R * rnd(1.0, 1.6), life, flame, 1.1, 1);
       }
-      fx.fire(x, y, z, 0, 0, 0, R * 0.35, R * 1.0, 0.4, [1, 0.6, 0.25], 0, 1.0);               // 中心的高亮核心
+      fx.fire(x, y, z, 0, 0, 0, R * 0.5, R * 1.7, 0.45, [1, 0.8, 0.5], 0, 1.4);               // 中心的高亮核心
       const ns = Math.min(12, 2 + Math.floor(kk));
       for (let i = 0; i < ns; i++) {
         const a = rnd(0, 6.28), u = rnd(-0.6, 1), c = Math.sqrt(1 - u * u), sp = R * rnd(0.12, 0.5), delay = rnd(0.05, 0.4);

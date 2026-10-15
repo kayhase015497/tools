@@ -181,8 +181,8 @@ function killShip(s, src) {
   fx.explode(s.x, s.y, s.z, d.boom, s.side === 'e', U);
   boomLight(s.x, s.y, s.z, d.boom, s.side === 'e' ? [1, 0.55, 0.3] : [0.55, 0.8, 1]);
   if (big) {
-    const n = Math.min(5, 2 + Math.floor(d.boom / 4));
-    for (let i = 0; i < n; i++) { const dx = rnd(-1, 1) * s.rad, dy = rnd(-0.5, 0.5) * s.rad, dz = rnd(-1, 1) * s.rad; fx.later(0.25 + i * rnd(0.3, 0.7), () => fx.explode(s.x + dx, s.y + dy, s.z + dz, d.boom * rnd(0.2, 0.5), s.side === 'e', U * 0.6)); }
+    const n = Math.min(14, 3 + Math.floor(d.boom / 2));
+    for (let i = 0; i < n; i++) { const dx = rnd(-1, 1) * s.rad, dy = rnd(-0.5, 0.5) * s.rad, dz = rnd(-1, 1) * s.rad; fx.later(0.2 + i * rnd(0.15, 0.4), () => fx.explode(s.x + dx, s.y + dy, s.z + dz, d.boom * rnd(0.3, 0.8), s.side === 'e', U * 0.7)); }
     if (G.doom === 0) say(d.name + ' destroyed' + (s.side === 'a' ? ' · ' + s.cs : ''), d.name + ' 被擊毀' + (s.side === 'a' ? ' · ' + s.cs : ''), s.side === 'a');
   }
   FPVAudio.explode(d.boom, s);
