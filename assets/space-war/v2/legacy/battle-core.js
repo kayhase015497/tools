@@ -62,6 +62,13 @@ const CUE_BASE = [
   { t: 143.2, dur: 8.6, type: 3.6, box: 'center', who: 'lyc', en: 'The "Fourth Instant" of the cosmos… is the coronation of Irontomb!', zh: '宇宙的「第四時刻」……就是鐵墓的加冕！', after: 'FLASH' }
 ];
 const CUES = CUE_BASE.map((c) => c.fixed ? Object.assign({}, c) : c.after ? Object.assign({}, c, { t: T.FLASH + 3.2, dur: 11, type: 4.2 }) : Object.assign({}, c, { t: T.REVEAL + (c.t - 12) * 2.6, dur: c.dur * 1.3, type: c.type * 1.3 }));
+// 英文配音（assets/space-war/voice/en/，由 tools-src/audio/cut_voice.sh 自 UVR5 人聲切出）：依 CUE_BASE 順序對應，null＝尚無配音
+const VOICE_EN = [['lyc1', 8.8], ['lyc2', 7.2], ['herta1', 3.5], ['herta2', 6.7], null, ['cyrene', 4.0], ['dan', 3.1], ['march', 3.3], ['tb', 5.5], null];
+VOICE_EN.forEach((v, i) => {
+  if (!v) return; const c = CUES[i]; c.voice = '../assets/space-war/voice/en/' + v[0] + '.mp3'; c.vdur = v[1];
+  c.dur = Math.max(c.dur, v[1] + 1); c.type = Math.min(c.type, v[1] * 0.8);   // 字幕長度與打字速度跟著語音走
+});
+{ const h1 = CUES[2], h2 = CUES[3]; h2.t = h1.t + h1.vdur + 0.5; h1.dur = h1.vdur + 0.5; }   // 黑塔兩句連著講，不留空檔
 const TICK_BASE = [
   [14,  '反鐵墓宇宙聯軍已完成集結，各艦隊就位。', 'Anti-Irontomb Cosmic Alliance assembled. All fleets in position.'],
   [18,  '旗艦：黑塔太空站（HSS）已進入指揮位置。', 'Flagship: Herta Space Station (HSS) in command position.'],

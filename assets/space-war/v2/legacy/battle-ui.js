@@ -25,7 +25,7 @@ const typed = (txt, p) => { const n = Math.ceil(txt.length * p); return txt.slic
 function updateSubs(t) {
   for (const k of ['center', 'sub']) {
     const S = subs[k === 'center' ? 'cen' : 'sub'], cur = CUES.find((c) => c.box === k && t >= c.t && t < c.t + c.dur) || null;
-    if (cur !== S.cur) { S.cur = cur; S.n = -1; if (cur) { const w = WHO[cur.who]; S.who.textContent = G.lang === 'zh' ? w.zh + ' · ' + w.en : w.en; S.who.style.color = w.c; S.el.classList.add('on'); } else S.el.classList.remove('on'); }
+    if (cur !== S.cur) { S.cur = cur; S.n = -1; if (cur && cur.voice) FPVAudio.voice(cur.voice); if (cur) { const w = WHO[cur.who]; S.who.textContent = G.lang === 'zh' ? w.zh + ' · ' + w.en : w.en; S.who.style.color = w.c; S.el.classList.add('on'); } else S.el.classList.remove('on'); }
     if (cur) { const p = clamp((t - cur.t) / cur.type, 0, 1), n = Math.ceil(p * 200); if (n !== S.n) { S.n = n; S.txt.innerHTML = typed(G.lang === 'zh' ? cur.zh : cur.en, p); } }
   }
 }

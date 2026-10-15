@@ -18,7 +18,7 @@
   'use strict';
   let ctx = null, master = null, sfxBus = null, rvSend = null, buffers = {}, loading = null, eng = null, mus = null;
   let musicOn = true, muted = false, voices = 0, refScale = 1;
-  const perName = {}, lastT = {};
+  const perName = {}, lastT = {}; let vSrc = null; const vBuf = {};
   const L = { x: 0, y: 0, z: 0, q: null };
   const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
   const SPEED = 1100;                      // 誇張的「聲速」(m/s)：1 km 約延遲 0.9 s
@@ -111,6 +111,15 @@
     boost() { play('afterburner', { vol: 0.7, wet: 0.15, max: 2 }); },
     flyby(pos) { play('flyby', { pos, vol: 1.1, ref: 90, delay: false, wet: 0.1, max: 3 }); },
     respawn() { play('respawn', { vol: 0.7, max: 1 }); },
+    voice(url) {   // 台詞（人聲）：不經空間化，直接進主匯流排；播放時把背景音樂壓低
+      if (!ctx) return; const go = (buf) => {
+        if (vSrc) { try { vSrc.stop(); } catch (e) {} }
+        const src = ctx.createBufferSource(), g = ctx.createGain(); src.buffer = buf; g.gain.value = 1.15; src.connect(g); g.connect(master); vSrc = src;
+        if (mus) mus.volume = 0.12; src.onended = () => { if (vSrc === src) { vSrc = null; if (mus) mus.volume = 0.3; } }; src.start();
+      };
+      if (vBuf[url]) return go(vBuf[url]);
+      fetch(url).then((r) => r.arrayBuffer()).then((ab) => ctx.decodeAudioData(ab)).then((b) => { vBuf[url] = b; go(b); }).catch((e) => console.warn('台詞載入失敗', url, e));
+    },
     engine(speed01, boost) {
       if (!ctx || !eng) return; const t = ctx.currentTime, k = muted ? 0 : 1;
       eng.g.gain.setTargetAtTime(k * (0.16 + 0.34 * speed01 + (boost ? 0.22 : 0)), t, 0.12);
