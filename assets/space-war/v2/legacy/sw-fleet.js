@@ -121,7 +121,7 @@
           const K = ks[s.kind]; if (!K || K.n >= K.cap) continue;
           const sc = s.scale || 1;
           if (s.q) writeQuat(K.attr.array, K.n * 16, s.x, s.y, s.z, s.q.x, s.q.y, s.q.z, s.q.w, sc); else writeMat(K.attr.array, K.n * 16, s.x, s.y, s.z, s.h, s.p, s.roll || 0, (s.sx || 1) * sc, sc, sc);
-          if (K.dmg) K.dmg.array[K.n] = (s.d && s.d.hp > 1000 && s.hpMax) ? Math.min(1, Math.max(0, (1 - s.hp / s.hpMax - 0.1) / 0.8)) : 0;
+          if (K.dmg) K.dmg.array[K.n] = (!(window.G && window.G.lite) && s.d && s.d.hp > 1000 && s.hpMax) ? Math.min(1, Math.max(0, (1 - s.hp / s.hpMax - 0.1) / 0.8)) : 0;
           K.n++;
           const en = ENGINE[s.kind];
           if (en && en[0] > 0 && K.engines.length) {

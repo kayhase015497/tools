@@ -471,9 +471,15 @@ function stepBeams(dt) {
     // 命中點：同色粒子噴濺 + 橘色火光（燒熔感）
     fx.emit(tx, ty, tz, 0, 0, 0, col[0], col[1], col[2], w * 6 * k, 0.12, 0, 0, 1);
     fx.emit(tx, ty, tz, 0, 0, 0, 1, 0.55, 0.15, w * 9 * k, 0.16, 0, 0);
-    for (let j = 0; j < 2; j++) { const v = w * 12; fx.emit(tx, ty, tz, rnd(-1, 1) * v, rnd(-1, 1) * v, rnd(-1, 1) * v, j ? col[0] : 1, j ? col[1] : 0.6, j ? col[2] : 0.2, w * rnd(0.5, 1.1), rnd(0.3, 0.8), 1.3); }
-    if (fx.fire && Math.random() < dt * 10) fx.fire(tx, ty, tz, rnd(-1, 1) * w, rnd(-1, 1) * w, rnd(-1, 1) * w, w * 1.2, w * 3.2, 0.5, [1, 0.5, 0.12], 2, 0.9);
-    if (fx.smoke && Math.random() < dt * 3) fx.smoke(tx, ty, tz, rnd(-1, 1) * w, rnd(-1, 1) * w + w, rnd(-1, 1) * w, w * 1.5, w * 4, 2.5, [0.1, 0.085, 0.08], 0.6, 0.8);
+    // v2：命中點改成「火花噴濺」——從受擊表面朝射手方向噴出的一束細小火花（高速、有阻力、很快熄滅），加少量慢速熔渣；不再冒大團火球
+    V3.set(s.x - tx, s.y - ty, s.z - tz).normalize();                    // 表面外法線的近似：朝向射手
+    const nsp = Math.max(2, Math.round(10 * dt * 60 / 3));              // 每幀約 3~6 顆（與幀率無關）
+    for (let j = 0; j < nsp; j++) {
+      const sp0 = w * rnd(10, 34), sx = V3.x + rnd(-0.75, 0.75), sy = V3.y + rnd(-0.75, 0.75), sz = V3.z + rnd(-0.75, 0.75), hot = j % 3 === 0;
+      fx.emit(tx, ty, tz, sx * sp0, sy * sp0, sz * sp0, hot ? 1 : col[0] * 0.6 + 0.4, hot ? 0.78 : col[1] * 0.6 + 0.3, hot ? 0.4 : col[2] * 0.6 + 0.2, Math.max(1.2, w * rnd(0.12, 0.3)), rnd(0.25, 0.65), 2.2);
+    }
+    if (Math.random() < dt * 14) fx.emit(tx, ty, tz, V3.x * w * 3 + rnd(-1, 1) * w * 2, V3.y * w * 3 + rnd(-1, 1) * w * 2, V3.z * w * 3 + rnd(-1, 1) * w * 2, 1, 0.45, 0.12, w * rnd(0.35, 0.6), rnd(0.8, 1.6), 0.8);   // 慢速熔渣
+    if (fx.smoke && !G.lite && Math.random() < dt * 1.5) fx.smoke(tx, ty, tz, V3.x * w, V3.y * w + w * 0.5, V3.z * w, w * 0.8, w * 2.2, 1.8, [0.1, 0.085, 0.08], 0.6, 0.6);
     b.tick += dt;
     if (b.tick >= BEAM_TICK) {
       b.tick -= BEAM_TICK; const dmg = sp.dmg * BEAM_TICK / BEAM_DUR;

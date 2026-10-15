@@ -301,7 +301,7 @@ function setupRender(a) {
   if (a.cockpit) a.cockpit.parts.forEach((p) => { const m = p.material; if (m.emissive && m.emissive.r + m.emissive.g + m.emissive.b > 0.01) m.emissiveIntensity = 2.2; const me = new THREE.Mesh(p.geometry, m); me.frustumCulled = false; cockRoot.add(me); });
   Object.keys(fleet.kinds).forEach((k) => fleet.kinds[k].meshes.forEach((me) => { if (me.material.emissive && me.material.emissive.r + me.material.emissive.g + me.material.emissive.b > 0.01) me.material.emissiveIntensity = 1.2; me.material.envMapIntensity = 0.28; if (window.SW2.envTex) me.material.envMap = window.SW2.envTex; }));
   // 高畫質：4× MSAA + 泛光 + 電影感；低畫質：只有最終合成（調色／暈邊／顆粒），不開泛光與電影感
-  knobs.msaa = QUALITY === 'high' ? 4 : 0; knobs.bloom = QUALITY === 'high'; knobs.cinema = QUALITY === 'high';
+  knobs.msaa = QUALITY === 'high' ? 4 : 0; knobs.bloom = QUALITY === 'high'; knobs.cinema = false;   // v2 預設：體積光關閉（F7 可開）
   rebuildPost();
   buildDoomVisuals(); resize();
 }
