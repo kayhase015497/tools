@@ -14,7 +14,7 @@
   'use strict';
 
   const KIND_MODEL = { frig: 'frigate', cruis: 'cruiser', cap: 'dread', hss: 'hss', xzd: 'xzd', ipc: 'ipc', moon: 'moon', whale: 'whale', fly: 'butterfly', fgt: 'fighter', awacs: 'sentinel' };
-  const CAPACITY = { frig: 380, cruis: 80, cap: 12, hss: 2, xzd: 3, ipc: 60, moon: 4, whale: 100, fly: 1000, fgt: 400, awacs: 8 };
+  const CAPACITY = { frig: 2500, cruis: 600, cap: 80, hss: 2, xzd: 3, ipc: 600, moon: 4, whale: 500, fly: 6000, fgt: 2500, awacs: 8 };
   // 引擎光暈：[大小, [r,g,b]]
   const ENGINE = {
     frig: [3.4, [0.55, 0.85, 1.0]], cruis: [5.5, [0.55, 0.85, 1.0]], cap: [10, [0.6, 0.88, 1.0]], hss: [15, [1.0, 0.85, 0.4]], xzd: [16, [0.7, 0.9, 1.0]], ipc: [5.5, [1.0, 0.55, 0.25]],
@@ -95,7 +95,7 @@
     });
 
     /* 引擎光暈（全艦隊合併成一個 Points） */
-    const EN = 4200;
+    const EN = 14000;
     const ePos = new Float32Array(EN * 3), eSize = new Float32Array(EN), eCol = new Float32Array(EN * 3);
     const ePosA = new THREE.InstancedBufferAttribute(ePos, 3).setUsage(THREE.DynamicDrawUsage), eSizeA = new THREE.InstancedBufferAttribute(eSize, 1).setUsage(THREE.DynamicDrawUsage), eColA = new THREE.InstancedBufferAttribute(eCol, 3).setUsage(THREE.DynamicDrawUsage);
     const eGeo = window.SW2.nodes.quadGeometry(EN, { aPos: ePosA, aSize: eSizeA, aColor: eColA });
