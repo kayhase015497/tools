@@ -41,15 +41,41 @@ function spawnFleet() {
   // 玩家的初始戰機（指揮官模式下由 AI 駕駛）：HSS 旁
   const o = mkRing('fgt', 7400, 0.25, 0.05); o.thr = 0.5; player.orig = player.ship = o; o.isOrig = true;
 }
+function halton(i, b) { let f = 1, r = 0; i = i + 1; while (i > 0) { f /= b; r += f * (i % b); i = Math.floor(i / b); } return r; }
+/* 反物質軍團的「黑洞閃現」：虛空中先撕開一個黑色漩渦（深黑煙團＋紫色吸積環＋向內捲入的紫色火星與光束），約 0.6~0.9 秒後艦艇從中擠出，紫白閃光與衝擊環爆開 */
+function voidIn(make, x, y, z, big) {
+  const R = big ? 1500 : 360, T1 = big ? 0.95 : 0.6, nIn = big ? 46 : 9;
+  for (let k = 0; k < (big ? 5 : 1); k++) fx.smoke(x + rnd(-0.08, 0.08) * R, y + rnd(-0.08, 0.08) * R, z + rnd(-0.08, 0.08) * R, 0, 0, 0, R * 0.12, R * rnd(0.55, 0.85), T1 + 0.55, [0.01, 0.0, 0.025], 0, 3.0);   // 黑洞本體
+  fx.emit(x, y, z, 0, 0, 0, 0.7, 0.25, 1.0, R * (big ? 1.5 : 2.2), T1 + 0.1, 0, 2, 1.1);                                  // 紫色吸積環（外擴的環）
+  if (big) fx.emit(x, y, z, 0, 0, 0, 0.5, 0.12, 0.9, R * 0.9, T1, 0, 0, 0.3);                               // 淡淡的紫色光暈（只有大型艦）
+  for (let i = 0; i < nIn; i++) {                                                                           // 向內捲入的粒子：從球面朝中心加速收斂
+    const a = rnd(0, TAU), u = rnd(-1, 1), c = Math.sqrt(1 - u * u), rr = R * rnd(1.1, 2.0), px = Math.cos(a) * c, py = u, pz = Math.sin(a) * c, life = T1 * rnd(0.65, 0.95), tw = 0.9;
+    fx.emit(x + px * rr, y + py * rr, z + pz * rr, -px * rr / life + -pz * rr * tw / life, -py * rr / life, -pz * rr / life + px * rr * tw / life, 0.7, 0.3, 1.0, Math.max(2.5, R * 0.018), life, 0);
+  }
+  if (big) for (let i = 0; i < 10; i++) { const a = rnd(0, TAU), u = rnd(-1, 1), c = Math.sqrt(1 - u * u), L = R * rnd(2.2, 3.6); fx.beam(x + Math.cos(a) * c * L, y + u * L, z + Math.sin(a) * c * L, x, y, z, { color: [0.65, 0.25, 1], width: R * 0.012, dur: T1 * 0.9, len: L * 0.4 }); }   // 光束匯聚
+  fx.later(T1, () => {
+    const s = make(); if (!s) return;
+    fx.emit(x, y, z, 0, 0, 0, 0.9, 0.7, 1, R * 1.6, 0.45, 0, 0, 1.3);                                      // 紫白閃光
+    fx.emit(x, y, z, 0, 0, 0, 0.75, 0.3, 1, R * 2.2, 0.7, 0, 2, 5.5);                                       // 衝擊環
+    if (fx.fire) fx.fire(x, y, z, 0, 0, 0, R * 0.2, R * 0.9, 0.5, [0.7, 0.25, 1.0], 0, 0.9);
+    if (big) { boomLight(x, y, z, 5, [0.7, 0.35, 1]); } else if (Math.random() < 0.2) boomLight(x, y, z, 1.2, [0.7, 0.35, 1]);
+    for (let i = 0; i < (big ? 18 : 3); i++) { const a = rnd(0, TAU), u = rnd(-1, 1), c = Math.sqrt(1 - u * u), sp = R * rnd(0.6, 1.8); fx.emit(x, y, z, Math.cos(a) * c * sp, u * sp, Math.sin(a) * c * sp, 0.75, 0.4, 1, Math.max(2, R * 0.015), rnd(0.4, 0.9), 1.5); }
+  });
+}
 function spawnWave() {
   G.wave++;
   const w = G.wave, S = FSC(), nW = Math.round((Math.min(2 + Math.floor(w / 2), 8) + (G.mode === 'free' ? Math.min(4, Math.floor(w / 3)) : 0)) * (1 + (S - 1) * 0.8)), nF = Math.round((Math.min(14 + w * 4, 70) + (G.mode === 'free' ? Math.min(30, w * 2) : 0)) * S);
   const live = enemies.filter((e) => e.kind === 'whale').length, liveF = enemies.length - live;
-  const az = rnd(-0.5, 0.5);   // 同一波自鐵墓朝向聯軍的一側湧出
-  const spot = (r, spread) => { const a = az + rnd(-spread, spread), u = rnd(-0.6, 0.6), c = Math.sqrt(1 - u * u); return { x: TOMB_POS.x + Math.sin(a) * c * r, y: TOMB_POS.y + u * r, z: TOMB_POS.z + Math.cos(a) * c * r, h: a }; };
-  for (let i = 0; i < nW && live + i < (G.mode === 'free' ? 22 : 16) * (1 + (S - 1) * 0.8); i++) { const q = spot(rnd(3300, 4000), 0.9), s = mkShip('whale', q.x, q.y, q.z, q.h, { k: rnd(0.8, 1.5) }); s.hp = s.hpMax = s.d.hp * (s.scale / s.d.sc) * G.enemyHp; }
-  for (let i = 0; i < nF && liveF + i < (G.mode === 'free' ? 140 : 110) * S; i++) { const q = spot(rnd(3000, 4200), 1.1), s = mkFighter('fly', q.x, q.y, q.z, q.h); s.mode = 0; }
-  say('Antimatter Legion wave ' + w + ' emerging from the Irontomb', '反物質軍團第 ' + w + ' 波自鐵墓外圍湧出', true);
+  // v2：敵軍增援均勻分布在「鐵墓與聯軍陣線之間」的整個正面空間，Halton 序列（低差異點）保證不會擠成一團，高度（Y 軸）從 -0.85 到 +0.85 弧度都用上
+  const off = (Math.random() * 1000) | 0, hss0 = allies.find((a) => a.kind === 'hss' && !a.dead), fx0 = hss0 ? hss0.x : 0, fy0 = hss0 ? hss0.y : TOMB_POS.y, fz0 = hss0 ? hss0.z : TOMB_POS.z + 8200;
+  const spot = (i, r0, r1) => {
+    const az = -1.2 + 2.4 * halton(off + i, 2), pit = -0.85 + 1.7 * halton(off + i, 3), r = r0 + (r1 - r0) * halton(off + i, 5), q = ringPos(r, az, pit);
+    return { x: q[0], y: q[1], z: q[2], h: Math.atan2(fx0 - q[0], fz0 - q[2]) };
+  };
+  const nWmax = (G.mode === 'free' ? 22 : 16) * (1 + (S - 1) * 0.8), nFmax = (G.mode === 'free' ? 140 : 110) * S;
+  for (let i = 0; i < nW && live + i < nWmax; i++) { const q = spot(i, 3400, 7600); voidIn(() => { const s = mkShip('whale', q.x, q.y, q.z, q.h, { k: rnd(0.8, 1.5) }); s.hp = s.hpMax = s.d.hp * (s.scale / s.d.sc) * G.enemyHp; return s; }, q.x, q.y, q.z, true); }
+  for (let i = 0; i < nF && liveF + i < nFmax; i++) { const q = spot(i + 500, 3200, 7800); voidIn(() => { const s = mkFighter('fly', q.x, q.y, q.z, q.h); s.mode = 0; return s; }, q.x, q.y, q.z, false); }
+  say('Antimatter Legion wave ' + w + ' tearing through the void', '反物質軍團第 ' + w + ' 波撕裂虛空而來', true);
 }
 function cnt(k) { let n = 0; for (let i = 0; i < allies.length; i++) if (allies[i].kind === k && !allies[i].dead) n++; return n; }
 /* 折躍進場：一道白線自後方高速劃過，到達處閃光爆開，艦艇才現身（類似星戰的超光速躍出） */
@@ -68,6 +94,7 @@ function warpIn(make, x, y, z, big) {
     boomLight(x, y, z, big ? 6 : 2, [0.7, 0.85, 1]);
     if (big) FPVAudio.respawn();
     s.vx = -dx * s.d.spd * 2.5; s.vy = -dy * s.d.spd * 2.5; s.vz = -dz * s.d.spd * 2.5;   // 帶著衝勢滑入，再減速
+    s.boostUntil = G.t + 15;
   });
 }
 /* 增援的集結點：就近挑一艘螺絲咕姆行星艦或黑塔空間站，在它周圍待命；折躍落點在它的後方（背離鐵墓） */
@@ -238,8 +265,9 @@ function tombTarget(from) {   // 最靠近 from 的鐵墓部位，包成「像�
   for (let i = 0; i < TOMB_PARTS.length; i++) { tombPartPos(i, V3); const d2 = (V3.x - from.x) ** 2 + (V3.y - from.y) ** 2 + (V3.z - from.z) ** 2; if (d2 < bd) { bd = d2; bi = i; } }
   tombPartPos(bi, V3); TOMB_T.x = V3.x; TOMB_T.y = V3.y; TOMB_T.z = V3.z; TOMB_T.rad = TOMB_PARTS[bi][3] * TOMB_SCALE; return TOMB_T;
 }
+const IRON_FREE_DMG = 6e5, IRON_LOCK = 0.6;   // 自由模式：累積 60 萬點傷害後降到 60%，之後鎖血（不會再低於 60%）
 function ironFrac() {
-  if (G.mode !== 'script') return 1;
+  if (G.mode !== 'script') return Math.max(IRON_LOCK, 1 - (1 - IRON_LOCK) * ironDmg / IRON_FREE_DMG);
   const drip = Math.max(0, G.t - T.REVEAL) * 9000;
   return 0.8 + 0.2 * Math.exp(-(ironDmg + drip) / IRON_K);
 }
@@ -327,7 +355,7 @@ function fighterFire(s, tg, dt) {
 function aiFighter(s, dt) {
   const foes = s.side === 'a' ? enemies : allies, d = s.d, o = s.side === 'a' ? activeOrder(s) : null;
   s.mt -= dt;
-  let tg = s.tgt, spd = s.spd || d.spd;
+  let tg = s.tgt, spd = (s.spd || d.spd) * (s.boostUntil && G.t < s.boostUntil ? 3 : 1);   // 折躍進場後 15 秒內移動速度 ×3
   if (o && o.type === 'move' || o && o.type === 'hold') {          // 移動／固守：前往集結點，在附近巡邏並攔截 2.5 km 內的敵機
     const wx = o.type === 'hold' ? s.hx : o.x, wy = o.type === 'hold' ? s.hy : o.y, wz = o.type === 'hold' ? s.hz : o.z;
     if (o.type === 'hold' && !o.set) { o.set = 1; s.hx = s.x; s.hy = s.y; s.hz = s.z; }
@@ -368,7 +396,7 @@ function aiCapital(s, dt) {
   s.mt -= dt;
   let fireTarget = null;
   if (s.side === 'a') {
-    let wx = 0, wy = 0, wz = 0, sp = d.spd, face = null;
+    let wx = 0, wy = 0, wz = 0, sp = d.spd * (s.boostUntil && G.t < s.boostUntil ? 3 : 1), face = null;   // 折躍進場後 15 秒內移動速度 ×3
     if (s.mt <= 0) { s.tgt = allyCapitalTarget(s); s.mt = rnd(2.5, 4.5); }
     const auto = s.tgt && !s.tgt.dead ? s.tgt : null;
     if (s.rally && !o && G.t < s.rally && Math.hypot(s.hx - s.x, s.hy - s.y, s.hz - s.z) > 450) {   // 增援剛抵達：先靠攏到螺絲咕姆／空間站身邊
@@ -766,6 +794,7 @@ function stepWorld(dt) {
     if (G.t >= nextWave && G.t < T.FLASH - 10) { nextWave = G.t + Math.max(12, 18 - G.wave * 0.5); spawnWave(); }
     doomStep(dt);
   } else if (G.t >= nextWave) { nextWave = G.t + Math.max(13, 32 - G.wave * 1.8); spawnWave(); }
+  if (G.mode === 'free' && !G.ironLocked && ironDmg >= IRON_FREE_DMG) { G.ironLocked = true; say('Irontomb integrity locked at 60% — it cannot be destroyed', '鐵墓完整度鎖定在 60%——無法被摧毀', true); }
   if (G.t >= nextReinf) { nextReinf = G.t + 11; reinforce(); }
   if (G.t >= nextLaunch) { nextLaunch = G.t + 7; launchFighters(); }
   if (G.t - lastAlloc > 2) { lastAlloc = G.t; allocateTargets(); }

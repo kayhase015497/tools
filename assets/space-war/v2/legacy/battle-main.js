@@ -52,7 +52,7 @@ $('#b-go').addEventListener('click', () => {
     document.body.classList.toggle('role-cmd', G.role === 'commander'); document.body.classList.toggle('role-pilot', G.role === 'pilot');
     initWorld(); FPVAudio.setScale(G.role === 'pilot' ? 1 : 6); FPVAudio.musicSeek(0);
     if (G.mode === 'free') { setVeil('#000', 0, 1.2); hudShow(true); G.revealed = true; setObjective(true); say('Welcome aboard. The fleet is engaging the Antimatter Legion.', '歡迎上艦。艦隊正與反物質軍團交火。', false); } else hudShow(false);
-    bossEl.style.display = G.mode === 'script' ? '' : 'none'; $('#b-clock-wrap').style.display = G.mode === 'script' ? '' : 'none';
+    bossEl.style.display = ''; $('#b-clock-wrap').style.display = G.mode === 'script' ? '' : 'none';
     hintEl.innerHTML = G.role === 'pilot' ? L().toCmd : L().toPilot;
     $('#b-title').classList.remove('paused');
   }
