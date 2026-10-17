@@ -1,0 +1,20 @@
+<!doctype html><meta charset="utf-8"><title>glb view</title>
+<style>html,body{margin:0;background:#0b0f1a}canvas{display:block}</style>
+<script type="importmap">{ "imports": { "three": "../../../assets/space-war/v2/vendor/three/build/three.webgpu.js", "three/webgpu": "../../../assets/space-war/v2/vendor/three/build/three.webgpu.js", "three/tsl": "../../../assets/space-war/v2/vendor/three/build/three.tsl.js", "three/addons/": "../../../assets/space-war/v2/vendor/three/examples/jsm/" } }</script>
+<script type="module">
+// 模型檢視器（測試用）：?m=<GLB 路徑>&v=side|top|front|iso|rear&w=800&h=450
+import * as THREE from 'three/webgpu';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+const q = new URLSearchParams(location.search), W = +q.get('w') || 800, H = +q.get('h') || 450, view = q.get('v') || 'iso';
+const r = new THREE.WebGPURenderer({ antialias: true, forceWebGL: true }); r.setSize(W, H); document.body.appendChild(r.domElement); await r.init();
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x141a2c);
+scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x605060, 3.2)); const dl = new THREE.DirectionalLight(0xffffff, 3.5); dl.position.set(5, 10, 7); scene.add(dl);
+const g = await new GLTFLoader().loadAsync(q.get('m')); scene.add(g.scene);
+const box = new THREE.Box3().setFromObject(g.scene), c = box.getCenter(new THREE.Vector3()), s = box.getSize(new THREE.Vector3()), L = Math.max(s.x, s.y, s.z);
+const hp = [];
+g.scene.traverse((o) => { if (o.name && o.name.indexOf('HP_') === 0) { const p = new THREE.Vector3().setFromMatrixPosition(o.matrixWorld), m = new THREE.Mesh(new THREE.SphereGeometry(L * 0.012, 8, 6), new THREE.MeshBasicMaterial({ color: o.name.indexOf('GUN') > 0 ? 0xff3355 : o.name.indexOf('ENGINE') > 0 ? 0x33ccff : 0x33ff88, depthTest: false })); m.position.copy(p); m.renderOrder = 9; scene.add(m); hp.push(o.name + ' ' + [p.x, p.y, p.z].map((x) => x.toFixed(2)).join(',')); } });
+const D = L * 1.5, cam = view === 'top' ? new THREE.OrthographicCamera(-W / H * L * 0.6, W / H * L * 0.6, L * 0.6, -L * 0.6, 0.1, 200) : view === 'side' || view === 'front' ? new THREE.OrthographicCamera(-W / H * L * 0.6, W / H * L * 0.6, L * 0.6, -L * 0.6, 0.1, 200) : new THREE.PerspectiveCamera(35, W / H, 0.1, 200);
+const pos = { top: [0, D, 0.001], side: [D, 0, 0], front: [0, 0, D], rear: [-D * 0.6, D * 0.35, -D * 0.8], iso: [D * 0.7, D * 0.45, D * 0.8] }[view];
+cam.position.set(c.x + pos[0], c.y + pos[1], c.z + pos[2]); cam.up.set(0, 1, 0); cam.lookAt(c);
+r.render(scene, cam); window.__done = hp;
+</script>
