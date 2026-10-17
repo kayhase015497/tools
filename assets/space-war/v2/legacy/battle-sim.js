@@ -780,7 +780,7 @@ function doomStep(dt) {
   if (G.impacted) {
     G.waveR += (2300 + (G.t - T.IMPACT) * 140) * dt;
     let big = 0;
-    const kill = (arr) => { for (let i = 0; i < arr.length; i++) { const s = arr[i]; if (s.dead) continue; const d = Math.hypot(s.x - TOMB_POS.x, s.y - SWORD_END, s.z - TOMB_POS.z); if (d <= G.waveR) { if (s.d.boom >= 3 && big++ > 4) continue; if (s.isPlayer) player.dead = true; killShip(s, null); } } };
+    const kill = (arr) => { for (let i = 0; i < arr.length; i++) { const s = arr[i]; if (s.dead) continue; const d = Math.hypot(s.x - TOMB_POS.x, s.y - SWORD_END, s.z - WAVE_Z); if (d <= G.waveR) { if (s.d.boom >= 3 && big++ > 4) continue; if (s.isPlayer) player.dead = true; killShip(s, null); } } };
     kill(allies); kill(enemies);
   }
   if (G.t >= T.WHITE && !G.white) { G.white = true; uiWhite(); }
