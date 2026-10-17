@@ -124,7 +124,7 @@ verts, faces = bar_mesh([(to_b(a), to_b(b)) for a, b in segs], 0.035)
 me = bpy.data.meshes.new('XZ_Trim'); me.from_pydata(verts, [], faces); me.update()
 trim = bpy.data.objects.new('XZ_Trim', me); bpy.context.scene.collection.objects.link(trim)
 mat = bpy.data.materials.new('trim'); mat.use_nodes = True; nt = mat.node_tree; bsdf = nt.nodes['Principled BSDF']
-bsdf.inputs['Base Color'].default_value = (0.02, 0.12, 0.16, 1); bsdf.inputs['Emission Color'].default_value = (0.25, 0.9, 1.0, 1); bsdf.inputs['Emission Strength'].default_value = 1.8
+bsdf.inputs['Base Color'].default_value = (0.02, 0.12, 0.16, 1); bsdf.inputs['Emission Color'].default_value = (0.25, 0.9, 1.0, 1); bsdf.inputs['Emission Strength'].default_value = 0.3   # 飾條發光強度：1.8 過亮，0.6 仍偏亮，0.3 看得出會發光即可
 me.materials.append(mat)
 ANCHORS = {   # glTF 座標（x, y, z）
     'HP_GUN_1': (0, 1.12, 3.5), 'HP_GUN_2': (0, 0.9, 1.0), 'HP_GUN_3': (-1.3, 0.45, 10.7), 'HP_GUN_4': (1.3, 0.45, 10.7),
