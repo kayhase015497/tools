@@ -192,3 +192,9 @@ assets/space-war/v2/
 - `whale.glb` 換成 Desktop（Blender MCP）整理的 TRIPO 航母：約 9,300 三角面、單一材質（底色 2048 JPEG＋法線貼圖）；原檔保留在 `assets/space-war/models/incoming/legion_carrier_tripo_desktop.glb`（4.6 MB）。
 - `tools-src/blender/space-war/finish_legion_carrier.py`（純 Python，不需 Blender）：法線貼圖 2048 PNG → 1024 JPEG q90（GLB 4.6 → 1.9 MB，貼圖各艦共用，上百艘只佔一份顯存）；由底色貼圖擷取金色窗列與青綠符文，產生發光貼圖（emissiveTexture）。
 - 錨點沿用 Desktop 擺放：頭部雙砲口、兩側砲口、尾部單一引擎。
+
+### build 21（IPC 巡洋艦換成 TRIPO 模型並硬表面化）
+- `ipc.glb` 換成 TRIPO 的 IPC 巡洋艦（Desktop 整理：約 7,800 三角面、單一材質）；原檔保留在 `assets/space-war/models/incoming/ipc_new_desktop.glb`。
+- 硬表面化 `tools-src/blender/space-war/snap_hard_ipc.py`（bpy）：TRIPO 把稜角磨圓了。依面法線把面歸入 ±X／±Y／±Z，相鄰同向的面連成平面區，把區內頂點對齊到同一平面（兩輪：32°／面積 0.25 與 22°／面積 0.08；單輪位移上限 0.4）→ 平的地方變平、圓角收成銳利稜線；法線依 18° 角度平滑、移除原法線貼圖、降低金屬度與光澤（0.12／0.55）。UV 與貼圖原樣保留，不需重烘。
+- 收尾 `finish_ipc.py`（純 Python）：底色貼圖去飽和並略壓暗（原貼圖偏鮮藍，遊戲強光下過亮），擷取紅色飾條成發光貼圖。檔案約 0.84 MB。
+- 錨點沿用 Desktop 擺放（背部砲塔、側砲艙、艦首砲、尾部三具引擎），不含座艙錨點。
