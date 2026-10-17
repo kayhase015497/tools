@@ -75,7 +75,7 @@ function prepMaterial(m, panelK) {   // sRGB 顯示色 → 線性；轉成節點
 }
 function prepAsset(a, panelK) { a.parts.forEach((p) => { p.material = prepMaterial(p.material, panelK); }); }
 
-let fx = null, fleet = null, assets = null, tombMeshes = null;
+let fx = null, fleet = null, assets = null, tombMeshes = null, tombArms = null;
 
 /* ── 指揮官地面格線與鐵墓禁區圈 ── */
 const gridMesh = new THREE.GridHelper(36000, 72, 0x2a4a8a, 0x15264a); gridMesh.material.transparent = true; gridMesh.material.opacity = 0.45; gridMesh.material.depthWrite = false; gridMesh.position.set(TOMB_POS.x, TOMB_POS.y, TOMB_POS.z); gridMesh.visible = false; scene.add(gridMesh);
@@ -143,6 +143,26 @@ function updateShieldViz() {
   }
 }
 
+/* ── 鐵墓的兩隻主臂（最上面那一對）：獨立零件，繞肩膀轉動——末日時雙臂舉起、握住巨劍、向下刺 ──
+ * 轉軸：先繞「前後軸」把手臂由水平舉到頭頂（雙手在頭頂中線相會握劍柄），再繞「左右軸」往前下壓。 */
+function buildTombArms(parts) {
+  const pitch = new THREE.Group(), out = { pitch, arm: {}, grip: {} };
+  for (const k of ['L', 'R']) {
+    const ms = parts[k]; if (!ms.length) return null;
+    const sg = k === 'L' ? 1 : -1, bb = new THREE.Box3(); ms.forEach((m) => { m.geometry.computeBoundingBox(); bb.union(m.geometry.boundingBox); });
+    const px = sg > 0 ? bb.min.x : bb.max.x, th = ms.find((m) => /thorn/.test(m.material.name || '')) || ms[0], py = (th.geometry.boundingBox.min.y + th.geometry.boundingBox.max.y) / 2, sc = Math.abs(px) / 17;   // 肩關節＝最靠近身體的一端；高度取荊棘環中心；sc＝模型縮放
+    const g = new THREE.Group(); g.position.set(px, 0, 0); ms.forEach((m) => { m.position.set(-px, -py, 0); g.add(m); });
+    const grip = new THREE.Object3D(); grip.position.set(sg * 83 * sc, 0, 0); g.add(grip);   // 掌心位置（距肩 83 單位）
+    out.arm[k] = g; out.grip[k] = grip; pitch.add(g); pitch.position.set(0, py, 0);
+  }
+  return out;
+}
+const ARM_RAISE = THREE.MathUtils.degToRad(99.7), ARM_THRUST = THREE.MathUtils.degToRad(40);   // 舉起角（雙手在頭頂相會）、下刺時前傾角
+function poseTombArms(raise, thrust) {
+  if (!tombArms) return;
+  tombArms.arm.L.rotation.z = ARM_RAISE * raise; tombArms.arm.R.rotation.z = -ARM_RAISE * raise; tombArms.pitch.rotation.x = ARM_THRUST * thrust;
+}
+
 /* ── 末日視覺：巨劍與衝擊波 ── */
 const doomObj = { sword: null, light: null, waveS: null, waveR: null };
 function buildDoomVisuals() {
@@ -162,17 +182,21 @@ function buildDoomVisuals() {
   wr.rotation.x = -Math.PI / 2; wr.visible = false; wr.frustumCulled = false; scene.add(wr);
   doomObj.sword = sw; doomObj.light = L; doomObj.waveS = ws; doomObj.waveR = wr;
 }
-const SWORD_TOP = TOMB_POS.y + 13000, SWORD_END = TOMB_POS.y + 1300;
+const SWORD_END = MOBIUS_CY, WAVE_Z = TOMB_POS.z + MOBIUS_OFF;   // 衝擊中心＝紐帶中心（巨劍刺穿 ∞ 交叉點的位置）
+const _hv = new THREE.Vector3(), _hv2 = new THREE.Vector3(), SWORD_GRIP = 9800;   // 巨劍組：原點在劍尖；雙手握在護手上方 +9800 處
 function updateDoomVisuals(dt) {
   const D = doomObj; if (!D.sword) return;
   if (G.mode === 'script' && G.t >= T.DOOM) {
-    const p = clamp((G.t - T.DOOM) / (T.IMPACT - T.DOOM), 0, 1), e = Math.pow(p, 2.2);
-    D.sword.visible = G.t < T.IMPACT + 6; D.sword.position.set(TOMB_POS.x, lerp(SWORD_TOP, SWORD_END, e), TOMB_POS.z + 400);
-    D.light.position.copy(D.sword.position); D.light.intensity = 3 + e * 14;
+    const p = clamp((G.t - T.DOOM) / (T.IMPACT - T.DOOM), 0, 1), raise = smooth(clamp(p / 0.35, 0, 1)), th = Math.pow(clamp((p - 0.4) / 0.6, 0, 1), 2.2), grow = smooth(clamp((p - 0.15) / 0.3, 0, 1));
+    poseTombArms(raise, th);   // 雙臂舉到頭頂 → 握劍往前下方刺
+    D.sword.visible = G.t < T.IMPACT + 6 && p > 0.12;
+    if (tombArms) { tombMeshes.updateMatrixWorld(true); tombArms.grip.L.getWorldPosition(_hv); tombArms.grip.R.getWorldPosition(_hv2); _hv.add(_hv2).multiplyScalar(0.5); } else _hv.set(TOMB_POS.x, TOMB_POS.y + 6200, TOMB_POS.z);
+    const sc = 0.25 + 0.75 * grow; D.sword.scale.setScalar(sc); D.sword.position.set(_hv.x, _hv.y - SWORD_GRIP * sc, _hv.z);   // 劍柄始終握在雙手之間
+    D.light.position.copy(D.sword.position); D.light.intensity = 3 + raise * 3 + th * 11;
     sky.material.uniforms.uDoom.value = Math.min(1, sky.material.uniforms.uDoom.value + dt * 0.12);
-    tombGlow.material.opacity = 0.6 + 0.4 * e;
+    tombGlow.material.opacity = 0.6 + 0.4 * th;
     if (G.t >= T.IMPACT) {
-      const r = G.waveR; D.waveS.visible = D.waveR.visible = true; D.waveS.position.set(TOMB_POS.x, SWORD_END, TOMB_POS.z); D.waveR.position.copy(D.waveS.position);
+      const r = G.waveR; D.waveS.visible = D.waveR.visible = true; D.waveS.position.set(TOMB_POS.x, SWORD_END, WAVE_Z); D.waveR.position.copy(D.waveS.position);
       D.waveS.scale.setScalar(Math.max(1, r)); D.waveR.scale.setScalar(Math.max(1, r)); D.waveS.material.uniforms.uA.value = clamp(1 - (G.t - T.IMPACT) / 20, 0, 1) * 0.9 + 0.1;
     }
   }
@@ -208,8 +232,8 @@ function placeCamera(dt) {
   let fovT = FOV;
   if (G.doom > 0) {            // 過場：從艦隊後上方望向鐵墓；巨劍降下時鏡頭跟著下移，衝擊後拉開看衝擊波掃來
     const pd = clamp((G.t - T.DOOM) / (T.IMPACT - T.DOOM), 0, 1), pa = clamp((G.t - T.IMPACT) / (T.WHITE - T.IMPACT), 0, 1);
-    camera.position.set(2600 - pa * 500, 3800 - pd * 1200 + pa * 500, TOMB_POS.z + 9500 + pa * 600); camera.up.set(0, 1, 0);
-    camera.lookAt(0, lerp(9500, 4300, smooth(pd)) - pa * 800, TOMB_POS.z); fovT = 64;
+    camera.position.set(2600 - pa * 500, 3800 - pd * 1200 + pa * 500, TOMB_POS.z + 10800 + pa * 600); camera.up.set(0, 1, 0);
+    camera.lookAt(0, lerp(7800, 3800, smooth(pd)) - pa * 800, TOMB_POS.z + 800); fovT = 64;
   } else if (G.role === 'commander') {
     const k = 1 - Math.exp(-dt * 9);
     for (const key of ['az', 'pol', 'dist', 'tx', 'ty', 'tz']) cc[key] += (ccT[key] - cc[key]) * k;
@@ -308,7 +332,12 @@ function setupRender(a) {
   fleet = SWFleet.create({ scene, assets: a, damageFx: true });
   if (a.irontomb) {
     tombMeshes = new THREE.Group();
-    a.irontomb.parts.forEach((p) => { const m = p.material; darkenTomb(m); const me = new THREE.Mesh(p.geometry, m); me.frustumCulled = false; tombMeshes.add(me); });
+    const armParts = { L: [], R: [] };
+    a.irontomb.parts.forEach((p) => {
+      const m = p.material; darkenTomb(m); const me = new THREE.Mesh(p.geometry, m); me.frustumCulled = false; const sd = /_a([LR])$/.exec(m.name || '');
+      if (sd) armParts[sd[1]].push(me); else tombMeshes.add(me);
+    });
+    tombArms = buildTombArms(armParts); if (tombArms) tombMeshes.add(tombArms.pitch);
     tombMeshes.position.copy(TOMB_POS); tombMeshes.scale.setScalar(TOMB_SCALE); scene.add(tombMeshes);
   }
   if (a.cockpit) a.cockpit.parts.forEach((p) => { const m = p.material; if (m.emissive && m.emissive.r + m.emissive.g + m.emissive.b > 0.01) m.emissiveIntensity = 2.2; const me = new THREE.Mesh(p.geometry, m); me.frustumCulled = false; cockRoot.add(me); });
@@ -325,7 +354,7 @@ function setupShadows(on) {
   const L = lights.key; L.castShadow = on;
   if (on) { const c = L.shadow.camera; c.left = c.bottom = -3000; c.right = c.top = 3000; c.near = 1; c.far = 12000; L.shadow.mapSize.set(2048, 2048); L.shadow.bias = -0.0004; L.shadow.normalBias = 2; if (!L.target.parent) scene.add(L.target); }
   if (fleet) Object.keys(fleet.kinds).forEach((k) => fleet.kinds[k].meshes.forEach((me) => { me.castShadow = on; me.receiveShadow = on; me.material.needsUpdate = true; }));
-  if (tombMeshes) tombMeshes.children.forEach((me) => { me.receiveShadow = on; me.material.needsUpdate = true; });
+  if (tombMeshes) tombMeshes.traverse((me) => { if (me.isMesh) { me.receiveShadow = on; me.material.needsUpdate = true; } });
 }
 function updateShadows() {
   if (!knobs.shadow) return; const L = lights.key;
