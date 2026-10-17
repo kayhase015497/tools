@@ -181,3 +181,9 @@ assets/space-war/v2/
 
 ### build 18（大招轉場的音效）
 - 故事模式鐵墓放大招的轉場一開始（`uiDoomStart`），戰鬥音效（砲火、爆炸、引擎、護盾等）在 1.5 秒內淡出並停止，只留音樂與台詞；巨劍音效與最後衝擊的爆炸屬於劇情演出，另走一條匯流排保留。
+
+### build 19（仙舟巡洋艦換成 TRIPO 模型）
+- `cruiser.glb` 換成 TRIPO 生成的仙舟巡洋艦（灰＋紅、艦首雙叉、寶塔艦橋、後掠尾翼；參照動畫截圖的配色與輪廓）。
+- 後處理腳本 `tools-src/blender/space-war/fix_xz_cruiser.py`（bpy）：補上大量螢光青藍飾條（鋒利稜線＋艦首雙叉＋舷側多條，發光材質）、重新擺放錨點（背部兩座砲塔、艦首雙叉砲口、尾部三具引擎）、貼圖調色（原貼圖平均亮度僅 0.2，提亮並偏鋼藍，紅色保留）。
+- 原始 TRIPO 檔保留在 `assets/space-war/models/incoming/XZ_Cruiser_tripo.glb`；模型檢視頁 `tools-src/test/space-war/glbview.html`。
+- 檔案 1.1 MB（單一 2K 貼圖＋約 1.1 萬三角面＋飾條）；仙舟巡洋艦遊戲內長度仍為 21。
