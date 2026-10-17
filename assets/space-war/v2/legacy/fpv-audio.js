@@ -16,7 +16,7 @@
  */
 (function (global) {
   'use strict';
-  let ctx = null, master = null, sfxBus = null, rvSend = null, buffers = {}, loading = null, eng = null, mus = null;
+  let ctx = null, master = null, sfxBus = null, cineBus = null, quiet = false, rvSend = null, buffers = {}, loading = null, eng = null, mus = null;
   let musicOn = true, muted = false, voices = 0, refScale = 1;
   const perName = {}, lastT = {}; let vSrc = null; const vBuf = {};
   const L = { x: 0, y: 0, z: 0, q: null };
@@ -38,6 +38,7 @@
     const comp = ctx.createDynamicsCompressor(); comp.threshold.value = -14; comp.knee.value = 12; comp.ratio.value = 5; comp.attack.value = 0.004; comp.release.value = 0.22;
     master.connect(comp); comp.connect(ctx.destination);
     sfxBus = ctx.createGain(); sfxBus.gain.value = 1; sfxBus.connect(master);
+    cineBus = ctx.createGain(); cineBus.gain.value = 1; cineBus.connect(master);   // 劇情演出的音效（巨劍、衝擊）走這條，不受 battleFade 影響
     const conv = ctx.createConvolver(); conv.buffer = makeIR(2.4); const rvOut = ctx.createGain(); rvOut.gain.value = 0.7; conv.connect(rvOut); rvOut.connect(master);
     rvSend = ctx.createGain(); rvSend.gain.value = 1; rvSend.connect(conv);
     // 引擎：低通雜訊＋次低頻鋸齒＋渦輪嘶聲
@@ -66,7 +67,7 @@
 
   function play(name, o) {
     if (!ctx || muted || ctx.state !== 'running') return null;
-    o = o || {};
+    o = o || {}; if (quiet && !o.cinema) return null;   // 末日轉場後：戰鬥音效全部停止
     let key = name; if (VARIANTS[name]) key = name + '_' + (1 + ((Math.random() * VARIANTS[name]) | 0));
     const buf = buffers[key]; if (!buf) return null;
     if (voices > 40 || (perName[name] || 0) >= (o.max || 8)) return null;
@@ -81,7 +82,7 @@
     const t0 = ctx.currentTime + delay, src = ctx.createBufferSource(); src.buffer = buf; src.playbackRate.value = (o.rate || 1) * (1 + (Math.random() - 0.5) * 0.08);
     const lpf = ctx.createBiquadFilter(); lpf.type = 'lowpass'; lpf.frequency.value = cutoff;
     const g = ctx.createGain(); g.gain.value = gain; const pn = ctx.createStereoPanner ? ctx.createStereoPanner() : null; if (pn) pn.pan.value = pan;
-    src.connect(lpf); lpf.connect(g); if (pn) { g.connect(pn); pn.connect(sfxBus); } else g.connect(sfxBus);
+    src.connect(lpf); lpf.connect(g); const bus = o.cinema ? cineBus : sfxBus; if (pn) { g.connect(pn); pn.connect(bus); } else g.connect(bus);
     const wet = o.wet != null ? o.wet : 0.2; if (wet > 0) { const w = ctx.createGain(); w.gain.value = wet; g.connect(w); w.connect(rvSend); }
     voices++; perName[name] = (perName[name] || 0) + 1;
     src.onended = () => { voices--; perName[name]--; };
@@ -100,12 +101,15 @@
     cannon(pos) { if (rate('cannon', 0.12)) play('cannon', { pos, vol: 1.1, ref: 700, max: 5, wet: 0.3 }); },
     explode(size, pos) {
       const kind = size < 2 ? 'small' : size < 8 ? 'med' : 'big', ref = kind === 'small' ? 260 : kind === 'med' ? 700 : 1800;
-      if (!pos) return play('explosion_' + kind, { vol: 1, wet: 0.3, max: 4 });
+      if (!pos) return play('explosion_' + kind, { vol: 1, wet: 0.3, max: 4, cinema: size >= 14 });
       play('explosion_' + kind, { pos, vol: kind === 'big' ? 1.6 : 1.2, ref, wet: kind === 'small' ? 0.22 : 0.35, max: kind === 'small' ? 5 : 4 });
     },
     hit() { play('hit_hull', { vol: 1, wet: 0.15 }); }, shield() { play('shield_hit', { vol: 1, wet: 0.2 }); },
     missile() { play('missile_launch', { vol: 1, wet: 0.2 }); },
-    lance(pos) { play('lance', { vol: 1, wet: 0.45, max: 2 }); },
+    lance(pos) { play('lance', { vol: 1, wet: 0.45, max: 2, cinema: true }); },
+    battleFade(sec) {   // 把戰鬥音效（砲火、爆炸、引擎…）在 sec 秒內淡出並停止，只留音樂與台詞；劇情演出音效不受影響
+      if (!ctx || quiet) return; quiet = true; const t = ctx.currentTime; sfxBus.gain.cancelScheduledValues(t); sfxBus.gain.setValueAtTime(sfxBus.gain.value, t); sfxBus.gain.linearRampToValueAtTime(0, t + (sec || 1.5));
+    },
     alarm() { if (rate('alarm', 1.4)) play('alarm', { vol: 0.5, wet: 0.08 }); },
     lock(acquired) { play(acquired ? 'lock_acquired' : 'lock_tick', { vol: 0.8, wet: 0.1 }); },
     boost() { play('afterburner', { vol: 0.7, wet: 0.15, max: 2 }); },
@@ -121,7 +125,7 @@
       fetch(url).then((r) => r.arrayBuffer()).then((ab) => ctx.decodeAudioData(ab)).then((b) => { vBuf[url] = b; go(b); }).catch((e) => console.warn('台詞載入失敗', url, e));
     },
     engine(speed01, boost) {
-      if (!ctx || !eng) return; const t = ctx.currentTime, k = muted ? 0 : 1;
+      if (!ctx || !eng) return; const t = ctx.currentTime, k = muted || quiet ? 0 : 1;
       eng.g.gain.setTargetAtTime(k * (0.16 + 0.34 * speed01 + (boost ? 0.22 : 0)), t, 0.12);
       eng.rumble.frequency.setTargetAtTime(110 + 520 * speed01 + (boost ? 380 : 0), t, 0.12);
       eng.hg.gain.setTargetAtTime(k * (0.012 + 0.05 * speed01 + (boost ? 0.1 : 0)), t, 0.1);
