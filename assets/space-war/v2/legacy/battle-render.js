@@ -83,7 +83,8 @@ const auraLine = (function () { const pts = []; for (let i = 0; i <= 128; i++) {
   const l = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: 0xff3b5c, transparent: true, opacity: 0.7, depthWrite: false })); l.position.set(TOMB_POS.x, TOMB_POS.y, TOMB_POS.z); l.visible = false; scene.add(l); return l; })();
 
 /* ── 翁法羅斯的莫比烏斯環：一圈高亮的扭轉光帶，環心在鐵墓大腿中段，半徑約等於鐵墓的手臂展幅 ── */
-const MOBIUS_A = 6200, MOBIUS_CY = TOMB_POS.y - 55 * TOMB_SCALE;   // ∞ 的半寬；環心在鐵墓大腿中段
+const MOBIUS_A = 6200, MOBIUS_CY = TOMB_POS.y - 55 * TOMB_SCALE;   // ∞ 的半寬；環心高度在鐵墓大腿中段
+const MOBIUS_OFF = 1800;   // 紐帶中心往聯軍（HSS／玩家）方向挪出的距離：鐵墓不是插在環心，而是站在紐帶之後、離聯軍較遠
 const mobius = (function () {
   const grp = new THREE.Group(), U = 480, V = 2;
   // 中心線是一條橫躺的 ∞（伯努利雙紐線），所在平面的法線朝向 HSS（+Z），所以從聯軍陣線看過去就是完整的 ∞；
@@ -100,8 +101,11 @@ const mobius = (function () {
   const mat = (halo) => window.SW2.nodes.mobiusMaterial(halo);
   const strip = new THREE.Mesh(mkGeo(1300), mat(false)), halo = new THREE.Mesh(mkGeo(2900), mat(true));
   strip.frustumCulled = halo.frustumCulled = false; strip.renderOrder = 3; halo.renderOrder = 2; grp.add(halo, strip);
-  grp.position.set(TOMB_POS.x, MOBIUS_CY, TOMB_POS.z); grp.rotation.set(0, 0, 0); scene.add(grp); grp.userData.mats = [strip.material, halo.material]; return grp;
+  grp.position.set(TOMB_POS.x, MOBIUS_CY, TOMB_POS.z + MOBIUS_OFF); grp.rotation.set(0, 0, 0); scene.add(grp); grp.userData.mats = [strip.material, halo.material]; return grp;
 })();
+// 紐帶中心（∞ 的交叉點）：超亮的藍白光核
+const ringCore = glowSprite(0x8fc8ff, 6200, 0.85, 3.2), ringCore2 = glowSprite(0xffffff, 1500, 1, 10);
+ringCore.position.copy(mobius.position); ringCore2.position.copy(mobius.position); scene.add(ringCore, ringCore2);
 
 /* ── 能量護盾泡泡：被擊中的艦艇罩上一層六角格能量球，命中點擴散漣漪，護盾破裂時整顆閃白 ── */
 const SHIELD_K = 12, shieldGeo = new THREE.IcosahedronGeometry(1, 4);
@@ -262,7 +266,7 @@ function frameUpdate(dt) {
   gridMesh.visible = auraLine.visible = G.role === 'commander' && G.doom === 0;
   cockRoot.visible = cockpitVisible();
   if (tombMeshes) tombMeshes.rotation.y = Math.sin(G.t * 0.05) * 0.03;
-  mobius.userData.mats.forEach((m) => { m.uniforms.uTime.value = G.t; }); mobius.rotation.x = Math.sin(G.t * 0.07) * 0.06; mobius.rotation.y = Math.sin(G.t * 0.05) * 0.08;   // 只輕微晃動，始終正對聯軍陣線
+  mobius.userData.mats.forEach((m) => { m.uniforms.uTime.value = G.t; }); { const pu = 1 + 0.06 * Math.sin(G.t * 1.7); ringCore.scale.setScalar(6200 * pu); ringCore2.scale.setScalar(1500 * pu); } mobius.rotation.x = Math.sin(G.t * 0.07) * 0.06; mobius.rotation.y = Math.sin(G.t * 0.05) * 0.08;   // 只輕微晃動，始終正對聯軍陣線
   updateDoomVisuals(dt); updateBubbleViz(); updateShieldViz(); updateShadows();
 }
 
