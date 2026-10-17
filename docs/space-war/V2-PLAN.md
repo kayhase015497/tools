@@ -187,3 +187,8 @@ assets/space-war/v2/
 - 後處理腳本 `tools-src/blender/space-war/fix_xz_cruiser.py`（bpy）：補上大量螢光青藍飾條（鋒利稜線＋艦首雙叉＋舷側多條，發光材質）、重新擺放錨點（背部兩座砲塔、艦首雙叉砲口、尾部三具引擎）、貼圖調色（原貼圖平均亮度僅 0.2，提亮並偏鋼藍，紅色保留）。
 - 原始 TRIPO 檔保留在 `assets/space-war/models/incoming/XZ_Cruiser_tripo.glb`；模型檢視頁 `tools-src/test/space-war/glbview.html`。
 - 檔案 1.1 MB（單一 2K 貼圖＋約 1.1 萬三角面＋飾條）；仙舟巡洋艦遊戲內長度仍為 21。
+
+### build 20（反物質軍團航母換成 TRIPO 模型）
+- `whale.glb` 換成 Desktop（Blender MCP）整理的 TRIPO 航母：約 9,300 三角面、單一材質（底色 2048 JPEG＋法線貼圖）；原檔保留在 `assets/space-war/models/incoming/legion_carrier_tripo_desktop.glb`（4.6 MB）。
+- `tools-src/blender/space-war/finish_legion_carrier.py`（純 Python，不需 Blender）：法線貼圖 2048 PNG → 1024 JPEG q90（GLB 4.6 → 1.9 MB，貼圖各艦共用，上百艘只佔一份顯存）；由底色貼圖擷取金色窗列與青綠符文，產生發光貼圖（emissiveTexture）。
+- 錨點沿用 Desktop 擺放：頭部雙砲口、兩側砲口、尾部單一引擎。
