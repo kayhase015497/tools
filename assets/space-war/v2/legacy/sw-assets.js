@@ -23,7 +23,7 @@
     irontomb:  { file: 'irontomb.glb',  length: 248, axis: 'y' },   // 以高度（+Y）正規化
     fighter:   { file: 'fighter.glb',   length: 14, fpv: true },    // 仙舟星槎
     ipcfighter: { file: 'ipc_fighter.glb', length: 14, fpv: true },  // IPC 戰機（IPC Fighter）：與星槎同級    // FPV 專用：預設 loadAll 不載入
-    sentinel:  { file: 'sentinel.glb',  length: 120, fpv: true },   // 預警機
+    ipcsid:    { file: 'ipc_sid.glb',    length: 24, fpv: true },    // IPC 戰略投資部專用艦（IPC SID）：取代舊預警機，與 IPC 巡洋艦同大
     cockpit:   { file: 'cockpit.glb',   length: 1, raw: true, fpv: true }   // 駕駛艙內裝：不縮放，公尺為單位
   };
 
