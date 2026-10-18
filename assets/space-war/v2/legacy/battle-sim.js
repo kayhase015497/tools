@@ -32,8 +32,7 @@ function spawnFleet() {
   mkRing('hss', 8200, 0, 0.05, { cd: 1.5 });
   mkRing('xzd', 8900, 0.4, -0.06, { cd: 2 });   // 仙舟聯盟的無畏艦：比黑塔空間站更大，停在空間站側翼
   [[-0.85, 0.35], [0.8, -0.3], [0.05, 0.62]].forEach((m) => mkRing('moon', 9500, m[0], m[1]));
-  for (let i = 0; i < 6 + (S - 1) * 3; i++) mkRing('cap', 7200 + (i >= 6 ? rnd(-600, 900) : 0), -0.9 + (i + 0.5) * (1.8 / (6 + (S - 1) * 3)), (i % 2 ? -1 : 1) * rnd(0.1, 0.45));
-  for (let i = 0; i < 10 * S; i++) mkRing(i % 2 ? 'ipc' : 'cruis', rnd(5800, 8400), -SIDE_AZ + (i + 0.5) * (2 * SIDE_AZ / (10 * S)) + rnd(-0.1, 0.1), rnd(-0.7, 0.7));
+  for (let i = 0; i < 14 * S; i++) mkRing(i % 2 ? 'ipc' : 'cruis', rnd(5800, 8400), -SIDE_AZ + (i + 0.5) * (2 * SIDE_AZ / (14 * S)) + rnd(-0.1, 0.1), rnd(-0.7, 0.7));
   for (let i = 0; i < 24 * S; i++) mkRing('frig', rnd(5200, 9000), rnd(-SIDE_AZ, SIDE_AZ), rnd(-0.8, 0.8));
   const caps = allies.filter((s) => s.d.hp > 1000);
   for (let i = 0; i < 30 * S; i++) { const c = caps[i % caps.length], f = mkFighter('fgt', c.x + rnd(-700, 700), c.y + rnd(-500, 500), c.z + rnd(-700, 700), 0); faceTomb(f); FWD(f, V); f.vx = V.x * f.spd; f.vy = V.y * f.spd; f.vz = V.z * f.spd; f.hx = f.x; f.hy = f.y; f.hz = f.z; }
@@ -114,8 +113,7 @@ function reinforce() {
     const rp = rallyPoint(kind), q = rp.arrive, h = rp.home;
     warpIn(() => { const s = mkShip(kind, q[0], q[1], q[2], 0); faceTomb(s); s.hx = h[0]; s.hy = h[1]; s.hz = h[2]; s.rally = G.t + 30; return s; }, q[0], q[1], q[2], big);
   };
-  if (reinfN % 2 === 0 && cnt('cruis') + cnt('ipc') < 22 * S) { for (let k = 0; k < S; k++) { edge('cruis', true); edge('ipc', true); } say('Cruiser squadron warping in, rallying to the Screwllum fleet and the station', '巡洋艦中隊折躍進場，向螺絲咕姆與空間站靠攏', false); }
-  if (reinfN % 4 === 0 && cnt('cap') < 10 + (S - 1) * 4) { for (let k = 0; k < Math.max(1, S - 1); k++) edge('cap', true); say('Dreadnought warping in behind the line', '無畏艦自後方折躍馳援', false); }
+  if (reinfN % 2 === 0 && cnt('cruis') + cnt('ipc') < 30 * S) { for (let k = 0; k < S; k++) { edge('cruis', true); edge('ipc', true); } say('Cruiser squadron warping in, rallying to the Screwllum fleet and the station', '巡洋艦中隊折躍進場，向螺絲咕姆與空間站靠攏', false); }
   if (cnt('frig') < 46 * S) { for (let k = 0; k < 3 * S; k++) edge('frig', false); say('Alliance reinforcements warping in', '聯軍增援折躍抵達', false); }
   if (reinfN % 2 === 1 && allies.filter((u) => u.kind === 'fgt' && !u.dead && !u.isPlayer).length < 56 * S) {   // 一個戰機中隊
     const rp = rallyPoint('fgt');
@@ -686,7 +684,7 @@ function playerFire() {
   FPVAudio.fire('player', { pan: gunSide < 2 ? -0.35 : 0.35 });
 }
 /* 飛彈補給：剩 2 發以下開始亮 HUD 並導引到最近的補給艦（HSS／無畏艦／仙舟無畏艦），靠近停留 2 秒補滿 */
-const RESUPPLY_TIME = 2.0, SUPPLY_KINDS = ['hss', 'cap', 'xzd'];
+const RESUPPLY_TIME = 2.0, SUPPLY_KINDS = ['hss', 'xzd'];
 function supplyShip() {
   let best = null, bd = 1e18; const P = player;
   for (const a of allies) { if (a.dead || SUPPLY_KINDS.indexOf(a.kind) < 0) continue; const d = Math.hypot(a.x - P.pos.x, a.y - P.pos.y, a.z - P.pos.z); if (d < bd) { bd = d; best = a; } }

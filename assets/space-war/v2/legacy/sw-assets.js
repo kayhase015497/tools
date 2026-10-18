@@ -13,7 +13,6 @@
   const MANIFEST = {
     frigate:   { file: 'frigate.glb',   length: 9.5 },
     cruiser:   { file: 'cruiser.glb',   length: 21 },
-    dread:     { file: 'dread.glb',     length: 52 },
     hss:       { file: 'hss.glb',       length: 68 },
     xzd:       { file: 'xzd.glb',       length: 80, fpv: true },    // 仙舟聯盟無畏艦（統一版專用）
     ipc:       { file: 'ipc.glb',       length: 24, fpv: true },    // 星際和平公司巡洋艦（統一版專用）

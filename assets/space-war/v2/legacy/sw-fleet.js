@@ -13,11 +13,11 @@
 (function (global) {
   'use strict';
 
-  const KIND_MODEL = { frig: 'frigate', cruis: 'cruiser', cap: 'dread', hss: 'hss', xzd: 'xzd', ipc: 'ipc', moon: 'moon', whale: 'whale', fly: 'butterfly', fgt: 'fighter', awacs: 'sentinel' };
-  const CAPACITY = { frig: 2500, cruis: 600, cap: 80, hss: 2, xzd: 3, ipc: 600, moon: 4, whale: 500, fly: 6000, fgt: 2500, awacs: 8 };
+  const KIND_MODEL = { frig: 'frigate', cruis: 'cruiser', hss: 'hss', xzd: 'xzd', ipc: 'ipc', moon: 'moon', whale: 'whale', fly: 'butterfly', fgt: 'fighter', awacs: 'sentinel' };
+  const CAPACITY = { frig: 2500, cruis: 600, hss: 2, xzd: 3, ipc: 600, moon: 4, whale: 500, fly: 6000, fgt: 2500, awacs: 8 };
   // 引擎光暈：[大小, [r,g,b]]
   const ENGINE = {
-    frig: [3.4, [0.55, 0.85, 1.0]], cruis: [5.5, [0.55, 0.85, 1.0]], cap: [10, [0.6, 0.88, 1.0]], hss: [15, [1.0, 0.85, 0.4]], xzd: [16, [0.7, 0.9, 1.0]], ipc: [5.5, [1.0, 0.55, 0.25]],
+    frig: [3.4, [0.55, 0.85, 1.0]], cruis: [5.5, [0.55, 0.85, 1.0]], hss: [15, [1.0, 0.85, 0.4]], xzd: [16, [0.7, 0.9, 1.0]], ipc: [5.5, [1.0, 0.55, 0.25]],
     whale: [8, [0.7, 0.4, 1.0]], fgt: [2.6, [0.55, 0.85, 1.0]], awacs: [2.4, [0.6, 0.88, 1.0]], fly: [2.6, [0.4, 0.7, 1.0]], moon: [0, [1, 1, 1]]
   };
 
