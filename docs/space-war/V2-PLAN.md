@@ -207,3 +207,8 @@ assets/space-war/v2/
 
 ### build 23（仙舟巡洋艦飾條調暗）
 - 青藍飾條的發光強度由 1.8 降到 0.3（`fix_xz_cruiser.py` 的 `Emission Strength`），仍看得出會發光但不再刺眼；重新匯出 `cruiser.glb`。
+
+### build 24（仙舟無畏艦換成 TRIPO 模型）
+- `xzd.glb` 換成 Desktop（Blender MCP）整理的 TRIPO 仙舟無畏艦：約 2.5 萬三角面、單一材質（底色與法線各 2048 JPEG）、GLB 約 1.9 MB；原檔保留在 `assets/space-war/models/incoming/xzd_new_desktop.glb`。
+- 依美術圖修正圓環（`tools-src/blender/space-war/finish_xzd.py`）：TRIPO 把兩顆青綠球體做成「托在實心碟子裡」，改成**浮空飄在環形框裡**（切掉碟子與周邊環片，改放青綠發光球＋細環形框＋左右連接段，球與框不相連）；圓環頂端中央補上美術圖有的**綠色發光膠囊**（深色外框＋綠色內芯）。
+- 錨點：`HP_ENGINE_1..5` 沿用 Desktop 的；`HP_GUN_1..8` 沿甲板中線、`HP_MSL_1/2` 兩側，為估計位置。
