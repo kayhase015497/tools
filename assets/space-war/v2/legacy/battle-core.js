@@ -40,7 +40,7 @@ const isFgtKind = (k) => k === 'fgt' || k === 'ifgt';
 const SHIP_KINDS = ['frig', 'cruis', 'ipc', 'xzd', 'hss', 'moon', 'awacs'];
 
 /* ═════════ 劇本時間軸（5 分鐘）與台詞 ═════════ */
-// REVEAL：黑幕落下、戰場可見；FLASH：白閃 → 「第四時刻」；DOOM：巨劍降臨；IMPACT：衝擊波；WHITE：全白；END：收尾字卡
+// REVEAL：黑幕落下、戰場可見；FLASH：白閃；DOOM：巨劍降臨（約 T.DOOM+4.5 起來古士念出「第四時刻」台詞，語音收在刺下的衝擊瞬間）；IMPACT：衝擊波；WHITE：全白；END：收尾字卡
 const T = { REVEAL: 12, FLASH: 236, DOOM: 256, IMPACT: 268, WHITE: 286, END: 300 };
 const WHO = {
   lyc:    { zh: '來古士', en: 'Lygus', ja: 'ライコス', ko: '리고스',       c: '#ff6a8a' },
@@ -62,13 +62,13 @@ const CUE_BASE = [
   { t: 42.5, dur: 5.8, type: 2.4, box: 'sub', who: 'dan', en: "There's not a trace of life in that ominous shell.", zh: '那具不祥的空殼裡，沒有一絲生命的氣息。', ja: 'あの禍々しい殻には、命の気配が微塵もない。', ko: '저 불길한 껍데기에선 생명의 기운이 전혀 느껴지지 않아.', },
   { t: 49.8, dur: 5.4, type: 2.4, box: 'sub', who: 'march', en: "We're not going to lose to a hollow husk, right?", zh: '我們不會輸給一具空殼的，對吧？', ja: '空っぽの殻なんかに負けないでしょ？', ko: '설마 빈 껍데기한테 질 리 없다고, 그치?', },
   { t: 57.0, dur: 7.0, type: 3.2, box: 'sub', who: 'tb', en: "In the name of trailblazing, we'll reject this false answer.", zh: '以開拓之名，我們將否定這個虛假的答案。', ja: '開拓の名のもと、私たちはこの偽りの答えを否定する。', ko: '개척의 이름으로, 우리는 이 거짓된 답을 부정하겠다.', },
-  { t: 143.2, dur: 8.6, type: 3.6, box: 'center', who: 'lyc', en: 'The "Fourth Instant" of the cosmos… is the coronation of Irontomb!', zh: '宇宙的「第四時刻」……就是鐵墓的加冕！', ja: '宇宙の「第四の刹那」……それは、鉄墓の戴冠だ！', ko: '우주의 \'네 번째 순간\'… 그것은 아이언툼의 대관식이다!', after: 'FLASH' }
+  { t: T.DOOM + 4.5, dur: 9.5, type: 6.0, fixed: 1, box: 'sub', who: 'lyc', en: 'The "Fourth Instant" of the cosmos… is the coronation of Irontomb!', zh: '宇宙的「第四時刻」……就是鐵墓的加冕！', ja: '宇宙の「第四の刹那」……それは、鉄墓の戴冠だ！', ko: '우주의 \'네 번째 순간\'… 그것은 아이언툼의 대관식이다!' }
 ];
 const CUES = CUE_BASE.map((c) => c.fixed ? Object.assign({}, c) : c.after ? Object.assign({}, c, { t: T.FLASH + 3.2, dur: 11, type: 4.2 }) : Object.assign({}, c, { t: T.REVEAL + (c.t - 12) * 2.6, dur: c.dur * 1.3, type: c.type * 1.3 }));
 // 配音（assets/space-war/voice/<語言>/，由 tools-src/audio/cut_voice.sh 自 UVR5 人聲切出）：依 CUE_BASE 順序對應，null＝尚無配音
-const VOICE_NAMES = ['lyc1', 'lyc2', 'herta1', 'herta2', null, 'cyrene', 'dan', 'march', 'tb', null];
+const VOICE_NAMES = ['lyc1', 'lyc2', 'herta1', 'herta2', null, 'cyrene', 'dan', 'march', 'tb', 'lyc3'];
 const VOICE_DUR = {   // 各語言各句的語音秒數
-  en: [8.8, 7.2, 3.5, 6.7, 0, 4.0, 3.1, 3.4, 5.6, 0],
+  en: [8.8, 7.2, 3.5, 6.7, 0, 4.0, 3.1, 3.4, 5.6, 8.0],
   zh: [7.9, 6.7, 4.4, 7.0, 0, 4.3, 3.5, 3.6, 5.7, 0],
   ja: [7.9, 5.7, 2.8, 5.9, 0, 3.9, 3.6, 3.6, 5.9, 0],
   ko: [8.4, 6.7, 3.2, 5.6, 0, 3.9, 3.6, 3.9, 7.3, 0]
