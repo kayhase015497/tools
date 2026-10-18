@@ -32,11 +32,11 @@ function spawnFleet() {
   mkRing('hss', 8200, 0, 0.05, { cd: 1.5 });
   mkRing('xzd', 8900, 0.4, -0.06, { cd: 2 });   // 仙舟聯盟的無畏艦：比黑塔空間站更大，停在空間站側翼
   [[-0.85, 0.35], [0.8, -0.3], [0.05, 0.62]].forEach((m) => mkRing('moon', 9500, m[0], m[1]));
-  for (let i = 0; i < 14 * S; i++) mkRing(i % 2 ? 'ipc' : 'cruis', rnd(5800, 8400), -SIDE_AZ + (i + 0.5) * (2 * SIDE_AZ / (14 * S)) + rnd(-0.1, 0.1), rnd(-0.7, 0.7));
+  for (let i = 0; i < Math.round(10 * S); i++) mkRing(i % 2 ? 'ipc' : 'cruis', rnd(5800, 8400), -SIDE_AZ + (i + 0.5) * (2 * SIDE_AZ / Math.round(10 * S)) + rnd(-0.1, 0.1), rnd(-0.7, 0.7));
   for (let i = 0; i < 24 * S; i++) mkRing('frig', rnd(5200, 9000), rnd(-SIDE_AZ, SIDE_AZ), rnd(-0.8, 0.8));
   // 戰機編隊跟著同陣營的巡洋艦：IPC 戰機跟 IPC 巡洋艦、仙舟星槎跟仙舟巡洋艦
   const hosts = allies.filter((s) => s.kind === 'cruis' || s.kind === 'ipc');
-  for (let i = 0; i < 30 * S; i++) { const c = hosts[i % hosts.length], f = mkFighter(c.kind === 'ipc' ? 'ifgt' : 'fgt', c.x + rnd(-700, 700), c.y + rnd(-500, 500), c.z + rnd(-700, 700), 0); faceTomb(f); FWD(f, V); f.vx = V.x * f.spd; f.vy = V.y * f.spd; f.vz = V.z * f.spd; f.hx = f.x; f.hy = f.y; f.hz = f.z; }
+  for (let i = 0; i < 60 * S; i++) { const c = hosts[i % hosts.length], f = mkFighter(c.kind === 'ipc' ? 'ifgt' : 'fgt', c.x + rnd(-700, 700), c.y + rnd(-500, 500), c.z + rnd(-700, 700), 0); faceTomb(f); FWD(f, V); f.vx = V.x * f.spd; f.vy = V.y * f.spd; f.vz = V.z * f.spd; f.hx = f.x; f.hy = f.y; f.hz = f.z; }
   mkRing('awacs', 10800, 0.1, 0.15);
   // 玩家的初始戰機（指揮官模式下由 AI 駕駛）：HSS 旁
   const o = mkRing(Math.random() < 0.5 ? 'fgt' : 'ifgt', 7400, 0.25, 0.05); o.thr = 0.5; player.orig = player.ship = o; o.isOrig = true;
@@ -114,12 +114,12 @@ function reinforce() {
     const rp = rallyPoint(kind), q = rp.arrive, h = rp.home;
     warpIn(() => { const s = mkShip(kind, q[0], q[1], q[2], 0); faceTomb(s); s.hx = h[0]; s.hy = h[1]; s.hz = h[2]; s.rally = G.t + 30; return s; }, q[0], q[1], q[2], big);
   };
-  if (reinfN % 2 === 0 && cnt('cruis') + cnt('ipc') < 30 * S) { for (let k = 0; k < S; k++) { edge('cruis', true); edge('ipc', true); } say('Cruiser squadron warping in, rallying to the Screwllum fleet and the station', '巡洋艦中隊折躍進場，向螺絲咕姆與空間站靠攏', false); }
+  if (reinfN % 2 === 0 && cnt('cruis') + cnt('ipc') < 21 * S) { for (let k = 0; k < S; k++) { edge('cruis', true); edge('ipc', true); } say('Cruiser squadron warping in, rallying to the Screwllum fleet and the station', '巡洋艦中隊折躍進場，向螺絲咕姆與空間站靠攏', false); }
   if (cnt('frig') < 46 * S) { for (let k = 0; k < 3 * S; k++) edge('frig', false); say('Alliance reinforcements warping in', '聯軍增援折躍抵達', false); }
-  if (reinfN % 2 === 1 && allies.filter((u) => isFgtKind(u.kind) && !u.dead && !u.isPlayer).length < 56 * S) {   // 戰機中隊：星槎飛向仙舟巡洋艦、IPC 戰機飛向 IPC 巡洋艦
+  if (reinfN % 2 === 1 && allies.filter((u) => isFgtKind(u.kind) && !u.dead && !u.isPlayer).length < 112 * S) {   // 戰機中隊：星槎飛向仙舟巡洋艦、IPC 戰機飛向 IPC 巡洋艦
     for (const fk of ['fgt', 'ifgt']) {
       const rp = escortPoint(fk === 'ifgt' ? 'ipc' : 'cruis') || rallyPoint('fgt');
-      for (let k = 0; k < 3 * S; k++) { const q = [rp.arrive[0] + rnd(-500, 500), rp.arrive[1] + rnd(-400, 400), rp.arrive[2] + rnd(-500, 500)]; warpIn(() => { const f = mkFighter(fk, q[0], q[1], q[2], 0); faceTomb(f); FWD(f, V3); f.vx = V3.x * f.spd * 2.5; f.vy = V3.y * f.spd * 2.5; f.vz = V3.z * f.spd * 2.5; f.thr = 0.8; f.hx = rp.home[0]; f.hy = rp.home[1]; f.hz = rp.home[2]; return f; }, q[0], q[1], q[2], false); }
+      for (let k = 0; k < 6 * S; k++) { const q = [rp.arrive[0] + rnd(-500, 500), rp.arrive[1] + rnd(-400, 400), rp.arrive[2] + rnd(-500, 500)]; warpIn(() => { const f = mkFighter(fk, q[0], q[1], q[2], 0); faceTomb(f); FWD(f, V3); f.vx = V3.x * f.spd * 2.5; f.vy = V3.y * f.spd * 2.5; f.vz = V3.z * f.spd * 2.5; f.thr = 0.8; f.hx = rp.home[0]; f.hy = rp.home[1]; f.hz = rp.home[2]; return f; }, q[0], q[1], q[2], false); }
     }
     say('Fighter wing warping in', '戰機中隊折躍進場', false);
   }
