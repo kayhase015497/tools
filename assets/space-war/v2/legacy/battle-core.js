@@ -41,7 +41,7 @@ const SHIP_KINDS = ['frig', 'cruis', 'ipc', 'xzd', 'hss', 'moon', 'awacs'];
 
 /* ═════════ 劇本時間軸（5 分鐘）與台詞 ═════════ */
 // REVEAL：黑幕落下、戰場可見；FLASH：白閃；DOOM：巨劍降臨（約 T.DOOM+4.5 起來古士念出「第四時刻」台詞，語音收在刺下的衝擊瞬間）；IMPACT：衝擊波；WHITE：全白；END：收尾字卡
-const T = { REVEAL: 12, FLASH: 236, DOOM: 256, IMPACT: 268, WHITE: 286, END: 294 };
+const T = { REVEAL: 12, FLASH: 236, DOOM: 242, IMPACT: 254, WHITE: 272, END: 280 };
 const WHO = {
   lyc:    { zh: '來古士', en: 'Lygus', ja: 'ライコス', ko: '리고스',       c: '#ff6a8a' },
   herta:  { zh: '黑塔',   en: 'Herta', ja: 'ヘルタ', ko: '헤르타', c: '#ffd98a' },
