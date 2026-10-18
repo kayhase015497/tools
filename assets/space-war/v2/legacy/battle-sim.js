@@ -25,7 +25,7 @@ const SIDE_AZ = 1.0;
 function ringPos(r, az, pitch) { return [TOMB_POS.x + r * Math.cos(pitch) * Math.sin(az), TOMB_POS.y + r * Math.sin(pitch), TOMB_POS.z + r * Math.cos(pitch) * Math.cos(az)]; }
 function faceTomb(s) { const dx = TOMB_POS.x - s.x, dy = TOMB_POS.y - s.y, dz = TOMB_POS.z - s.z; s.h = Math.atan2(dx, dz); s.p = Math.atan2(dy, Math.hypot(dx, dz)); }
 function mkFighter(kind, x, y, z, h) { const s = mkShip(kind, x, y, z, h); s.spd = DEF[kind].spd * rnd(0.85, 1.1); s.vx = Math.sin(h) * s.spd; s.vz = Math.cos(h) * s.spd; if (kind === 'fly') { s.hp = s.hpMax = s.d.hp * G.enemyHp; } return s; }
-function mkRing(kind, r, az, pitch, o) { const q = ringPos(r, az, pitch), s = kind === 'fgt' ? mkFighter(kind, q[0], q[1], q[2], 0) : mkShip(kind, q[0], q[1], q[2], 0, o); faceTomb(s); if (kind === 'fgt') { FWD(s, V); s.vx = V.x * s.spd; s.vy = V.y * s.spd; s.vz = V.z * s.spd; } s.hx = s.x; s.hy = s.y; s.hz = s.z; return s; }
+function mkRing(kind, r, az, pitch, o) { const q = ringPos(r, az, pitch), s = isFgtKind(kind) ? mkFighter(kind, q[0], q[1], q[2], 0) : mkShip(kind, q[0], q[1], q[2], 0, o); faceTomb(s); if (kind === 'fgt') { FWD(s, V); s.vx = V.x * s.spd; s.vy = V.y * s.spd; s.vz = V.z * s.spd; } s.hx = s.x; s.hy = s.y; s.hz = s.z; return s; }
 const FSC = () => G.fleetScale || 1;   // v2：艦隊規模倍率（F9 切換 ×1~×5；初始艦隊需重新開始才會套用，增援與敵軍波次即時生效）
 function spawnFleet() {
   const S = FSC();
@@ -34,11 +34,12 @@ function spawnFleet() {
   [[-0.85, 0.35], [0.8, -0.3], [0.05, 0.62]].forEach((m) => mkRing('moon', 9500, m[0], m[1]));
   for (let i = 0; i < 14 * S; i++) mkRing(i % 2 ? 'ipc' : 'cruis', rnd(5800, 8400), -SIDE_AZ + (i + 0.5) * (2 * SIDE_AZ / (14 * S)) + rnd(-0.1, 0.1), rnd(-0.7, 0.7));
   for (let i = 0; i < 24 * S; i++) mkRing('frig', rnd(5200, 9000), rnd(-SIDE_AZ, SIDE_AZ), rnd(-0.8, 0.8));
-  const caps = allies.filter((s) => s.d.hp > 1000);
-  for (let i = 0; i < 30 * S; i++) { const c = caps[i % caps.length], f = mkFighter('fgt', c.x + rnd(-700, 700), c.y + rnd(-500, 500), c.z + rnd(-700, 700), 0); faceTomb(f); FWD(f, V); f.vx = V.x * f.spd; f.vy = V.y * f.spd; f.vz = V.z * f.spd; f.hx = f.x; f.hy = f.y; f.hz = f.z; }
+  // 戰機編隊跟著同陣營的巡洋艦：IPC 戰機跟 IPC 巡洋艦、仙舟星槎跟仙舟巡洋艦
+  const hosts = allies.filter((s) => s.kind === 'cruis' || s.kind === 'ipc');
+  for (let i = 0; i < 30 * S; i++) { const c = hosts[i % hosts.length], f = mkFighter(c.kind === 'ipc' ? 'ifgt' : 'fgt', c.x + rnd(-700, 700), c.y + rnd(-500, 500), c.z + rnd(-700, 700), 0); faceTomb(f); FWD(f, V); f.vx = V.x * f.spd; f.vy = V.y * f.spd; f.vz = V.z * f.spd; f.hx = f.x; f.hy = f.y; f.hz = f.z; }
   mkRing('awacs', 10800, 0.1, 0.15);
   // 玩家的初始戰機（指揮官模式下由 AI 駕駛）：HSS 旁
-  const o = mkRing('fgt', 7400, 0.25, 0.05); o.thr = 0.5; player.orig = player.ship = o; o.isOrig = true;
+  const o = mkRing(Math.random() < 0.5 ? 'fgt' : 'ifgt', 7400, 0.25, 0.05); o.thr = 0.5; player.orig = player.ship = o; o.isOrig = true;
 }
 function halton(i, b) { let f = 1, r = 0; i = i + 1; while (i > 0) { f /= b; r += f * (i % b); i = Math.floor(i / b); } return r; }
 /* 反物質軍團的「黑洞閃現」：虛空中先撕開一個黑色漩渦（深黑煙團＋紫色吸積環＋向內捲入的紫色火星與光束），約 0.6~0.9 秒後艦艇從中擠出，紫白閃光與衝擊環爆開 */
@@ -100,7 +101,7 @@ function warpIn(make, x, y, z, big) {
 function rallyPoint(kind) {
   const anchors = allies.filter((a) => !a.dead && (a.kind === 'moon' || a.kind === 'hss'));
   if (!anchors.length) { const q = ringPos(rnd(6000, 8000), rnd(-SIDE_AZ, SIDE_AZ), rnd(-0.5, 0.5)); return { home: q, arrive: ringPos(12000, rnd(-SIDE_AZ, SIDE_AZ), rnd(-0.4, 0.4)) }; }
-  const t = anchors[(Math.random() * anchors.length) | 0], rr = t.rad * 1.3 + (kind === 'fgt' ? rnd(300, 900) : rnd(500, 1500));
+  const t = anchors[(Math.random() * anchors.length) | 0], rr = t.rad * 1.3 + (isFgtKind(kind) ? rnd(300, 900) : rnd(500, 1500));
   const u = rnd(-0.5, 0.5), a = rnd(0, TAU), c = Math.sqrt(1 - u * u);
   const home = [t.x + Math.cos(a) * c * rr, t.y + u * rr, t.z + Math.sin(a) * c * rr];
   V.set(t.x - TOMB_POS.x, t.y - TOMB_POS.y, t.z - TOMB_POS.z).normalize();
@@ -115,17 +116,27 @@ function reinforce() {
   };
   if (reinfN % 2 === 0 && cnt('cruis') + cnt('ipc') < 30 * S) { for (let k = 0; k < S; k++) { edge('cruis', true); edge('ipc', true); } say('Cruiser squadron warping in, rallying to the Screwllum fleet and the station', '巡洋艦中隊折躍進場，向螺絲咕姆與空間站靠攏', false); }
   if (cnt('frig') < 46 * S) { for (let k = 0; k < 3 * S; k++) edge('frig', false); say('Alliance reinforcements warping in', '聯軍增援折躍抵達', false); }
-  if (reinfN % 2 === 1 && allies.filter((u) => u.kind === 'fgt' && !u.dead && !u.isPlayer).length < 56 * S) {   // 一個戰機中隊
-    const rp = rallyPoint('fgt');
-    for (let k = 0; k < 6 * S; k++) { const q = [rp.arrive[0] + rnd(-500, 500), rp.arrive[1] + rnd(-400, 400), rp.arrive[2] + rnd(-500, 500)]; warpIn(() => { const f = mkFighter('fgt', q[0], q[1], q[2], 0); faceTomb(f); FWD(f, V3); f.vx = V3.x * f.spd * 2.5; f.vy = V3.y * f.spd * 2.5; f.vz = V3.z * f.spd * 2.5; f.thr = 0.8; return f; }, q[0], q[1], q[2], false); }
+  if (reinfN % 2 === 1 && allies.filter((u) => isFgtKind(u.kind) && !u.dead && !u.isPlayer).length < 56 * S) {   // 戰機中隊：星槎飛向仙舟巡洋艦、IPC 戰機飛向 IPC 巡洋艦
+    for (const fk of ['fgt', 'ifgt']) {
+      const rp = escortPoint(fk === 'ifgt' ? 'ipc' : 'cruis') || rallyPoint('fgt');
+      for (let k = 0; k < 3 * S; k++) { const q = [rp.arrive[0] + rnd(-500, 500), rp.arrive[1] + rnd(-400, 400), rp.arrive[2] + rnd(-500, 500)]; warpIn(() => { const f = mkFighter(fk, q[0], q[1], q[2], 0); faceTomb(f); FWD(f, V3); f.vx = V3.x * f.spd * 2.5; f.vy = V3.y * f.spd * 2.5; f.vz = V3.z * f.spd * 2.5; f.thr = 0.8; f.hx = rp.home[0]; f.hy = rp.home[1]; f.hz = rp.home[2]; return f; }, q[0], q[1], q[2], false); }
+    }
     say('Fighter wing warping in', '戰機中隊折躍進場', false);
   }
 }
+/* 艦載機的集結點：挑一艘存活的指定種類巡洋艦，折躍落點在它的後方（背離鐵墓），待命點在它周圍 */
+function escortPoint(hostKind) {
+  const hs = allies.filter((a) => !a.dead && a.kind === hostKind); if (!hs.length) return null;
+  const t = hs[(Math.random() * hs.length) | 0], rr = t.rad * 2.2 + rnd(200, 600), u = rnd(-0.5, 0.5), a = rnd(0, TAU), c = Math.sqrt(1 - u * u);
+  const home = [t.x + Math.cos(a) * c * rr, t.y + u * rr, t.z + Math.sin(a) * c * rr];
+  V.set(t.x - TOMB_POS.x, t.y - TOMB_POS.y, t.z - TOMB_POS.z).normalize(); const back = t.rad + rnd(2200, 3200);
+  return { home, arrive: [t.x + V.x * back + rnd(-500, 500), t.y + V.y * back + rnd(-500, 500), t.z + V.z * back + rnd(-500, 500)] };
+}
 function launchFighters() {   // 從 HSS 機庫起飛的戰機：聯軍的空中戰力持續補充
-  const live = allies.filter((s) => s.kind === 'fgt' && !s.dead && !s.isPlayer).length, hss = allies.find((s) => s.kind === 'hss' && !s.dead);
+  const live = allies.filter((s) => isFgtKind(s.kind) && !s.dead && !s.isPlayer).length, hss = allies.find((s) => s.kind === 'hss' && !s.dead);
   if (!hss || live >= 36 * FSC()) return;
   V.set(hss.x - TOMB_POS.x, hss.y - TOMB_POS.y, hss.z - TOMB_POS.z).normalize();   // 機庫在 HSS 背向鐵墓的一側
-  for (let k = 0; k < 3; k++) { const f = mkFighter('fgt', hss.x + V.x * 700 + rnd(-120, 120), hss.y + V.y * 700 + rnd(-60, 60), hss.z + V.z * 700 + rnd(-120, 120), 0); faceTomb(f); f.thr = 0.8; }
+  for (let k = 0; k < 3; k++) { const f = mkFighter(Math.random() < 0.5 ? 'fgt' : 'ifgt', hss.x + V.x * 700 + rnd(-120, 120), hss.y + V.y * 700 + rnd(-60, 60), hss.z + V.z * 700 + rnd(-120, 120), 0); faceTomb(f); f.thr = 0.8; }
 }
 
 /* ═════════ 彈道、傷害、爆炸 ═════════ */
@@ -194,7 +205,7 @@ function damage(s, dmg, x, y, z, src) {
   if (s.dead) return;
   if (s.isPlayer) { hurtPlayer(dmg); return; }
   if (src) { const k = src.kind + '>' + s.kind; DBG.hits[k] = (DBG.hits[k] || 0) + 1; DBG.dmg[k] = (DBG.dmg[k] || 0) + dmg; }
-  if (s.d.hp > 1000 && src && src.kind === 'fgt') dmg *= dmg > 100 ? 10 : 6;   // 戰機武器針對艦艇的反艦倍率
+  if (s.d.hp > 1000 && src && isFgtKind(src.kind)) dmg *= dmg > 100 ? 10 : 6;   // 戰機武器針對艦艇的反艦倍率
   if (s.sh > 0) { dmg = shieldAbsorb(s, dmg, x, y, z); if (dmg <= 0) return; }
   s.hp -= dmg; s.hitT = G.t;
   if (s.side === 'a' && s.hp > 0 && s.hp < s.hpMax * 0.5 && !s.hitCalled) { s.hitCalled = true; radioSay(s, 'hit'); }
@@ -203,7 +214,7 @@ function damage(s, dmg, x, y, z, src) {
 function killShip(s, src) {
   if (s.dead) return; s.dead = true; s.hidden = false;
   const d = s.d, big = d.boom >= 3;
-  if (s.side === 'e' && src && src.side === 'a') { G.kills++; if (src === player.ship) player.kills++; else if (src.kind === 'fgt' && Math.random() < 0.4) radioSay(src, 'kill'); }
+  if (s.side === 'e' && src && src.side === 'a') { G.kills++; if (src === player.ship) player.kills++; else if (isFgtKind(src.kind) && Math.random() < 0.4) radioSay(src, 'kill'); }
   const U = big ? clamp(s.scale * 0.55, 3, 22) : 0.8;
   fx.explode(s.x, s.y, s.z, d.boom, s.side === 'e', U);
   boomLight(s.x, s.y, s.z, d.boom, s.side === 'e' ? [1, 0.55, 0.3] : [0.55, 0.8, 1]);
@@ -325,7 +336,17 @@ function leadPoint(src, tgt, spd, out) {
 function turnToward(s, tx, ty, tz, dt, rate) {
   const dx = tx - s.x, dy = ty - s.y, dz = tz - s.z, hd = Math.atan2(dx, dz), pd = Math.atan2(dy, Math.hypot(dx, dz));
   let dh = hd - s.h; dh = Math.atan2(Math.sin(dh), Math.cos(dh)); const dp_ = pd - s.p;
-  const mh = clamp(dh, -rate * dt, rate * dt), mp = clamp(dp_, -rate * 0.8 * dt, rate * 0.8 * dt);
+  let mh, mp;
+  const I = INERTIA[s.kind];
+  if (I && s.d.cls !== 'fgt') {
+    // 轉動慣量：角速度不能瞬間改變。目標角速度＝「最大轉速」與「還能在剩餘角度內煞停的速度」取小，角加速度有上限（rate / I），
+    // 所以啟動慢、煞停也慢，轉到定位時會有沉重的咬合感，而不是原地急停
+    const al = rate / I, alp = al * 0.8;
+    s.wh = s.wh || 0; s.wp = s.wp || 0;
+    const wdes = Math.sign(dh) * Math.min(rate, Math.sqrt(2 * al * Math.abs(dh))), wpd = Math.sign(dp_) * Math.min(rate * 0.8, Math.sqrt(2 * alp * Math.abs(dp_)));
+    s.wh += clamp(wdes - s.wh, -al * dt, al * dt); s.wp += clamp(wpd - s.wp, -alp * dt, alp * dt);
+    mh = s.wh * dt; mp = s.wp * dt;
+  } else { mh = clamp(dh, -rate * dt, rate * dt); mp = clamp(dp_, -rate * 0.8 * dt, rate * 0.8 * dt); }
   s.h += mh; s.p = clamp(s.p + mp, -1.25, 1.25); s.roll += (clamp(-mh / dt * 0.45, -1.1, 1.1) - s.roll) * Math.min(1, dt * 4);
   return Math.abs(dh) + Math.abs(dp_);
 }
@@ -346,7 +367,7 @@ function fighterFire(s, tg, dt) {
   if (s.cd <= 0) {
     s.cd = s.side === 'a' ? 0.18 : 0.32; FWD(s, V2);
     const gun = fleet.gunWorld(s, V); const dmg = s.side === 'a' ? 10 : (tg.isPlayer ? 7 : 9);
-    fire(s, gun.x, gun.y, gun.z, V2.x + rnd(-0.012, 0.012), V2.y + rnd(-0.012, 0.012), V2.z + rnd(-0.012, 0.012), 1300, dmg, 0.35, 28, s.side === 'a' ? [0.3, 0.72, 1] : [0.62, 0.22, 1], 1.6);
+    fire(s, gun.x, gun.y, gun.z, V2.x + rnd(-0.012, 0.012), V2.y + rnd(-0.012, 0.012), V2.z + rnd(-0.012, 0.012), 1300, dmg, 0.35, 28, s.side === 'a' ? (s.kind === 'ifgt' ? [1.0, 0.22, 0.2] : [0.3, 0.72, 1]) : [0.62, 0.22, 1], 1.6);
     FPVAudio.fire(s.side === 'a' ? 'ally' : 'enemy', gun);
   }
 }
@@ -366,7 +387,7 @@ function aiFighter(s, dt) {
     const old = tg;
     if (s.side === 'a') tg = s.tgt = (s.awTgt && !s.awTgt.dead ? s.awTgt : null) || nearest(s, foes, 6000, (e) => e.kind === 'fly') || nearest(s, foes, 9000);
     else { const pf = player.ship && !player.ship.dead && player.ship.isPlayer && Math.random() < 0.18 ? player.ship : null, aw = Math.random() < 0.12 ? awacsUnit() : null;
-      tg = s.tgt = pf || aw || (Math.random() < 0.45 ? nearest(s, allies, 4000, (e) => e.kind === 'fgt') : null) || nearest(s, allies, 9000, (e) => e.d.hp > 1000) || nearest(s, allies, 12000); }
+      tg = s.tgt = pf || aw || (Math.random() < 0.45 ? nearest(s, allies, 4000, (e) => isFgtKind(e.kind)) : null) || nearest(s, allies, 9000, (e) => e.d.hp > 1000) || nearest(s, allies, 12000); }
     s.mt = rnd(4, 9);
     if (s.side === 'a' && tg && tg !== old && !s.isPlayer) radioSay(s, 'lock');
   }
@@ -595,10 +616,10 @@ function allocateTargets() {
   const units = allies.filter((u) => !u.dead && !u.isPlayer && u.kind !== 'awacs' && !activeOrder(u));
   for (let i = units.length - 1; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0; const tmp = units[i]; units[i] = units[j]; units[j] = tmp; }
   for (const u of units) {
-    const rng = u.kind === 'fgt' ? 2600 : u.d.range * 1.3; let best = null, bs = -1e9;
+    const rng = isFgtKind(u.kind) ? 2600 : u.d.range * 1.3; let best = null, bs = -1e9;
     for (const e of enemies) {
       if (e.dead) continue; const dist = Math.hypot(e.x - u.x, e.y - u.y, e.z - u.z); if (dist > rng) continue;
-      const capacity = Math.max(1, Math.ceil(e.hp / (u.kind === 'fgt' ? 400 : 4000))), score = e.threat * 0.6 - dist / rng * 20 - (e.load / capacity) * 25 - (u.kind === 'fgt' && e.d.hp > 1000 ? 15 : 0);
+      const capacity = Math.max(1, Math.ceil(e.hp / (isFgtKind(u.kind) ? 400 : 4000))), score = e.threat * 0.6 - dist / rng * 20 - (e.load / capacity) * 25 - (u.kind === 'fgt' && e.d.hp > 1000 ? 15 : 0);
       if (score > bs) { bs = score; best = e; }
     }
     u.awTgt = best; if (best) best.load++;
@@ -624,7 +645,7 @@ function spawnPlayer(where) {   // 'front'：環形陣上的 HSS 旁｜'hss'：�
   V.set(TOMB_POS.x - P.pos.x, TOMB_POS.y - P.pos.y, TOMB_POS.z - P.pos.z).normalize(); P.q.setFromUnitVectors(AXZ, V); P.vel.copy(V).multiplyScalar(60); P.w.set(0, 0, 0);
   P.thr = 0.45; P.shield = P.shieldMax; P.hull = P.hullMax; P.energy = 100; P.heat = 100; P.missiles = 8; P.needSupply = false; P.resT = 0; P.resting = false; P.dead = false; P.target = null;
   if (G.deaths > 0 || where === 'hss') FPVAudio.respawn();
-  const s = mkShip('fgt', P.pos.x, P.pos.y, P.pos.z, 0); s.isPlayer = true; s.q = P.q; s.hidden = cam.mode === 'cockpit'; P.ship = s; if (!P.orig || P.orig.dead) { P.orig = s; s.isOrig = true; }
+  const s = mkShip(Math.random() < 0.5 ? 'fgt' : 'ifgt', P.pos.x, P.pos.y, P.pos.z, 0); s.isPlayer = true; s.q = P.q; s.hidden = cam.mode === 'cockpit'; P.ship = s; if (!P.orig || P.orig.dead) { P.orig = s; s.isOrig = true; }
 }
 function hurtPlayer(dmg) {
   if (player.dead) return; player.lastHit = G.t; cam.shake = Math.min(1.6, cam.shake + dmg * 0.02 + 0.2);
@@ -724,7 +745,7 @@ function callSupport(type) {
   for (const u of allies) {
     if (u.dead || u.isPlayer || u.kind === 'awacs') continue;
     if (Math.hypot(u.x - P.pos.x, u.y - P.pos.y, u.z - P.pos.z) > R) continue;
-    const reach = u.kind === 'fgt' ? 2600 : u.d.range * 1.15, dd = Math.hypot(u.x - tg.x, u.y - tg.y, u.z - tg.z);
+    const reach = isFgtKind(u.kind) ? 2600 : u.d.range * 1.15, dd = Math.hypot(u.x - tg.x, u.y - tg.y, u.z - tg.z);
     if (dd <= reach) list.push({ u, dd });
   }
   if (!list.length) return { ok: false, why: 'noOne' };
@@ -797,7 +818,7 @@ function stepWorld(dt) {
   if (G.t >= nextLaunch) { nextLaunch = G.t + 7; launchFighters(); }
   if (G.t - lastAlloc > 2) { lastAlloc = G.t; allocateTargets(); }
   awacsLifecycle();
-  for (let i = 0; i < allies.length; i++) { const s = allies[i]; if (s.dead || s.isPlayer) continue; if (s.kind === 'fgt') aiFighter(s, dt); else if (s.kind === 'awacs') aiAwacs(s, dt); else aiCapital(s, dt); }
+  for (let i = 0; i < allies.length; i++) { const s = allies[i]; if (s.dead || s.isPlayer) continue; if (isFgtKind(s.kind)) aiFighter(s, dt); else if (s.kind === 'awacs') aiAwacs(s, dt); else aiCapital(s, dt); }
   for (let i = 0; i < enemies.length; i++) { const s = enemies[i]; if (s.dead) continue; if (s.kind === 'fly') aiFighter(s, dt); else aiCapital(s, dt); }
   separateCaps(); stepPlayer(dt); stepShots(dt); stepBubbles(dt); stepBeams(dt); stepShields(dt); stepDamageFx(dt); flybys();
   for (let i = allies.length - 1; i >= 0; i--) if (allies[i].dead) allies.splice(i, 1);
