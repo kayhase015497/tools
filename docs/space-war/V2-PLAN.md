@@ -241,3 +241,8 @@ assets/space-war/v2/
 - 原預警機（`awacs` kind）改名 IPC SID（IPC 戰略投資部專用艦）：體型同 IPC 巡洋艦（sc 22、rad 210、hp 24k、盾 4.5k），仍為資料鏈／任務分配單位，無武裝。四語言名稱、提示、呼號（SID-）、失去訊息同步更新。
 - 轉動慣量 awacs 1.8 → 3.2；移除 `sentinel.glb`（原檔留 `models/incoming/ipc_sid_desktop.glb`）。
 - 還原：revert 此 commit。
+
+## build 31 — 護衛艦換成大型星槎造型
+- `frigate.glb` 換成 Desktop 重塑後的 `frigate_slim`（左右對稱，白金配色未動）；長度 10（原 9.5），sc 9 不變。原檔 `models/incoming/frigate_slim_desktop.glb`。
+- 該檔沒有錨點，`finish_frigate.py` 補 5 個 HP 節點（位置為估算：槍在艦首、引擎在艦尾）。引擎光改金白色。
+- 還原：revert 此 commit。

@@ -11,7 +11,7 @@
 (function (global) {
   'use strict';
   const MANIFEST = {
-    frigate:   { file: 'frigate.glb',   length: 9.5 },
+    frigate:   { file: 'frigate.glb',   length: 10 },
     cruiser:   { file: 'cruiser.glb',   length: 21 },
     hss:       { file: 'hss.glb',       length: 68 },
     xzd:       { file: 'xzd.glb',       length: 80, fpv: true },    // 仙舟聯盟無畏艦（統一版專用）
