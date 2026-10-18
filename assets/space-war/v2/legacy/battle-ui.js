@@ -54,7 +54,7 @@ function uiScriptTick() {
 function uiFlashStart() { flashVeil('#fff', 1, 0.35); setTimeout(() => { setVeil('#000', 1, 0.8); hudShow(false); }, 380); }
 function uiDoomStart() { hudShow(false); setVeil('#000', 0, 1.6); FPVAudio.battleFade(1.5); FPVAudio.lance(); }   // 大招轉場一開始：戰鬥音效淡出，只留音樂
 function uiImpact() { flashVeil('#ffd2dc', 0.9, 0.9); hurtK = 0.8; }
-function uiWhite() { setVeil('#fff', 1, 4.5); }
+function uiWhite() { setVeil('#fff', 1, 4.5); document.body.classList.add('whiteout'); }   // 全白時字幕改深色以免看不見
 function uiEnd() { setVeil('#000', 1, 2.2); FPVAudio.music(false); const e = $('#b-end'); e.classList.add('on'); const lines = e.querySelectorAll('.b-end-line'); lines.forEach((x, i) => setTimeout(() => x.classList.add('on'), 1200 + i * 3300)); }
 function hudShow(on) { document.body.classList.toggle('hud-off', !on); }
 
