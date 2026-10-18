@@ -21,7 +21,7 @@ const TOMB_PARTS = [[0, 86, 0, 22], [0, 40, 0, 22], [-34, 86, 0, 14], [34, 86, 0
 
 // side: 'a' 聯軍 / 'e' 反物質軍團。sc = 模型縮放（模型已正規化為其 MANIFEST 長度）。艦艇速度刻意放慢（真實感）。
 const DEF = {
-  fgt:   { side: 'a', name: 'Interceptor',    hp: 150,    spd: 105, sc: 1,   rad: 8,   turn: 1.7, boom: 0.8, cls: 'fgt' },
+  fgt:   { side: 'a', name: 'Starskiff',       hp: 150,    spd: 105, sc: 1,   rad: 8,   turn: 1.7, boom: 0.8, cls: 'fgt' },
   frig:  { side: 'a', name: 'Frigate',        hp: 3000,   shield: 500,    spd: 28,  turn: 0.20, sc: 9,  rad: 40,  range: 1500, boom: 4,  cls: 'ship', flak: { cd: 0.5, dmg: 40, w: 1.2, len: 30, bs: 900, col: [0.3, 0.7, 1.0] },  beam: { cd: 4.0, n: 1, dmg: 260,  w: 5,  col: [0.35, 0.7, 1.0] } },
   cruis: { side: 'a', name: 'Cruiser',        hp: 24000,  shield: 4500,   spd: 24,  turn: 0.12, sc: 22, rad: 190, range: 2300, boom: 10, cls: 'ship', flak: { cd: 0.35, dmg: 90, w: 2.0, len: 50, bs: 900, col: [0.3, 0.7, 1.0] }, beam: { cd: 3.0, n: 2, dmg: 900,  w: 14, col: [0.3, 0.65, 1.0] }, msl: { cd: 4.5, n: 4, dmg: 700 } },
   hss:   { side: 'a', name: 'HSS',            hp: 160000, shield: 30000,  spd: 20,  turn: 0.06, sc: 30, rad: 700, range: 3200, boom: 20, cls: 'cap',  flak: { cd: 0.3, dmg: 140, w: 3, len: 80, bs: 900, col: [1.0, 0.9, 0.5] },    beam: { cd: 2.6, n: 3, dmg: 3000, w: 28, col: [1.0, 0.85, 0.45] } },
@@ -30,9 +30,13 @@ const DEF = {
   moon:  { side: 'a', name: 'Screwllum Moon', hp: 260000, shield: 50000,  spd: 16,  turn: 0.03, sc: 45, rad: 740, range: 3400, cd: 5.0, boom: 24, cls: 'cap', bubble: 1,
            flak: { cd: 0.4, dmg: 90, w: 2.2, len: 60, bs: 900, col: [0.35, 0.75, 1.0] }, beam: { cd: 3.0, n: 2, dmg: 1500, w: 16, col: [0.25, 0.6, 1.0] } },
   awacs: { side: 'a', name: 'Sentinel AWACS', hp: 9000,   shield: 1500,   spd: 40,  turn: 0.2,  sc: 1,  rad: 75,  boom: 6, cls: 'ship', noGun: 1 },
+  ifgt:  { side: 'a', name: 'IPC Fighter',    hp: 150,    spd: 105, sc: 1,   rad: 8,   turn: 1.7, boom: 0.8, cls: 'fgt' },
   fly:   { side: 'e', name: 'Legion Fighter', hp: 90,     spd: 112, sc: 1.5, rad: 7,  turn: 1.5, boom: 0.8, cls: 'fgt' },
   whale: { side: 'e', name: 'Legion Carrier', hp: 30000,  shield: 6000,   spd: 20,  turn: 0.08, sc: 14, rad: 170, range: 1700, boom: 9,  cls: 'cap',  flak: { cd: 0.6, dmg: 45, w: 1.8, len: 50, bs: 800, col: [0.62, 0.22, 1.0] },  beam: { cd: 3.2, n: 1, dmg: 700, w: 14, col: [0.65, 0.2, 1.0] } }
 };
+// 轉動慣量（Rotational Inertia）係數：越大，轉向的啟動與煞停越遲滯、越有沉重感（戰機不套用）。角加速度 = 最大轉速 ÷ 係數（弧度／秒²）
+const INERTIA = { frig: 1.6, cruis: 3.2, ipc: 3.2, whale: 4.5, awacs: 1.8, xzd: 7, hss: 6, moon: 7 };
+const isFgtKind = (k) => k === 'fgt' || k === 'ifgt';
 const SHIP_KINDS = ['frig', 'cruis', 'ipc', 'xzd', 'hss', 'moon', 'awacs'];
 
 /* ═════════ 劇本時間軸（5 分鐘）與台詞 ═════════ */
@@ -263,7 +267,7 @@ const CS_SHIP = ['Aegis', 'Bastion', 'Longbow', 'Halberd', 'Tempest', 'Resolute'
 let sentinelN = 0;
 function makeCallsign(kind) {
   if (kind === 'awacs') return 'Sentinel-' + (++sentinelN);
-  if (kind === 'fgt') return pick(CS_FIGHTER) + ' ' + (1 + ((Math.random() * 9) | 0)) + '-' + (1 + ((Math.random() * 6) | 0));
+  if (kind === 'fgt' || kind === 'ifgt') return pick(CS_FIGHTER) + ' ' + (1 + ((Math.random() * 9) | 0)) + '-' + (1 + ((Math.random() * 6) | 0));
   if (kind === 'hss') return 'HSS Command';
   if (kind === 'moon') return 'Screwllum-' + (1 + ((Math.random() * 3) | 0));
   return pick(CS_SHIP) + '-' + String(1 + ((Math.random() * 98) | 0)).padStart(2, '0');

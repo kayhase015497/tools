@@ -235,7 +235,7 @@ function boxSelect() {
 }
 function selectGroup(n) {
   const all = allies.filter((u) => !u.dead && u.kind !== 'awacs');
-  selectUnits(n === 1 ? all : n === 2 ? all.filter((u) => u.kind === 'fgt') : all.filter((u) => u.d.cls === 'cap' || u.kind === 'cruis' || u.kind === 'ipc'), false);
+  selectUnits(n === 1 ? all : n === 2 ? all.filter((u) => isFgtKind(u.kind)) : all.filter((u) => u.d.cls === 'cap' || u.kind === 'cruis' || u.kind === 'ipc'), false);
 }
 function updateCommanderCamera(dt) {
   const k = cmdKeys, sp = ccT.dist * 0.8 * dt * (k.ShiftLeft ? 2.5 : 1), f = [-Math.sin(ccT.az), -Math.cos(ccT.az)], r = [Math.cos(ccT.az), -Math.sin(ccT.az)];

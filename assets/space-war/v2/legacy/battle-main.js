@@ -35,13 +35,13 @@ function trails(dt, running) {   // 戰機尾焰：鏡頭附近的戰機在引�
   for (let Li = 0; Li < 2; Li++) {
     const arr = lists[Li], col = Li === 0 ? [0.35, 0.75, 1.0] : [1.0, 0.35, 0.85];
     for (let i = 0; i < arr.length; i++) {
-      const s = arr[i]; if (s.dead || s.hidden || (s.kind !== 'fgt' && s.kind !== 'fly')) continue;
+      const s = arr[i]; if (s.dead || s.hidden || (s.kind !== 'fgt' && s.kind !== 'ifgt' && s.kind !== 'fly')) continue;
       if (Math.abs(s.x - cam.x) > lim || Math.abs(s.z - cam.z) > lim || Math.abs(s.y - cam.y) > lim) continue;
-      for (let e = 1; e <= 2; e++) { fleet.anchorWorld(s, 'HP_ENGINE_' + e, V); fx.emit(V.x, V.y, V.z, -s.vx * 0.04 + rnd(-1, 1), -s.vy * 0.04 + rnd(-1, 1), -s.vz * 0.04 + rnd(-1, 1), col[0], col[1], col[2], s.kind === 'fgt' ? 2.6 : 2.2, 0.6, 1.4, 0, 0.6); }
+      for (let e = 1; e <= 2; e++) { fleet.anchorWorld(s, 'HP_ENGINE_' + e, V); fx.emit(V.x, V.y, V.z, -s.vx * 0.04 + rnd(-1, 1), -s.vy * 0.04 + rnd(-1, 1), -s.vz * 0.04 + rnd(-1, 1), s.kind === 'ifgt' ? 1.0 : col[0], s.kind === 'ifgt' ? 0.45 : col[1], s.kind === 'ifgt' ? 0.25 : col[2], s.kind === 'fgt' || s.kind === 'ifgt' ? 2.6 : 2.2, 0.6, 1.4, 0, 0.6); }
     }
   }
 }
-const MODELS = ['frigate', 'cruiser', 'hss', 'xzd', 'ipc', 'moon', 'whale', 'butterfly', 'debris', 'irontomb', 'fighter', 'cockpit', 'sentinel'];
+const MODELS = ['frigate', 'cruiser', 'hss', 'xzd', 'ipc', 'moon', 'whale', 'butterfly', 'debris', 'irontomb', 'fighter', 'ipcfighter', 'cockpit', 'sentinel'];
 function modelsLoaded(a) { setupRender(a); assetsReady = true; const go = $('#b-go'); go.disabled = false; go.textContent = L().go; go.dataset.i = 'go'; }
 SWAssets.loadAll('../assets/space-war/models/', null, MODELS).then(modelsLoaded).catch((e) => { $('#b-go').textContent = 'Model load failed'; console.error(e); });
 
