@@ -152,19 +152,32 @@ a large circular cannon aperture on the front side. Stylized sci-fi game asset, 
 
 ---
 
-## 6. 聯軍護衛艦（Alliance Frigate，`frigate`）⚠
+## 6. 聯軍護衛艦（Frigate，`frigate`）—— 改用官方影片「大型星槎」
 
-- **定位**：小型飛鏢艦，數量最多（20–50 艘）。
-- **比例**：長 : 寬 : 高 ≈ **9.5 : 5 : 1.5**，扁平三角飛鏢形。
-- **特徵**：箭頭形艦體，尖銳艦首，兩側小翼，翼端各一具引擎。
-- **顏色**：深藍＋淡藍發光描邊，引擎淡藍。
-- **錨點**：`HP_GUN_1`、`HP_GUN_2`、`HP_ENGINE_1`、`HP_ENGINE_2`、`HP_COCKPIT`。
+- **定位**：比 Starskiff 大、比仙舟巡洋艦小的護衛艦，數量最多。遊戲內 `length 10`、`sc 9`（約 Starskiff 的 6 倍長、巡洋艦的 1/5）。
+- **參考**：官方影片金色線框投影的大型星槎（`images/33.webp`）。
+- **比例**：長 : 寬（含飄帶）: 高 ≈ **10 : 7 : 3**。主艦體是狹長的**匕首／三角翼形**，艦首極尖，後半段加寬、背部隆起一道稜脊。
+- **特徵**：
+  1. 艦首尖銳，主體像斜切的長楔形，兩側有後掠的薄片尖翼。
+  2. 艦尾兩側各拖兩三條**扭轉的飄帶狀長鰭**（帶狀、末端收尖、略彎曲，像星槎的絲帶尾翼），左右對稱，不要糾成一團。
+  3. 艦背中段與艦尾各有一個**圓環形開口**（炮口／引擎環），環內凹陷。
+- **顏色**：與星槎一致，金色／香檳金投影質感；可在稜脊與飄帶邊緣加**少量**仙舟巡洋艦那種藍色發光飾條（點綴，不超過表面積約 5%）。
+- **錨點**：`HP_GUN_1`、`HP_GUN_2`（背部圓環與艦首附近）、`HP_ENGINE_1`、`HP_ENGINE_2`（艦尾圓環）、`HP_COCKPIT`；艦首朝 glTF +Z。
 
 ```
-A small flat dart-shaped sci-fi frigate, sharp arrowhead hull, deep blue with pale cyan
-glowing edge lines, two small swept wings each with a rear engine, a forward gun port.
-Hard-surface game asset, symmetrical, no base.
+A large sci-fi starskiff escort ship, long narrow dagger-shaped wedge hull with a very sharp
+prow and swept thin side blades, a raised ridge along the back, two or three twisted ribbon-like
+fins trailing from each side of the stern (flat curved bands tapering to points), a circular
+ring-shaped aperture on the mid back and another at the rear. Elegant, flowing,
+gold and champagne metallic hull, symmetrical, hard-surface game asset, no base.
 ```
+
+### 交辦 Desktop（TRIPO 匯出後）
+1. 對稱整平、清掉浮渣與破面；飄帶若互穿，微調分開。三角面 ≤ 20k，貼圖 2048（法線可 1024）。
+2. 長度（Z）縮放到 10、中心置於原點、艦首朝 +Z。
+3. 上色比照 `models/starskiff_user.glb` / `fighter.glb` 的金色材質；稜脊與飄帶邊緣加少量藍色發光飾條（參考仙舟巡洋艦 `cruiser.glb`），藍色勿過亮。
+4. 擺好 5 個錨點（Empty）。
+5. 存成 `frigate_new.glb` 交回。
 
 ---
 
