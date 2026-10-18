@@ -189,7 +189,7 @@ function updateDoomVisuals(dt) {
   if (G.mode === 'script' && G.t >= T.DOOM) {
     const p = clamp((G.t - T.DOOM) / (T.IMPACT - T.DOOM), 0, 1), raise = smooth(clamp(p / 0.35, 0, 1)), th = Math.pow(clamp((p - 0.4) / 0.6, 0, 1), 2.2), grow = smooth(clamp((p - 0.15) / 0.3, 0, 1));
     poseTombArms(raise, th);   // 雙臂舉到頭頂 → 握劍往前下方刺
-    D.sword.visible = G.t < T.IMPACT + 6 && p > 0.12;
+    D.sword.visible = p > 0.12;   // 刺下後劍留在原位，一路演到結尾
     if (tombArms) { tombMeshes.updateMatrixWorld(true); tombArms.grip.L.getWorldPosition(_hv); tombArms.grip.R.getWorldPosition(_hv2); _hv.add(_hv2).multiplyScalar(0.5); } else _hv.set(TOMB_POS.x, TOMB_POS.y + 6200, TOMB_POS.z);
     const sc = 0.25 + 0.75 * grow; D.sword.scale.setScalar(sc); D.sword.position.set(_hv.x, _hv.y - SWORD_GRIP * sc, _hv.z);   // 劍柄始終握在雙手之間
     D.light.position.copy(D.sword.position); D.light.intensity = 3 + raise * 3 + th * 11;
