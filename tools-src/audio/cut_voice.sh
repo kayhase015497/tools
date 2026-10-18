@@ -16,3 +16,5 @@ cut zh cyrene 249.3 253.6; cut zh dan 253.65 257.1; cut zh march 257.1 260.6;   
 # --- ko
 cut ko lyc1 303.4 311.8;  cut ko lyc2 312.35 319.0; cut ko herta1 327.2 330.3;  cut ko herta2 332.8 338.3
 cut ko cyrene 340.4 344.2; cut ko dan 344.6 348.1; cut ko march 348.2 352.1;    cut ko tb 352.5 359.7
+# lyc3（鐵墓下刺時的來古士台詞，英文）：使用者提供已切好的人聲檔（原檔不入庫），僅正規化後輸出：
+# ffmpeg -i <原檔> -ac 1 -ar 44100 -af "afade=t=in:d=0.03,loudnorm=I=-18:TP=-2:LRA=7,afade=t=out:st=7.85:d=0.15" -c:a libmp3lame -b:a 80k assets/space-war/voice/en/lyc3.mp3
