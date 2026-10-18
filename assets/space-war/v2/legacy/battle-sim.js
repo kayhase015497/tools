@@ -225,7 +225,7 @@ function killShip(s, src) {
   }
   FPVAudio.explode(d.boom, s);
   if (s.side === 'a' && !s.isPlayer && G.doom === 0) radioSay(s, 'final');
-  if (s.kind === 'awacs' && G.doom === 0) { say('Sentinel lost — datalink degraded, units on local control', '預警機失去聯繫——資料鏈降級，各單位改為自主作戰', true); G.awacsPending = G.t + rnd(55, 80); for (const u of allies) u.awTgt = null; player.suggest = null; }
+  if (s.kind === 'awacs' && G.doom === 0) { say('IPC SID lost — datalink degraded, units on local control', '戰略投資部專用艦失去聯繫——資料鏈降級，各單位改為自主作戰', true); G.awacsPending = G.t + rnd(55, 80); for (const u of allies) u.awTgt = null; player.suggest = null; }
   if (s === player.ship) { if (s.isPlayer) return; }
   if (player.target === s) player.target = null;
   if (s.isOrig) player.orig = null;

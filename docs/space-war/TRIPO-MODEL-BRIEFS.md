@@ -152,19 +152,35 @@ a large circular cannon aperture on the front side. Stylized sci-fi game asset, 
 
 ---
 
-## 6. 聯軍護衛艦（Alliance Frigate，`frigate`）⚠
+## 6. 聯軍護衛艦（Frigate，`frigate`）—— 改用官方影片「大型星槎」
 
-- **定位**：小型飛鏢艦，數量最多（20–50 艘）。
-- **比例**：長 : 寬 : 高 ≈ **9.5 : 5 : 1.5**，扁平三角飛鏢形。
-- **特徵**：箭頭形艦體，尖銳艦首，兩側小翼，翼端各一具引擎。
-- **顏色**：深藍＋淡藍發光描邊，引擎淡藍。
-- **錨點**：`HP_GUN_1`、`HP_GUN_2`、`HP_ENGINE_1`、`HP_ENGINE_2`、`HP_COCKPIT`。
+- **定位**：比 Starskiff 大、比仙舟巡洋艦小的護衛艦，數量最多。遊戲內 `length 10`、`sc 9`（約 Starskiff 的 6 倍長、巡洋艦的 1/5）。
+- **參考**：官方影片金色線框投影的大型星槎（`images/33.webp`）。
+- **比例**：長 : 寬（含飄帶）: 高 ≈ **10 : 7 : 3**。主艦體是狹長的**匕首／三角翼形**，艦首極尖，後半段加寬、背部隆起一道稜脊。
+- **特徵**：
+  1. 艦首尖銳，主體像斜切的長楔形，兩側有後掠的薄片尖翼。
+  2. 艦尾兩側各拖兩三條**扭轉的飄帶狀長鰭**（帶狀、末端收尖、略彎曲，像星槎的絲帶尾翼），左右對稱，不要糾成一團。
+  3. 艦背中段與艦尾各有一個**圓環形開口**（炮口／引擎環），環內凹陷。
+- **顏色**：與星槎一致，金色／香檳金投影質感；可在稜脊與飄帶邊緣加**少量**仙舟巡洋艦那種藍色發光飾條（點綴，不超過表面積約 5%）。
+- **錨點**：`HP_GUN_1`、`HP_GUN_2`（背部圓環與艦首附近）、`HP_ENGINE_1`、`HP_ENGINE_2`（艦尾圓環）、`HP_COCKPIT`；艦首朝 glTF +Z。
 
 ```
-A small flat dart-shaped sci-fi frigate, sharp arrowhead hull, deep blue with pale cyan
-glowing edge lines, two small swept wings each with a rear engine, a forward gun port.
-Hard-surface game asset, symmetrical, no base.
+A large sci-fi starskiff escort ship, long narrow dagger-shaped wedge hull with a very sharp
+prow and swept thin side blades, a raised ridge along the back, two or three twisted ribbon-like
+fins trailing from each side of the stern (flat curved bands tapering to points), a circular
+ring-shaped aperture on the mid back and another at the rear. Elegant, flowing,
+gold and champagne metallic hull, symmetrical, hard-surface game asset, no base.
 ```
+
+### 交辦 Desktop（TRIPO 匯出後；模型重塑版，材質配色不動）
+TRIPO 只有單側參考圖，艦體左右不對稱、艦首到艦尾歪斜，需要在 Blender 重新整形。**保留現有材質、白金配色與貼圖，不要重新上色。**
+1. **建立中軸**：把艦首尖端到艦尾中心連成一條直線，對齊 Z 軸（艦首 +Z），並置於 X=0、Y=0 的中央。先在側視圖與俯視圖把艦體整體「扶正」（旋轉＋少量 lattice／比例編輯），使艦脊成為一條直線，不要有左右偏轉或上下彎折。
+2. **左右鏡射**：挑選較好的一側（X>0 或 X<0 擇優）作為母版，另一側刪除後用 Mirror 修改器（以 X=0 為軸，開 Clipping、Merge）重建，套用後焊接中線頂點。中線上的零件（艦首、背脊、背部與艦尾圓環）要落在 X=0 並自身對稱。
+3. **重整形狀**（照規格 6 的外型）：艦首收成乾淨的尖點；兩側後掠薄片尖翼左右同角度、同長度；背脊是一條連續筆直的稜線；背部與艦尾兩個圓環各自為正圓，環軸垂直於艦脊所在的平面，且與艦體共軸。
+4. **飄帶長鰭**：每側 2–3 條，左右一一對應（鏡射而來即可）；保持順暢的扭轉曲線與逐漸收尖的末端，互相不穿插、不打結，與艦體只在根部相連。
+5. **清理**：移除浮渣、破面、非流形邊，統一法線朝外；三角面 ≤ 20k。保留原 UV 與材質（鏡射時 UV 允許左右共用或鏡射，貼圖看起來左右一致即可；白金配色與藍色飾條位置也要左右對稱）。
+6. **尺寸與錨點**：長度（Z）縮到 10，置中於原點；擺 `HP_GUN_1/2`（背部圓環與艦首附近，左右對稱）、`HP_ENGINE_1/2`（艦尾圓環，左右對稱）、`HP_COCKPIT`。
+7. **驗收**：從正前、正上、側視三個視角各看一次，確認左右對稱、艦脊成直線、無歪斜；存成 `frigate_new.glb` 交回，並附上三視角截圖。
 
 ---
 

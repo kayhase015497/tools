@@ -235,3 +235,18 @@ assets/space-war/v2/
 - **玩家出生與重生**（含 HSS 機庫起飛、原機）隨機為星槎或 IPC 戰機。
 - **艦載編隊**：初始戰機跟著同陣營巡洋艦（IPC 戰機→IPC 巡洋艦、星槎→仙舟巡洋艦，驗證 61/61 最近的母艦都對得上）；增援戰機中隊分兩批，各自折躍到對應巡洋艦後方（`escortPoint`）；HSS 起飛的戰機隨機兩型。
 - **戰艦轉動慣量（Rotational Inertia）**：戰艦（不含戰機）轉向改為「角速度有慣性」——角加速度 = 最大轉速 ÷ 慣量係數（`INERTIA`：護衛艦 1.6、巡洋艦 3.2、軍團航母 4.5、預警機 1.8、黑塔 6、仙舟無畏艦與螺絲咕姆 7），目標角速度取「最大轉速」與「剩餘角度內能煞停的速度」較小者，所以啟動慢、煞停也慢，沒有急停。實測 45° 轉向：巡洋艦 3 s 達全速、9.7 s 到位；仙舟無畏艦 6.7 s、25.8 s；戰機不變。
+
+## build 30 — IPC SID 取代 Sentinel 預警機
+- 新模型 `ipc_sid.glb`（Desktop 重配色為 IPC 巡洋艦色系，紅色紋路做成自發光貼圖；`finish_sid.py` 後處理）。
+- 原預警機（`awacs` kind）改名 IPC SID（IPC 戰略投資部專用艦）：體型同 IPC 巡洋艦（sc 22、rad 210、hp 24k、盾 4.5k），仍為資料鏈／任務分配單位，無武裝。四語言名稱、提示、呼號（SID-）、失去訊息同步更新。
+- 轉動慣量 awacs 1.8 → 3.2；移除 `sentinel.glb`（原檔留 `models/incoming/ipc_sid_desktop.glb`）。
+- 還原：revert 此 commit。
+
+## build 31 — 護衛艦換成大型星槎造型
+- `frigate.glb` 換成 Desktop 重塑後的 `frigate_slim`（左右對稱，白金配色未動）；長度 10（原 9.5），sc 9 不變。原檔 `models/incoming/frigate_slim_desktop.glb`。
+- 該檔沒有錨點，`finish_frigate.py` 補 5 個 HP 節點（位置為估算：槍在艦首、引擎在艦尾）。引擎光改金白色。
+- 還原：revert 此 commit。
+
+## build 32 — 護衛艦收緊
+- `tighten_frigate.py`：圓環縮到 0.62 倍、下垂飄帶與小零件往艦體靠攏（寬 ±3.3 → ±2.0，下垂 −3.1 → −1.5）；只動頂點，材質貼圖不變。
+- 引擎錨點移到艦體尾端（原本落在飄帶外的空處）。流程：incoming 原檔 → tighten → finish_frigate → `frigate.glb`。

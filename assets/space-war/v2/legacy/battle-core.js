@@ -29,13 +29,13 @@ const DEF = {
   xzd:   { side: 'a', name: 'Xianzhou Dreadnought', hp: 420000, shield: 80000,  spd: 18, turn: 0.04, sc: 34, rad: 1000, range: 3800, boom: 26, cls: 'cap', flak: { cd: 0.1, dmg: 110, w: 2.6, len: 70, bs: 900, col: [0.3, 0.7, 1.0] }, beam: { cd: 2.2, n: 6, dmg: 2600, w: 24, col: [0.2, 0.55, 1.0] }, msl: { cd: 3.6, n: 8, dmg: 900 } },
   moon:  { side: 'a', name: 'Screwllum Moon', hp: 260000, shield: 50000,  spd: 16,  turn: 0.03, sc: 45, rad: 740, range: 3400, cd: 5.0, boom: 24, cls: 'cap', bubble: 1,
            flak: { cd: 0.4, dmg: 90, w: 2.2, len: 60, bs: 900, col: [0.35, 0.75, 1.0] }, beam: { cd: 3.0, n: 2, dmg: 1500, w: 16, col: [0.25, 0.6, 1.0] } },
-  awacs: { side: 'a', name: 'Sentinel AWACS', hp: 9000,   shield: 1500,   spd: 40,  turn: 0.2,  sc: 1,  rad: 75,  boom: 6, cls: 'ship', noGun: 1 },
+  awacs: { side: 'a', name: 'IPC SID', hp: 24000,  shield: 4500,   spd: 30,  turn: 0.14, sc: 22, rad: 210,  boom: 6, cls: 'ship', noGun: 1 },
   ifgt:  { side: 'a', name: 'IPC Fighter',    hp: 150,    spd: 105, sc: 1,   rad: 8,   turn: 1.7, boom: 0.8, cls: 'fgt' },
   fly:   { side: 'e', name: 'Legion Fighter', hp: 90,     spd: 112, sc: 1.5, rad: 7,  turn: 1.5, boom: 0.8, cls: 'fgt' },
   whale: { side: 'e', name: 'Legion Carrier', hp: 30000,  shield: 6000,   spd: 20,  turn: 0.08, sc: 14, rad: 170, range: 1700, boom: 9,  cls: 'cap',  flak: { cd: 0.6, dmg: 45, w: 1.8, len: 50, bs: 800, col: [0.62, 0.22, 1.0] },  beam: { cd: 3.2, n: 1, dmg: 700, w: 14, col: [0.65, 0.2, 1.0] } }
 };
 // 轉動慣量（Rotational Inertia）係數：越大，轉向的啟動與煞停越遲滯、越有沉重感（戰機不套用）。角加速度 = 最大轉速 ÷ 係數（弧度／秒²）
-const INERTIA = { frig: 1.6, cruis: 3.2, ipc: 3.2, whale: 4.5, awacs: 1.8, xzd: 7, hss: 6, moon: 7 };
+const INERTIA = { frig: 1.6, cruis: 3.2, ipc: 3.2, whale: 4.5, awacs: 3.2, xzd: 7, hss: 6, moon: 7 };
 const isFgtKind = (k) => k === 'fgt' || k === 'ifgt';
 const SHIP_KINDS = ['frig', 'cruis', 'ipc', 'xzd', 'hss', 'moon', 'awacs'];
 
@@ -49,7 +49,7 @@ const WHO = {
   dan:    { zh: '丹恆',   en: 'Dan Heng', ja: '丹恒', ko: '단항', c: '#7fd6ff' },
   march:  { zh: '三月七', en: 'March 7th', ja: '三月なのか', ko: '삼월칠일',   c: '#ff9ad5' },
   tb:     { zh: '開拓者', en: 'Trailblazer', ja: '開拓者', ko: '개척자', c: '#ffe08a' },
-  awacs:  { zh: '預警機', en: 'Sentinel', ja: '哨戒機', ko: '조기경보기',    c: '#8fe6ff' }
+  awacs:  { zh: 'IPC 戰略投資部專用艦', en: 'IPC SID', ja: 'IPC 戦略投資部専用艦', ko: 'IPC 전략투자부 전용함',    c: '#8fe6ff' }
 };
 // 原本 3.5 分鐘版本的台詞時間：戰鬥段（12→140）以 2.6 倍拉長到 12→236 之間的前 130 秒，其餘事件依新時間軸重排
 const CUE_BASE = [
@@ -107,14 +107,14 @@ const STR = {
     mode: 'MODE', script: 'Story · 5:00', free: 'Free · endless', role: 'ROLE', pilot: 'Pilot', commander: 'Commander', lang: '中文', go: 'ENGAGE', loading: 'LOADING…', resume: 'RESUME', restart: 'RESTART',
     qHigh: 'Graphics: High', qLow: 'Graphics: Low', soundOn: 'Sound: On', soundOff: 'Sound: Off',
     hintScript: 'About five minutes. The battle can be fought, but not won — the Irontomb never falls.', hintFree: 'No time limit. The battle never ends.',
-    keysPilot: ['<b>Mouse</b> pitch / yaw', '<b>W / S</b> throttle', '<b>Q / E</b> roll', '<b>A D R F</b> strafe', '<b>Shift</b> afterburner', '<b>X</b> full stop', '<b>LMB / Space</b> lasers', '<b>RMB / Ctrl</b> missile', '<b>T</b> lock · <b>Y</b> next · <b>U</b> AWACS tasking', '<b>C</b> focus fire · <b>G</b> charge (call support)', '<b>V</b> camera · <b>Z</b> assist · <b>I</b> invert', '<b>Tab</b> switch to Commander · <b>M</b> music · <b>P</b> pause'],
+    keysPilot: ['<b>Mouse</b> pitch / yaw', '<b>W / S</b> throttle', '<b>Q / E</b> roll', '<b>A D R F</b> strafe', '<b>Shift</b> afterburner', '<b>X</b> full stop', '<b>LMB / Space</b> lasers', '<b>RMB / Ctrl</b> missile', '<b>T</b> lock · <b>Y</b> next · <b>U</b> IPC SID tasking', '<b>C</b> focus fire · <b>G</b> charge (call support)', '<b>V</b> camera · <b>Z</b> assist · <b>I</b> invert', '<b>Tab</b> switch to Commander · <b>M</b> music · <b>P</b> pause'],
     keysCmd: ['<b>Left-drag</b> box select', '<b>Left-click</b> move / click an enemy to focus', '<b>Right-drag</b> rotate', '<b>Wheel</b> zoom', '<b>WASD</b> pan (Shift fast)', '<b>1 / 2 / 3</b> all · fighters · capital ships', '<b>C</b> charge · <b>X</b> hold · <b>T</b> focus Irontomb', '<b>Tab</b> switch to Pilot', '<b>M</b> music · <b>P / Esc</b> pause'],
     legal: 'Unofficial fan work, not affiliated with the game\'s publisher. Dialogue and settings © their respective owners.<br/>Music: "Agony Converging into River" © HOYO-MiX. Desktop with mouse + keyboard recommended.',
     ships: 'Ships', kills: 'Kills', sel: 'Selected', all: 'Select all', charge: 'Charge', hold: 'Hold', tomb: 'Focus Tomb', toPilot: 'Pilot [Tab]', toCmd: 'Commander [Tab]',
     chooseTitle: 'Take the controls', chooseOrig: 'Return to your fighter', chooseHss: 'Launch from the HSS', chooseGone: 'Your fighter was lost',
     resupply: 'MISSILES LOW · RESUPPLY AT', resupplying: 'RESUPPLYING', resupplied: 'MISSILES RESUPPLIED',
     focusFire: 'FOCUS FIRE', chargeCall: 'CHARGE', responding: 'responding', noTarget: 'No target locked (T)', cooling: 'Comms cooling down', noOne: 'No friendly in range',
-    awacsOn: 'AWACS ONLINE', awacsOff: 'AWACS OFFLINE · local control', tasking: 'AWACS TASKING',
+    awacsOn: 'IPC SID ONLINE', awacsOff: 'IPC SID OFFLINE · local control', tasking: 'IPC SID TASKING',
     youLost: 'PILOT LOST · REDEPLOY IN', leave: 'LEAVING BATTLE AREA · TURN BACK', zone: 'IRONTOMB EXCLUSION ZONE · TURN BACK', integrity: 'INTEGRITY',
     endA: ['The cosmos\' Fourth Instant — the coronation of Irontomb.', 'No victory was ever written into this battle.', 'What is the first cause of life? The ultimate debate with Nous begins.']
   },
@@ -124,14 +124,14 @@ const STR = {
     mode: '模式', script: '劇本・5 分鐘', free: '自由・無限', role: '角色', pilot: '飛行員', commander: '指揮官', lang: 'English', go: '進入戰場', loading: '載入中…', resume: '繼續', restart: '重新開始',
     qHigh: '畫質：高', qLow: '畫質：低', soundOn: '音效：開', soundOff: '音效：關',
     hintScript: '約五分鐘。戰鬥可以打，但無法取勝——鐵墓不會倒下。', hintFree: '沒有時間限制，戰鬥永不結束。',
-    keysPilot: ['<b>滑鼠</b> 俯仰／偏航', '<b>W / S</b> 油門', '<b>Q / E</b> 翻滾', '<b>A D R F</b> 平移', '<b>Shift</b> 加力', '<b>X</b> 急停', '<b>左鍵／空白</b> 雷射', '<b>右鍵／Ctrl</b> 飛彈', '<b>T</b> 鎖定　<b>Y</b> 下一個　<b>U</b> 預警機指派', '<b>C</b> 集火　<b>G</b> 衝鋒（呼叫支援）', '<b>V</b> 視角　<b>Z</b> 飛行輔助　<b>I</b> 反轉俯仰', '<b>Tab</b> 切換指揮官　<b>M</b> 音樂　<b>P</b> 暫停'],
+    keysPilot: ['<b>滑鼠</b> 俯仰／偏航', '<b>W / S</b> 油門', '<b>Q / E</b> 翻滾', '<b>A D R F</b> 平移', '<b>Shift</b> 加力', '<b>X</b> 急停', '<b>左鍵／空白</b> 雷射', '<b>右鍵／Ctrl</b> 飛彈', '<b>T</b> 鎖定　<b>Y</b> 下一個　<b>U</b> 專用艦指派', '<b>C</b> 集火　<b>G</b> 衝鋒（呼叫支援）', '<b>V</b> 視角　<b>Z</b> 飛行輔助　<b>I</b> 反轉俯仰', '<b>Tab</b> 切換指揮官　<b>M</b> 音樂　<b>P</b> 暫停'],
     keysCmd: ['<b>左鍵拖曳</b> 框選', '<b>左鍵點擊</b> 移動／點敵艦集火', '<b>右鍵拖曳</b> 旋轉', '<b>滾輪</b> 縮放', '<b>WASD</b> 平移（Shift 加速）', '<b>1 / 2 / 3</b> 全軍・戰機・主力艦', '<b>C</b> 衝鋒　<b>X</b> 固守　<b>T</b> 集火鐵墓', '<b>Tab</b> 切換飛行員', '<b>M</b> 音樂　<b>P / Esc</b> 暫停'],
     legal: '非官方同人作品，與遊戲官方無關。劇中台詞與設定版權歸原權利人所有。<br/>配樂：《Agony Converging into River》© HOYO-MiX。建議使用桌機滑鼠鍵盤。',
     ships: '艦艇', kills: '擊毀', sel: '選取', all: '全選', charge: '衝鋒', hold: '固守', tomb: '集火鐵墓', toPilot: '飛行員 [Tab]', toCmd: '指揮官 [Tab]',
     chooseTitle: '接管操控', chooseOrig: '回到原本的戰機', chooseHss: '從 HSS 重新起飛', chooseGone: '原本的戰機已被擊毀',
     resupply: '飛彈不足・前往補給', resupplying: '補給中', resupplied: '飛彈補給完成',
     focusFire: '集火', chargeCall: '衝鋒', responding: '響應', noTarget: '尚未鎖定目標（T）', cooling: '通訊冷卻中', noOne: '射程內沒有友軍',
-    awacsOn: '預警機在線', awacsOff: '預警機離線・各自為戰', tasking: '預警機指派',
+    awacsOn: 'IPC 戰略投資部專用艦在線', awacsOff: 'IPC 戰略投資部專用艦離線・各自為戰', tasking: '專用艦指派',
     youLost: '飛行員陣亡・重新部署倒數', leave: '正在離開戰區・請折返', zone: '鐵墓禁區・請折返', integrity: '完整度',
     endA: ['宇宙的第四時刻，鐵墓加冕。', '這場戰鬥，從一開始就沒有被寫下勝利。', '生命的第一因是什麼？一場與「博識尊」（Nous）的終極辯論正式開始。']
   }
@@ -143,14 +143,14 @@ STR.ja = {
     mode: 'モード', script: 'ストーリー・5分', free: 'フリー・無限', role: '役割', pilot: 'パイロット', commander: '指揮官', go: '出撃', loading: '読み込み中…', resume: '再開', restart: '最初から',
     qHigh: '画質：高', qLow: '画質：低', soundOn: 'サウンド：オン', soundOff: 'サウンド：オフ',
     hintScript: '約5分。戦うことはできるが、勝つことはできない——鉄墓は決して倒れない。', hintFree: '時間制限なし。戦いは終わらない。',
-    keysPilot: ['<b>マウス</b> ピッチ／ヨー', '<b>W / S</b> スロットル', '<b>Q / E</b> ロール', '<b>A D R F</b> 平行移動', '<b>Shift</b> アフターバーナー', '<b>X</b> 急停止', '<b>左クリック／Space</b> レーザー', '<b>右クリック／Ctrl</b> ミサイル', '<b>T</b> ロック · <b>Y</b> 次 · <b>U</b> 哨戒機の指示', '<b>C</b> 集中砲火 · <b>G</b> 突撃（支援要請）', '<b>V</b> 視点 · <b>Z</b> 飛行補助 · <b>I</b> ピッチ反転', '<b>Tab</b> 指揮官に切替 · <b>M</b> 音楽 · <b>P</b> 一時停止'],
+    keysPilot: ['<b>マウス</b> ピッチ／ヨー', '<b>W / S</b> スロットル', '<b>Q / E</b> ロール', '<b>A D R F</b> 平行移動', '<b>Shift</b> アフターバーナー', '<b>X</b> 急停止', '<b>左クリック／Space</b> レーザー', '<b>右クリック／Ctrl</b> ミサイル', '<b>T</b> ロック · <b>Y</b> 次 · <b>U</b> 専用艦の指示', '<b>C</b> 集中砲火 · <b>G</b> 突撃（支援要請）', '<b>V</b> 視点 · <b>Z</b> 飛行補助 · <b>I</b> ピッチ反転', '<b>Tab</b> 指揮官に切替 · <b>M</b> 音楽 · <b>P</b> 一時停止'],
     keysCmd: ['<b>左ドラッグ</b> 範囲選択', '<b>左クリック</b> 移動／敵をクリックで集中砲火', '<b>右ドラッグ</b> 回転', '<b>ホイール</b> ズーム', '<b>WASD</b> 移動（Shiftで高速）', '<b>1 / 2 / 3</b> 全軍・戦闘機・主力艦', '<b>C</b> 突撃 · <b>X</b> 待機 · <b>T</b> 鉄墓を集中砲火', '<b>Tab</b> パイロットに切替', '<b>M</b> 音楽 · <b>P / Esc</b> 一時停止'],
     legal: '非公式のファン作品であり、ゲームの運営元とは無関係です。作中の台詞・設定の著作権は各権利者に帰属します。<br/>BGM：「Agony Converging into River」© HOYO-MiX。マウスとキーボードのデスクトップ環境を推奨します。',
     ships: '艦艇', kills: '撃破', sel: '選択中', all: '全選択', charge: '突撃', hold: '待機', tomb: '鉄墓を集中砲火', toPilot: 'パイロット [Tab]', toCmd: '指揮官 [Tab]',
     chooseTitle: '操縦を引き継ぐ', chooseOrig: '元の戦闘機に戻る', chooseHss: 'HSSから出撃', chooseGone: '元の戦闘機は撃墜された',
     resupply: 'ミサイル残量わずか・補給地点：', resupplying: '補給中', resupplied: 'ミサイル補給完了',
     focusFire: '集中砲火', chargeCall: '突撃', responding: '応答', noTarget: '目標未ロック（T）', cooling: '通信クールダウン中', noOne: '射程内に味方なし',
-    awacsOn: '哨戒機オンライン', awacsOff: '哨戒機オフライン・各自で戦闘', tasking: '哨戒機の指示',
+    awacsOn: 'IPC戦略投資部専用艦オンライン', awacsOff: 'IPC戦略投資部専用艦オフライン・各自で戦闘', tasking: '専用艦の指示',
     youLost: 'パイロット死亡・再出撃まで', leave: '戦域を離脱中・引き返せ', zone: '鉄墓の立入禁止区域・引き返せ', integrity: '完全度',
     endA: ['宇宙の第四の刹那——鉄墓の戴冠。', 'この戦いに、勝利は最初から書かれていなかった。', '生命の第一原因とは何か？「ノウス」との究極の論争が、今始まる。']
   };
@@ -160,14 +160,14 @@ STR.ko = {
     mode: '모드', script: '스토리 · 5분', free: '자유 · 무한', role: '역할', pilot: '파일럿', commander: '지휘관', go: '출격', loading: '불러오는 중…', resume: '계속', restart: '다시 시작',
     qHigh: '화질: 높음', qLow: '화질: 낮음', soundOn: '소리: 켜짐', soundOff: '소리: 꺼짐',
     hintScript: '약 5분. 싸울 수는 있지만 이길 수는 없다——아이언툼은 쓰러지지 않는다.', hintFree: '시간 제한 없음. 전투는 끝나지 않는다.',
-    keysPilot: ['<b>마우스</b> 피치 / 요', '<b>W / S</b> 스로틀', '<b>Q / E</b> 롤', '<b>A D R F</b> 평행 이동', '<b>Shift</b> 애프터버너', '<b>X</b> 급정지', '<b>좌클릭 / Space</b> 레이저', '<b>우클릭 / Ctrl</b> 미사일', '<b>T</b> 락온 · <b>Y</b> 다음 · <b>U</b> 조기경보기 지시', '<b>C</b> 집중 사격 · <b>G</b> 돌격(지원 요청)', '<b>V</b> 시점 · <b>Z</b> 비행 보조 · <b>I</b> 피치 반전', '<b>Tab</b> 지휘관으로 전환 · <b>M</b> 음악 · <b>P</b> 일시정지'],
+    keysPilot: ['<b>마우스</b> 피치 / 요', '<b>W / S</b> 스로틀', '<b>Q / E</b> 롤', '<b>A D R F</b> 평행 이동', '<b>Shift</b> 애프터버너', '<b>X</b> 급정지', '<b>좌클릭 / Space</b> 레이저', '<b>우클릭 / Ctrl</b> 미사일', '<b>T</b> 락온 · <b>Y</b> 다음 · <b>U</b> 전용함 지시', '<b>C</b> 집중 사격 · <b>G</b> 돌격(지원 요청)', '<b>V</b> 시점 · <b>Z</b> 비행 보조 · <b>I</b> 피치 반전', '<b>Tab</b> 지휘관으로 전환 · <b>M</b> 음악 · <b>P</b> 일시정지'],
     keysCmd: ['<b>좌 드래그</b> 범위 선택', '<b>좌클릭</b> 이동 / 적 클릭으로 집중 사격', '<b>우 드래그</b> 회전', '<b>휠</b> 확대/축소', '<b>WASD</b> 이동(Shift 고속)', '<b>1 / 2 / 3</b> 전군 · 전투기 · 주력함', '<b>C</b> 돌격 · <b>X</b> 대기 · <b>T</b> 아이언툼 집중 사격', '<b>Tab</b> 파일럿으로 전환', '<b>M</b> 음악 · <b>P / Esc</b> 일시정지'],
     legal: '비공식 팬 작품이며 게임 운영사와 무관합니다. 극중 대사와 설정의 저작권은 각 권리자에게 있습니다.<br/>음악: 「Agony Converging into River」© HOYO-MiX. 마우스와 키보드를 사용하는 데스크톱을 권장합니다.',
     ships: '함선', kills: '격파', sel: '선택', all: '전체 선택', charge: '돌격', hold: '대기', tomb: '아이언툼 집중 사격', toPilot: '파일럿 [Tab]', toCmd: '지휘관 [Tab]',
     chooseTitle: '조종 인계', chooseOrig: '원래 전투기로 복귀', chooseHss: 'HSS에서 출격', chooseGone: '원래 전투기가 격추되었습니다',
     resupply: '미사일 부족 · 보급 지점:', resupplying: '보급 중', resupplied: '미사일 보급 완료',
     focusFire: '집중 사격', chargeCall: '돌격', responding: '응답', noTarget: '락온된 표적 없음 (T)', cooling: '통신 재사용 대기 중', noOne: '사거리 내 아군 없음',
-    awacsOn: '조기경보기 온라인', awacsOff: '조기경보기 오프라인 · 각자 전투', tasking: '조기경보기 지시',
+    awacsOn: 'IPC 전략투자부 전용함 온라인', awacsOff: 'IPC 전략투자부 전용함 오프라인 · 각자 전투', tasking: '전용함 지시',
     youLost: '파일럿 사망 · 재배치까지', leave: '전투 구역 이탈 중 · 돌아가라', zone: '아이언툼 금지 구역 · 돌아가라', integrity: '완전도',
     endA: ['우주의 네 번째 순간——아이언툼의 대관식.', '이 전투에는 처음부터 승리가 쓰여 있지 않았다.', '생명의 제1원인은 무엇인가? 「누스」와의 궁극적인 논쟁이 시작된다.']
   };
@@ -181,7 +181,7 @@ const STATIC_TR = {
   'Dreadnought warping in behind the line': ['ドレッドノート級が戦列の後方にワープ到着', '드레드노트급이 전열 후방에 워프로 도착'],
   'Alliance reinforcements warping in': ['連合軍の増援がワープで到着', '연합군 증원군이 워프로 도착'],
   'Fighter wing warping in': ['戦闘機隊がワープで到着', '전투기 편대가 워프로 도착'],
-  'Sentinel lost — datalink degraded, units on local control': ['哨戒機を喪失——データリンク劣化、各部隊は自律戦闘へ', '조기경보기 상실——데이터링크 저하, 각 부대는 자율 전투로 전환'],
+  'IPC SID lost — datalink degraded, units on local control': ['IPC戦略投資部専用艦を喪失——データリンク劣化、各部隊は自律戦闘へ', 'IPC 전략투자부 전용함 상실——데이터링크 저하, 각 부대는 자율 전투로 전환'],
   'Pilot lost. Re-deploying from the HSS hangar…': ['パイロット死亡。HSS格納庫から再出撃中…', '파일럿 사망. HSS 격납고에서 재배치 중…'],
   'Missiles resupplied': ['ミサイル補給完了', '미사일 보급 완료'],
   'Irontomb integrity locked at 60% — it cannot be destroyed': ['鉄墓の完全度が60%で固定——破壊不能', '아이언툼 완전도가 60%에서 고정됨——파괴할 수 없음'],
@@ -266,7 +266,7 @@ const CS_FIGHTER = ['Viper', 'Falcon', 'Halo', 'Raven', 'Comet', 'Lancer', 'Embe
 const CS_SHIP = ['Aegis', 'Bastion', 'Longbow', 'Halberd', 'Tempest', 'Resolute', 'Vanguard', 'Stormwall', 'Ironside', 'Meridian'];
 let sentinelN = 0;
 function makeCallsign(kind) {
-  if (kind === 'awacs') return 'Sentinel-' + (++sentinelN);
+  if (kind === 'awacs') return 'SID-' + (++sentinelN);
   if (kind === 'fgt' || kind === 'ifgt') return pick(CS_FIGHTER) + ' ' + (1 + ((Math.random() * 9) | 0)) + '-' + (1 + ((Math.random() * 6) | 0));
   if (kind === 'hss') return 'HSS Command';
   if (kind === 'moon') return 'Screwllum-' + (1 + ((Math.random() * 3) | 0));
