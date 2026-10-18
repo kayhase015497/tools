@@ -62,15 +62,15 @@ const CUE_BASE = [
   { t: 42.5, dur: 5.8, type: 2.4, box: 'sub', who: 'dan', en: "There's not a trace of life in that ominous shell.", zh: '那具不祥的空殼裡，沒有一絲生命的氣息。', ja: 'あの禍々しい殻には、命の気配が微塵もない。', ko: '저 불길한 껍데기에선 생명의 기운이 전혀 느껴지지 않아.', },
   { t: 49.8, dur: 5.4, type: 2.4, box: 'sub', who: 'march', en: "We're not going to lose to a hollow husk, right?", zh: '我們不會輸給一具空殼的，對吧？', ja: '空っぽの殻なんかに負けないでしょ？', ko: '설마 빈 껍데기한테 질 리 없다고, 그치?', },
   { t: 57.0, dur: 7.0, type: 3.2, box: 'sub', who: 'tb', en: "In the name of trailblazing, we'll reject this false answer.", zh: '以開拓之名，我們將否定這個虛假的答案。', ja: '開拓の名のもと、私たちはこの偽りの答えを否定する。', ko: '개척의 이름으로, 우리는 이 거짓된 답을 부정하겠다.', },
-  { t: T.DOOM + 4.5, dur: 8.6, type: 6.0, fixed: 1, box: 'sub', who: 'lyc', en: 'The "Fourth Instant" of the cosmos… is the coronation of Irontomb!', zh: '宇宙的「第四時刻」……就是鐵墓的加冕！', ja: '宇宙における「第四の刹那」……それは、鉄墓の戴冠です！', ko: '우주의 \'네 번째 순간\'… 그것은 아이언툼의 대관식이다!' },
-  { t: T.IMPACT + 1, dur: 21, type: 15, fixed: 1, box: 'center', who: 'lyc', en: 'The conclusion is irrefutable. The right side of the equation — the Erudition — falls silent. In thirteen heartbeats, They will begin recalculating the universe… With Destruction… as the only solution.', zh: '結論無可辯駁。等式右側的博識尊，陷入沉默。十三次心跳之後，他們將開始重新演算宇宙……以毀滅，作為唯一的解。', ja: '結論は明らかです。等式の右辺——「知恵」——は沈黙しました。十三回の鼓動の後、彼らは再び宇宙の計算を始めます……「壊滅」を唯一の解として。', ko: '결론은 반박할 수 없다. 등식의 우변, 「누스」는 침묵한다. 열세 번의 심장 박동 뒤, 그들은 우주를 다시 계산하기 시작할 것이다… 「파괴」를 유일한 해답으로 삼아.' }
+  { t: T.DOOM + 4.5, dur: 8.6, type: 7.0, fixed: 1, endBy: T.IMPACT + 0.5, box: 'sub', who: 'lyc', en: 'The "Fourth Instant" of the cosmos… is the coronation of Irontomb!', zh: '銀河的「第四時刻」，視為鐵墓的加冕。', ja: '銀河における「第四の時」……それは、鉄墓の戴冠です！', ko: '우주의 \'네 번째 순간\'… 그것은 아이언툼의 대관식이다!' },
+  { t: T.IMPACT + 1, dur: 21, type: 15, fixed: 1, box: 'center', who: 'lyc', en: 'The conclusion is irrefutable. The right side of the equation — the Erudition — falls silent. In thirteen heartbeats, They will begin recalculating the universe… With Destruction… as the only solution.', zh: '結論無可置疑。等式右側的博識尊，歸於沉寂。十三次心跳過後，他將重啟對寰宇的演算……以毀滅為唯一的解。', ja: '結論は明らかです。等式の右辺——「知恵」——は沈黙しました。十三回の鼓動の後、彼らは再び宇宙の計算を始めます……「壊滅」を唯一の解として。', ko: '결론은 반박할 수 없다. 등식의 우변, 「누스」는 침묵한다. 열세 번의 심장 박동 뒤, 그들은 우주를 다시 계산하기 시작할 것이다… 「파괴」를 유일한 해답으로 삼아.' }
 ];
 const CUES = CUE_BASE.map((c) => c.fixed ? Object.assign({}, c) : c.after ? Object.assign({}, c, { t: T.FLASH + 3.2, dur: 11, type: 4.2 }) : Object.assign({}, c, { t: T.REVEAL + (c.t - 12) * 2.6, dur: c.dur * 1.3, type: c.type * 1.3 }));
 // 配音（assets/space-war/voice/<語言>/，由 tools-src/audio/cut_voice.sh 自 UVR5 人聲切出）：依 CUE_BASE 順序對應，null＝尚無配音
 const VOICE_NAMES = ['lyc1', 'lyc2', 'herta1', 'herta2', null, 'cyrene', 'dan', 'march', 'tb', 'lyc3', 'lyc4'];
 const VOICE_DUR = {   // 各語言各句的語音秒數
   en: [8.8, 7.2, 3.5, 6.7, 0, 4.0, 3.1, 3.4, 5.6, 8.0, 21.0],
-  zh: [7.9, 6.7, 4.4, 7.0, 0, 4.3, 3.5, 3.6, 5.7, 0, 0],
+  zh: [7.9, 6.7, 4.4, 7.0, 0, 4.3, 3.5, 3.6, 5.7, 10.7, 20.1],
   ja: [7.9, 5.7, 2.8, 5.9, 0, 3.9, 3.6, 3.6, 5.9, 7.0, 22.0],
   ko: [8.4, 6.7, 3.2, 5.6, 0, 3.9, 3.6, 3.9, 7.3, 0, 0]
 };
@@ -78,7 +78,7 @@ CUES.forEach((c) => { c.t0 = c.t; c.dur0 = c.dur; c.type0 = c.type; });
 function applyCueLang(l) {   // 語言切換時重算：字幕長度與浮現速度跟著該語言的語音走
   CUES.forEach((c, i) => {
     c.t = c.t0; c.dur = c.dur0; c.type = c.type0; const nm = VOICE_NAMES[i], vd = VOICE_DUR[l][i];
-    if (nm && vd) { c.voice = '../assets/space-war/voice/' + l + '/' + nm + '.mp3'; c.vdur = vd; c.dur = Math.max(c.dur0, vd + 1); c.type = Math.min(c.type0, vd * 0.8); } else { c.voice = null; c.vdur = 0; }
+    if (nm && vd) { c.voice = '../assets/space-war/voice/' + l + '/' + nm + '.mp3'; c.vdur = vd; if (c.endBy) c.t = Math.min(c.t0, c.endBy - vd); c.dur = Math.max(c.dur0, vd + 1); c.type = Math.min(c.type0, vd * 0.8); } else { c.voice = null; c.vdur = 0; }
   });
   const chain = (a, b, gap) => { b.t = a.t + a.vdur + gap; a.dur = a.vdur + gap; };   // 對話連著講：下一句緊接在上一句語音結束後
   chain(CUES[2], CUES[3], 0.5);                                    // 黑塔兩句
