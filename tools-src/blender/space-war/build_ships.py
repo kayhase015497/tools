@@ -588,13 +588,13 @@ def irontomb(out):
         sb.bar((sg * 88, 0, ZA), (sg * 96, 0, ZA), 2.2, 'bone' + sf, sides=8, r2=3.2)
         hand((sg * 100.0, 0, ZA), (sg, 0, 0), fingers=4, flen=17, spread=2.5, palm=(8.0, 1.3, 9.0), mat='hand' + sf)
 
-        # ── 第二對手臂：攤手——上臂自然下垂微向外，小臂向外前方伸出，掌心朝上、五指自然張開（依設定圖修正，原先誤作瑜珈手印）──
+        # ── 第二對手臂：攤手——肩不聳：上臂與小臂連成一道向外下方展開的斜線（肘低於肩、腕再更低），掌心朝上、五指自然張開 ──
         sb.sphere((sg * 19, 0, 54), 2.6, 'bone', seg=8, rings=5)
-        sb.bar((sg * 19, 0, 54), (sg * 30, 3, 40), 2.8, 'bone', sides=6, r2=2.2)                 # 上臂：往下、向外
-        sb.sphere((sg * 30, 3, 40), 2.6, 'bone', seg=8, rings=5)
-        sb.bar((sg * 30, 3, 40), (sg * 51, 14, 43), 2.2, 'bone', sides=6, r2=1.5)                # 小臂：向外、微朝前伸出
-        sb.sphere((sg * 51, 14, 43), 1.7, 'bone', seg=8, rings=5)                                # 手腕
-        hand((sg * 54.5, 16.0, 43.6), (sg * 0.78, 0.62, 0.05), fingers=4, flen=10.5, spread=2.3, palm=(6.5, 6.5, 1.0), lift=(0, 0, 1.8))   # 掌心朝上、手指張開
+        sb.bar((sg * 19, 0, 54), (sg * 31, 3, 44), 2.8, 'bone', sides=6, r2=2.2)                 # 上臂：往外下方斜伸
+        sb.sphere((sg * 31, 3, 44), 2.4, 'bone', seg=8, rings=5)
+        sb.bar((sg * 31, 3, 44), (sg * 52, 12, 33), 2.2, 'bone', sides=6, r2=1.5)                # 小臂：延續同一斜線，微朝前
+        sb.sphere((sg * 52, 12, 33), 1.7, 'bone', seg=8, rings=5)                                # 手腕
+        hand((sg * 55.5, 13.6, 32.2), (sg * 0.85, 0.42, -0.2), fingers=4, flen=10.5, spread=2.3, palm=(6.5, 6.5, 1.0), lift=(0, 0, 1.8))   # 掌心朝上、手指張開
 
         # ── 髖部垂下的四對細長多節手臂（約 35 單位長） ──
         for k in range(4):
