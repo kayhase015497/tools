@@ -46,24 +46,40 @@ def add(obj_name, mesh_op, loc_g, m, rot=(0, 0, 0), scale=(1, 1, 1)):
     mesh_op(); o = bpy.context.active_object; o.name = obj_name; o.location = to_b(loc_g); o.rotation_euler = rot; o.scale = scale
     o.data.materials.append(m); bpy.ops.object.shade_smooth(); return o
 
+def band(name, cx, cy, cz, r, a0, a1, w, t, m, n=28):
+    """平的弧形帶（圓心 (cx,cy,cz)，半徑 r，角度 a0→a1，徑向寬 w、厚 t；glTF 的 XY 平面）。"""
+    vs, fs = [], []
+    for i in range(n + 1):
+        a = a0 + (a1 - a0) * i / n; c, sn = math.cos(a), math.sin(a)
+        for rr in (r - w / 2, r + w / 2):
+            for zz in (-t / 2, t / 2): vs.append(to_b((cx + rr * c, cy + rr * sn, cz + zz)))
+    for i in range(n):
+        o = i * 4
+        fs += [(o, o + 1, o + 5, o + 4), (o + 2, o + 6, o + 7, o + 3), (o, o + 4, o + 6, o + 2), (o + 1, o + 3, o + 7, o + 5)]
+    fs += [(0, 2, 3, 1), (n * 4, n * 4 + 1, n * 4 + 3, n * 4 + 2)]
+    me = bpy.data.meshes.new(name); me.from_pydata(vs, [], fs); me.update(); o = bpy.data.objects.new(name, me); sc.collection.objects.link(o); o.data.materials.append(m)
+    for p in me.polygons: p.use_smooth = False
+    return o
+
+RAD = 18.9   # 大環中心線半徑（球心到環心的距離）
 for i, s in enumerate(SPH):
-    sg = 1 if s[0] > 0 else -1
+    sg = 1 if s[0] > 0 else -1; th = math.atan2(s[1] - RING_C[1], s[0] - RING_C[0])   # 球在大環上的角度
     add('XZ_Sphere%d' % i, lambda: bpy.ops.mesh.primitive_uv_sphere_add(segments=24, ring_count=14, radius=1.7), s, M_TEAL)
-    # 環形框：圓環所在平面（法線 = 艦首軸），球位於框中心，球與框之間是空的
-    add('XZ_Frame%d' % i, lambda: bpy.ops.mesh.primitive_torus_add(major_radius=2.75, minor_radius=0.24, major_segments=40, minor_segments=8), s, M_DARK, rot=(math.radians(90), 0, 0))
-    # 左右各一小段連接，接回被切開的大環（沿環的切線方向）
-    cx, cy = s[0] - RING_C[0], s[1] - RING_C[1]; r = math.hypot(cx, cy); tx, ty = -cy / r, cx / r
-    for k in (-1, 1):
-        mid = (s[0] + k * tx * 3.25, s[1] + k * ty * 3.25, RING_C[2])
-        ang = math.atan2(ty, tx)
-        add('XZ_Link%d_%d' % (i, k), lambda: bpy.ops.mesh.primitive_cube_add(size=1), mid, M_DARK, rot=(0, 0, ang), scale=(1.4, 0.45, 0.45))
-# 頂端中央膠囊：深色外框＋綠色發光內芯
-TOP = (0.0, 18.6, RING_C[2])
-add('XZ_CapsuleFrame', lambda: bpy.ops.mesh.primitive_cube_add(size=1), TOP, M_DARK, scale=(1.0, 5.4, 0.9))
-cap = add('XZ_Capsule', lambda: bpy.ops.mesh.primitive_uv_sphere_add(segments=16, ring_count=10, radius=0.42), TOP, M_GREEN, scale=(1.0, 4.6, 1.0))
-cap.location.z += -0.0; bpy.context.view_layer.update()
-# 把膠囊外框的前後面稍微凸出，讓綠色內芯露出（內芯較厚）
-cap.scale = (1.0, 4.3, 1.5)
+    # 環形框（扁平帶，開口朝向大環的上下兩個切線方向，與美術圖相同）：球在框中心，球與框之間是空的
+    gap = math.radians(34); tang = th + math.pi / 2     # 切線方向（向上弧）
+    for a0, a1 in ((tang + gap / 2, tang + math.pi - gap / 2), (tang + math.pi + gap / 2, tang + 2 * math.pi - gap / 2)):
+        band('XZ_Frame%d_%d' % (i, int(a0 * 100)), s[0], s[1], s[2], 2.9, a0, a1, 0.55, 1.0, M_DARK, n=16)
+    # 大環往頂端的弧：從框的上緣一路到膠囊前方停住（不碰膠囊），尾端略微收窄
+    start = th + sg * math.radians(9.5); end = math.radians(90) - sg * math.radians(7.5)
+    a0, a1 = (min(start, end), max(start, end))
+    band('XZ_ArcUp%d' % i, RING_C[0], RING_C[1], RING_C[2], RAD, a0, a1, 1.1, 1.0, M_DARK, n=22)
+    # 往下的弧：接回原本殘留的大環
+    d0 = th - sg * math.radians(9.5); d1 = th - sg * math.radians(14)
+    band('XZ_ArcDn%d' % i, RING_C[0], RING_C[1], RING_C[2], RAD, min(d0, d1), max(d0, d1), 1.1, 1.0, M_DARK, n=4)
+# 頂端中央膠囊：圓角矩形深色外框＋細長綠色發光內芯，漂浮在兩段弧中間（不與環相連）
+TOP = (0.0, RING_C[1] + RAD + 0.2, RING_C[2])
+add('XZ_CapsuleFrame', lambda: bpy.ops.mesh.primitive_cube_add(size=1), TOP, M_DARK, scale=(1.25, 5.6, 0.9))
+add('XZ_CapsuleCore', lambda: bpy.ops.mesh.primitive_cube_add(size=1), (TOP[0], TOP[1], TOP[2]), M_GREEN, scale=(0.5, 4.6, 1.1))
 
 # ── 3. 錨點 ──
 def anchor(name, g):
