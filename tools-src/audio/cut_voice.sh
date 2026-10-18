@@ -20,3 +20,5 @@ cut ko cyrene 340.4 344.2; cut ko dan 344.6 348.1; cut ko march 348.2 352.1;    
 # ffmpeg -i <原檔> -ac 1 -ar 44100 -af "afade=t=in:d=0.03,loudnorm=I=-18:TP=-2:LRA=7,afade=t=out:st=7.85:d=0.15" -c:a libmp3lame -b:a 80k assets/space-war/voice/en/lyc3.mp3
 # lyc4（衝擊後蓋板台詞「The conclusion is irrefutable…」，英文 21 秒）：同上，使用者提供的人聲檔：
 # ffmpeg -i <原檔> -ac 1 -ar 44100 -af "afade=t=in:d=0.03,loudnorm=I=-18:TP=-2:LRA=7,afade=t=out:st=20.85:d=0.15" -c:a libmp3lame -b:a 80k assets/space-war/voice/en/lyc4.mp3
+# ja lyc3 / lyc4：使用者提供的日文人聲檔（jp_conclusion＝第四時刻 7.0 秒、jp_destruction＝大招後結論 22.0 秒，檔名與內容相反），同樣正規化：
+# ffmpeg -i <原檔> -ac 1 -ar 44100 -af "afade=t=in:d=0.03,loudnorm=I=-18:TP=-2:LRA=7,afade=t=out:st=<秒數-0.15>:d=0.15" -c:a libmp3lame -b:a 80k assets/space-war/voice/ja/lyc3.mp3
