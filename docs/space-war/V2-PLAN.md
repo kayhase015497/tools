@@ -246,3 +246,7 @@ assets/space-war/v2/
 - `frigate.glb` 換成 Desktop 重塑後的 `frigate_slim`（左右對稱，白金配色未動）；長度 10（原 9.5），sc 9 不變。原檔 `models/incoming/frigate_slim_desktop.glb`。
 - 該檔沒有錨點，`finish_frigate.py` 補 5 個 HP 節點（位置為估算：槍在艦首、引擎在艦尾）。引擎光改金白色。
 - 還原：revert 此 commit。
+
+## build 32 — 護衛艦收緊
+- `tighten_frigate.py`：圓環縮到 0.62 倍、下垂飄帶與小零件往艦體靠攏（寬 ±3.3 → ±2.0，下垂 −3.1 → −1.5）；只動頂點，材質貼圖不變。
+- 引擎錨點移到艦體尾端（原本落在飄帶外的空處）。流程：incoming 原檔 → tighten → finish_frigate → `frigate.glb`。
