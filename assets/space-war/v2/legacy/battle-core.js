@@ -23,10 +23,9 @@ const TOMB_PARTS = [[0, 86, 0, 22], [0, 40, 0, 22], [-34, 86, 0, 14], [34, 86, 0
 const DEF = {
   fgt:   { side: 'a', name: 'Interceptor',    hp: 150,    spd: 105, sc: 1,   rad: 8,   turn: 1.7, boom: 0.8, cls: 'fgt' },
   frig:  { side: 'a', name: 'Frigate',        hp: 3000,   shield: 500,    spd: 28,  turn: 0.20, sc: 9,  rad: 40,  range: 1500, boom: 4,  cls: 'ship', flak: { cd: 0.5, dmg: 40, w: 1.2, len: 30, bs: 900, col: [0.3, 0.7, 1.0] },  beam: { cd: 4.0, n: 1, dmg: 260,  w: 5,  col: [0.35, 0.7, 1.0] } },
-  cruis: { side: 'a', name: 'Cruiser',        hp: 9000,   shield: 1800,   spd: 24,  turn: 0.14, sc: 11, rad: 95,  range: 1900, boom: 6,  cls: 'ship', flak: { cd: 0.45, dmg: 60, w: 1.6, len: 40, bs: 900, col: [0.3, 0.7, 1.0] }, beam: { cd: 3.5, n: 1, dmg: 600,  w: 9,  col: [0.3, 0.65, 1.0] } },
-  cap:   { side: 'a', name: 'Dreadnought',    hp: 42000,  shield: 8000,   spd: 21,  turn: 0.09, sc: 20, rad: 340, range: 2600, boom: 12, cls: 'cap',  flak: { cd: 0.4, dmg: 90, w: 2.2, len: 60, bs: 900, col: [0.35, 0.75, 1.0] }, beam: { cd: 3.0, n: 2, dmg: 1500, w: 16, col: [0.25, 0.6, 1.0] } },
+  cruis: { side: 'a', name: 'Cruiser',        hp: 24000,  shield: 4500,   spd: 24,  turn: 0.12, sc: 22, rad: 190, range: 2300, boom: 10, cls: 'ship', beam: { cd: 3.0, n: 2, dmg: 900,  w: 14, col: [0.3, 0.65, 1.0] }, msl: { cd: 4.5, n: 4, dmg: 700 } },
   hss:   { side: 'a', name: 'HSS',            hp: 160000, shield: 30000,  spd: 20,  turn: 0.06, sc: 30, rad: 700, range: 3200, boom: 20, cls: 'cap',  flak: { cd: 0.3, dmg: 140, w: 3, len: 80, bs: 900, col: [1.0, 0.9, 0.5] },    beam: { cd: 2.6, n: 3, dmg: 3000, w: 28, col: [1.0, 0.85, 0.45] } },
-  ipc:   { side: 'a', name: 'IPC Cruiser',    hp: 10000,  shield: 1800,   spd: 25,  turn: 0.14, sc: 11, rad: 105, range: 2000, boom: 6,  cls: 'ship', flak: { cd: 0.4, dmg: 60, w: 1.6, len: 40, bs: 900, col: [1.0, 0.25, 0.22] }, beam: { cd: 3.2, n: 2, dmg: 700, w: 10, col: [1.0, 0.1, 0.16] } },
+  ipc:   { side: 'a', name: 'IPC Cruiser',    hp: 26000,  shield: 4500,   spd: 25,  turn: 0.12, sc: 22, rad: 210, range: 2400, boom: 10, cls: 'ship', beam: { cd: 2.8, n: 2, dmg: 1000, w: 16, col: [1.0, 0.1, 0.16] }, msl: { cd: 4.0, n: 4, dmg: 800 } },
   xzd:   { side: 'a', name: 'Xianzhou Dreadnought', hp: 420000, shield: 80000,  spd: 18, turn: 0.04, sc: 34, rad: 1000, range: 3800, boom: 26, cls: 'cap', flak: { cd: 0.1, dmg: 110, w: 2.6, len: 70, bs: 900, col: [0.3, 0.7, 1.0] }, beam: { cd: 2.2, n: 6, dmg: 2600, w: 24, col: [0.2, 0.55, 1.0] }, msl: { cd: 3.6, n: 8, dmg: 900 } },
   moon:  { side: 'a', name: 'Screwllum Moon', hp: 260000, shield: 50000,  spd: 16,  turn: 0.03, sc: 45, rad: 740, range: 3400, cd: 5.0, boom: 24, cls: 'cap', bubble: 1,
            flak: { cd: 0.4, dmg: 90, w: 2.2, len: 60, bs: 900, col: [0.35, 0.75, 1.0] }, beam: { cd: 3.0, n: 2, dmg: 1500, w: 16, col: [0.25, 0.6, 1.0] } },
@@ -34,7 +33,7 @@ const DEF = {
   fly:   { side: 'e', name: 'Legion Fighter', hp: 90,     spd: 112, sc: 1.5, rad: 7,  turn: 1.5, boom: 0.8, cls: 'fgt' },
   whale: { side: 'e', name: 'Legion Carrier', hp: 30000,  shield: 6000,   spd: 20,  turn: 0.08, sc: 14, rad: 170, range: 1700, boom: 9,  cls: 'cap',  flak: { cd: 0.6, dmg: 45, w: 1.8, len: 50, bs: 800, col: [0.62, 0.22, 1.0] },  beam: { cd: 3.2, n: 1, dmg: 700, w: 14, col: [0.65, 0.2, 1.0] } }
 };
-const SHIP_KINDS = ['frig', 'cruis', 'ipc', 'cap', 'xzd', 'hss', 'moon', 'awacs'];
+const SHIP_KINDS = ['frig', 'cruis', 'ipc', 'xzd', 'hss', 'moon', 'awacs'];
 
 /* ═════════ 劇本時間軸（5 分鐘）與台詞 ═════════ */
 // REVEAL：黑幕落下、戰場可見；FLASH：白閃 → 「第四時刻」；DOOM：巨劍降臨；IMPACT：衝擊波；WHITE：全白；END：收尾字卡

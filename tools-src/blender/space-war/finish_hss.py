@@ -1,7 +1,7 @@
 """黑塔空間站（Desktop 版 hss_new.glb）收尾：
-  1. 方向：不旋轉。依使用者提供的美術圖（視點在圓環右下方、看向整個空間站，左上角即為引擎所在）：
-     圓環端＝船頭（+Z），引擎在遠端的黑色長方塊末端（−Z）。（黑色方塊旁的藍光是甲板導引光，不是引擎。）
-  2. 錨點：引擎 3 個放在黑色方塊末端；砲塔 3 個與艦橋視點沿用 Desktop 擺放的位置
+  1. 方向（使用者確認）：引擎在圓環那一側、艦橋在中前段、靠近甲板導引光那一側。
+     → 圓環端＝船尾（−Z），黑色長方塊（甲板導引光端）＝船頭（+Z）。Desktop 的檔案圓環在 +Z，所以繞 Y 轉 180°。
+  2. 錨點：引擎 3 個放在圓環內的引擎艙後端；砲塔 3 個隨之翻轉；艦橋視點放在中前段（靠船頭）
   3. 底色貼圖提亮（原圖平均亮度僅 0.2，遊戲光照下太暗）；擷取藍色甲板導引光成發光貼圖；重新打包
 用法：python finish_hss.py <輸入.glb> <輸出.glb>"""
 import sys, os, io, json, struct, math
@@ -17,14 +17,16 @@ sc = bpy.context.scene
 mesh = [o for o in sc.objects if o.type == 'MESH'][0]; mesh.parent = None
 bpy.context.view_layer.objects.active = mesh; bpy.ops.object.select_all(action='DESELECT'); mesh.select_set(True)
 bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+# glTF 繞 Y 轉 180°：x→−x、z→−z；Blender 座標（x, −z, y）→ x→−x、y→−y
+for v in mesh.data.vertices: v.co.x, v.co.y = -v.co.x, -v.co.y
 mesh.data.update()
 for e in [o for o in sc.objects if o.type == 'EMPTY']: sc.objects.remove(e) if False else bpy.data.objects.remove(e, do_unlink=True)
 to_b = lambda g: (g[0], -g[2], g[1])
 def anchor(name, g):
     e = bpy.data.objects.new(name, None); sc.collection.objects.link(e); e.location = to_b(g); e.empty_display_type = 'PLAIN_AXES'
-# glTF 座標（x 右、y 上、+z 船頭＝圓環端）。引擎在黑色長方塊末端（z≈−32）
-for n, g in {'HP_ENGINE_1': (0.0, -1.15, -33.0), 'HP_ENGINE_2': (-1.3, -1.15, -33.0), 'HP_ENGINE_3': (1.3, -1.15, -33.0),
-             'HP_GUN_1': (0.0, 8.06, 21.0), 'HP_GUN_2': (0.0, 7.39, 15.0), 'HP_GUN_3': (0.0, 4.88, -11.0), 'HP_COCKPIT': (0.0, 7.3, -4.5)}.items(): anchor(n, g)
+# glTF 座標（x 右、y 上、+z 船頭＝黑色方塊端）。轉向後圓環在 −Z（約 z=−31 ~ −33），引擎艙在 z≈−27 ~ −31
+for n, g in {'HP_ENGINE_1': (0.0, 2.0, -33.5), 'HP_ENGINE_2': (-2.3, 2.0, -33.0), 'HP_ENGINE_3': (2.3, 2.0, -33.0),
+             'HP_GUN_1': (0.0, 8.06, -21.0), 'HP_GUN_2': (0.0, 7.39, -15.0), 'HP_GUN_3': (0.0, 4.88, 11.0), 'HP_COCKPIT': (0.0, 7.0, 9.0)}.items(): anchor(n, g)
 bpy.ops.object.select_all(action='DESELECT')
 for o in sc.objects: o.select_set(o.type in ('MESH', 'EMPTY'))
 bpy.ops.export_scene.gltf(filepath=tmp, export_format='GLB', use_selection=True, export_yup=True, export_apply=True, export_materials='EXPORT', export_cameras=False, export_lights=False, export_animations=False, export_image_format='JPEG', export_jpeg_quality=90)
