@@ -333,6 +333,10 @@ function stepShots(dt) {
     fx.beam(b.x - b.vx * inv * L, b.y - b.vy * inv * L, b.z - b.vz * inv * L, b.x, b.y, b.z, { color: b.col, width: b.w, dur: Math.max(dt * 1.6, 0.03), len: 0 });
   }
 }
+function missileLost(m, dt) {   // 目標已被摧毀（或沒有目標）：短暫延遲後自毀，不留遊蕩飛彈（每顆延遲不同，齊射時會錯落引爆）
+  if (m.sd == null) m.sd = rnd(0.35, 0.95); m.sd -= dt; if (m.sd > 0) return false;
+  fx.explode(m.x, m.y, m.z, 0.8, m.side === 'e', 1); fx.emit(m.x, m.y, m.z, 0, 0, 0, 1, 0.8, 0.5, 40, 0.18, 0, 1); return true;
+}
 function missileHit(m, tg, dist) {   // 飛彈是否已碰到目標（大艦用艦體橢球，其餘用球）；碰到就引爆並結算傷害
   const inH = tg.d && tg.d.hp > 1000 ? inHull(tg, m.x, m.y, m.z, 14) : null;
   if (!(inH === null ? dist < tg.rad + 14 : inH)) return false;
@@ -347,6 +351,7 @@ const MSL_WMAX = 4.6, MSL_AC = 20, MSL_SPD = 470, MSL_ACC = 640;
 function stepVLS(m, dt) {
   m.age += dt; m.life -= dt; const tg = m.tgt, mk = 6;
   if (m.stage === 0) {
+    if ((!tg || tg.dead) && missileLost(m, dt)) return false;
     const k = clamp(m.age / m.t1, 0, 1), sp = m.cold * (1 - 0.5 * k);
     m.vx = m.ux * sp + m.dvx; m.vy = m.uy * sp + m.dvy; m.vz = m.uz * sp + m.dvz;
     m.x += m.vx * dt; m.y += m.vy * dt; m.z += m.vz * dt;
@@ -374,14 +379,18 @@ function stepVLS(m, dt) {
     const sl = Math.min(1, 4.2 * dt);   // 速度向量延遲追上彈頭方向（慣性滑移）
     m.vx += (m.fx * m.spd - m.vx) * sl; m.vy += (m.fy * m.spd - m.vy) * sl; m.vz += (m.fz * m.spd - m.vz) * sl;
     if (missileHit(m, tg, dist)) return false;
-  } else { m.spd = Math.min(m.spd + MSL_ACC * dt, MSL_SPD); m.vx = m.fx * m.spd; m.vy = m.fy * m.spd; m.vz = m.fz * m.spd; }
+  } else { if (missileLost(m, dt)) return false; m.spd = Math.min(m.spd + MSL_ACC * dt, MSL_SPD); m.vx = m.fx * m.spd; m.vy = m.fy * m.spd; m.vz = m.fz * m.spd; }
   m.x += m.vx * dt; m.y += m.vy * dt; m.z += m.vz * dt;
   // 噴焰：彈尾一束短而尖的錐形火焰（橘紅外焰＋白熱內核，隨機閃爍長度），加一顆噴口亮點；細長淺灰的煙跡（像星際公民的飛彈）
   const fl = m.age - m.t1 < 0.35 ? 1.5 : 1, fk = rnd(0.8, 1.25), bx = m.x - m.fx * 9, by = m.y - m.fy * 9, bz = m.z - m.fz * 9, Lf = 36 * fl * fk;
   fx.beam(bx, by, bz, bx - m.fx * Lf, by - m.fy * Lf, bz - m.fz * Lf, { color: [1, 0.5, 0.16], width: 4.4 * fl, dur: Math.max(dt * 1.8, 0.04), len: 0 });
   fx.beam(bx, by, bz, bx - m.fx * Lf * 0.45, by - m.fy * Lf * 0.45, bz - m.fz * Lf * 0.45, { color: [1, 0.93, 0.8], width: 1.5 * fl, dur: Math.max(dt * 1.8, 0.04), len: 0 });
   fx.emit(bx, by, bz, 0, 0, 0, 1, 0.8, 0.5, 9 * fl, 0.05, 0, 0);
-  if (fx.smoke && !G.lite && Math.random() < dt * 40) fx.smoke(m.x - m.fx * 12, m.y - m.fy * 12, m.z - m.fz * 12, rnd(-3, 3), rnd(-3, 3), rnd(-3, 3), 2.2, 9, 2.6, [0.62, 0.62, 0.65], 0.35, 0.55);
+  // 尾焰軌跡：沿飛行路徑連續放小顆發光粒子（壽命短、亮度隨壽命平方衰減、尺寸漸縮）→ 越遠離彈尾越暗，拉出漸隱的尾焰；另有很淡的細煙
+  const nT = Math.max(1, Math.round(dt * 90));
+  for (let j = 0; j < nT; j++) { const f = j / nT, tx = m.x - m.vx * dt * f - m.fx * 10, ty = m.y - m.vy * dt * f - m.fy * 10, tz = m.z - m.vz * dt * f - m.fz * 10;
+    fx.emit(tx, ty, tz, rnd(-2, 2), rnd(-2, 2), rnd(-2, 2), 1, 0.52, 0.2, 4.2 * fl, 0.75, 0); }
+  if (fx.smoke && !G.lite && Math.random() < dt * 22) fx.smoke(m.x - m.fx * 12, m.y - m.fy * 12, m.z - m.fz * 12, rnd(-3, 3), rnd(-3, 3), rnd(-3, 3), 2.2, 8, 1.5, [0.55, 0.55, 0.58], 0.4, 0.3);
   return m.life > 0;
 }
 function stepMissile(m, dt) {
@@ -392,7 +401,7 @@ function stepMissile(m, dt) {
     V2.set(m.vx, m.vy, m.vz); const sp = Math.min(m.spd + 330 * dt, 340); V2.normalize();
     V2.lerp(V, Math.min(1, 2.6 * dt)).normalize(); m.spd = sp; m.vx = V2.x * sp; m.vy = V2.y * sp; m.vz = V2.z * sp;
     if (missileHit(m, tg, dist)) return false;
-  } else { m.spd = Math.min(m.spd + 330 * dt, 340); m.vx = m.fx * m.spd; m.vy = m.fy * m.spd; m.vz = m.fz * m.spd; }
+  } else { if (missileLost(m, dt)) return false; m.spd = Math.min(m.spd + 330 * dt, 340); m.vx = m.fx * m.spd; m.vy = m.fy * m.spd; m.vz = m.fz * m.spd; }
   m.x += m.vx * dt; m.y += m.vy * dt; m.z += m.vz * dt; m.life -= dt;
   const mk = m.big ? 6 : 1;   // 艦載飛彈體型大，拖尾與彈頭光點跟著放大才看得見
   fx.emit(m.x, m.y, m.z, rnd(-2, 2), rnd(-2, 2), rnd(-2, 2), 1, 0.7, 0.35, 5 * mk, 0.7 + (mk > 1 ? 0.8 : 0), 1.5);
@@ -611,8 +620,8 @@ function fireBeamCannon(s, tg, spec) {
  * 顏色對應光束（紅／藍／紫；混少量白熱與暖黃），再加一團很淡的、帶光束色的薄霧。刻意偏美術：火花多而小、不用大光球。 */
 function weldSparks(x, y, z, N, w, col, dt) {
   const fr = dt * 60, hotC = [col[0] * 0.25 + 0.75, col[1] * 0.25 + 0.75, col[2] * 0.25 + 0.75], vivid = [Math.min(1, col[0] * 1.15 + 0.12), Math.min(1, col[1] * 1.15 + 0.12), Math.min(1, col[2] * 1.15 + 0.12)];
-  fx.emit(x, y, z, 0, 0, 0, hotC[0], hotC[1], hotC[2], Math.max(2.2, w * rnd(0.55, 0.95)), 0.05, 0, 0);                    // 命中亮點（小）
-  if (Math.random() < 0.35 * fr) fx.emit(x, y, z, 0, 0, 0, vivid[0], vivid[1], vivid[2], Math.max(3.5, w * rnd(1.0, 1.6)), 0.06, 0, 0);   // 偶爾一次稍大的閃爍
+  fx.emit(x, y, z, 0, 0, 0, hotC[0], hotC[1], hotC[2], Math.max(2.75, w * rnd(0.69, 1.19)), 0.05, 0, 0);                    // 命中亮點（小）
+  if (Math.random() < 0.35 * fr) fx.emit(x, y, z, 0, 0, 0, vivid[0], vivid[1], vivid[2], Math.max(4.4, w * rnd(1.25, 2.0)), 0.06, 0, 0);   // 偶爾一次稍大的閃爍
   if (fx.smoke && !G.lite && Math.random() < 0.22 * fr) fx.smoke(x + N.x * w * 0.6, y + N.y * w * 0.6, z + N.z * w * 0.6, N.x * w * 2.5 + rnd(-1, 1) * w, N.y * w * 2.5 + rnd(-1, 1) * w, N.z * w * 2.5 + rnd(-1, 1) * w, Math.max(2, w * 0.7), Math.max(7, w * 2.6), rnd(0.5, 0.9), [col[0] * 0.65 + 0.12, col[1] * 0.65 + 0.12, col[2] * 0.65 + 0.12], 0.5, 0.45);   // 淡薄霧
   const n = Math.max(3, Math.round(15 * fr));
   for (let j = 0; j < n; j++) {
