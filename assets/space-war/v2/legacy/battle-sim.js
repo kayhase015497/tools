@@ -351,10 +351,9 @@ function stepVLS(m, dt) {
     m.vx = m.ux * sp + m.dvx; m.vy = m.uy * sp + m.dvy; m.vz = m.uz * sp + m.dvz;
     m.x += m.vx * dt; m.y += m.vy * dt; m.z += m.vz * dt;
     if (fx.smoke && !G.lite && Math.random() < dt * 30) fx.smoke(m.x, m.y, m.z, rnd(-7, 7), rnd(-7, 7), rnd(-7, 7), 6, 20, 1.7, [0.78, 0.78, 0.8], 0.55, 0.6);   // 冷發射的白色燃氣
-    fx.emit(m.x, m.y, m.z, 0, 0, 0, 0.85, 0.9, 1, 5 * mk * 0.6, 0.08, 0, 0);
     if (m.age >= m.t1) {   // 第二段點火
       m.stage = 1; m.spd = Math.max(sp, 60);
-      fx.emit(m.x, m.y, m.z, 0, 0, 0, 1, 0.85, 0.55, 90, 0.28, 0, 1); fx.emit(m.x, m.y, m.z, 0, 0, 0, 1, 1, 1, 42, 0.12, 0, 0, 1.2);
+      fx.emit(m.x, m.y, m.z, 0, 0, 0, 1, 0.85, 0.55, 60, 0.22, 0, 1); fx.emit(m.x, m.y, m.z, 0, 0, 0, 1, 1, 1, 28, 0.1, 0, 0, 1.2);
       for (let j = 0; j < 10; j++) fx.emit(m.x, m.y, m.z, rnd(-1, 1) * 120, rnd(-1, 1) * 120, rnd(-1, 1) * 120, 1, rnd(0.6, 0.9), rnd(0.3, 0.5), rnd(3, 6), rnd(0.2, 0.5), 2.2);
       boomLight(m.x, m.y, m.z, 0.5, [1, 0.8, 0.5]); if (fx.smoke && !G.lite) fx.smoke(m.x, m.y, m.z, 0, 0, 0, 10, 38, 1.6, [0.9, 0.85, 0.8], 0.6, 0.6);
     }
@@ -377,10 +376,12 @@ function stepVLS(m, dt) {
     if (missileHit(m, tg, dist)) return false;
   } else { m.spd = Math.min(m.spd + MSL_ACC * dt, MSL_SPD); m.vx = m.fx * m.spd; m.vy = m.fy * m.spd; m.vz = m.fz * m.spd; }
   m.x += m.vx * dt; m.y += m.vy * dt; m.z += m.vz * dt;
-  const fl = m.age - m.t1 < 0.35 ? 1.6 : 1;   // 點火後前 0.35 秒火焰特別亮
-  fx.emit(m.x - m.fx * 6, m.y - m.fy * 6, m.z - m.fz * 6, rnd(-3, 3), rnd(-3, 3), rnd(-3, 3), 1, 0.65, 0.3, 6 * mk * fl, 0.9, 1.5);
-  fx.emit(m.x, m.y, m.z, 0, 0, 0, 1, 0.95, 0.8, 4.5 * mk * fl, 0.05, 0, 0);
-  if (fx.smoke && !G.lite && Math.random() < dt * 14) fx.smoke(m.x - m.fx * 10, m.y - m.fy * 10, m.z - m.fz * 10, rnd(-5, 5), rnd(-5, 5), rnd(-5, 5), 5, 18, 2.4, [0.5, 0.48, 0.46], 0.4, 0.7);
+  // 噴焰：彈尾一束短而尖的錐形火焰（橘紅外焰＋白熱內核，隨機閃爍長度），加一顆噴口亮點；細長淺灰的煙跡（像星際公民的飛彈）
+  const fl = m.age - m.t1 < 0.35 ? 1.5 : 1, fk = rnd(0.8, 1.25), bx = m.x - m.fx * 9, by = m.y - m.fy * 9, bz = m.z - m.fz * 9, Lf = 36 * fl * fk;
+  fx.beam(bx, by, bz, bx - m.fx * Lf, by - m.fy * Lf, bz - m.fz * Lf, { color: [1, 0.5, 0.16], width: 4.4 * fl, dur: Math.max(dt * 1.8, 0.04), len: 0 });
+  fx.beam(bx, by, bz, bx - m.fx * Lf * 0.45, by - m.fy * Lf * 0.45, bz - m.fz * Lf * 0.45, { color: [1, 0.93, 0.8], width: 1.5 * fl, dur: Math.max(dt * 1.8, 0.04), len: 0 });
+  fx.emit(bx, by, bz, 0, 0, 0, 1, 0.8, 0.5, 9 * fl, 0.05, 0, 0);
+  if (fx.smoke && !G.lite && Math.random() < dt * 40) fx.smoke(m.x - m.fx * 12, m.y - m.fy * 12, m.z - m.fz * 12, rnd(-3, 3), rnd(-3, 3), rnd(-3, 3), 2.2, 9, 2.6, [0.62, 0.62, 0.65], 0.35, 0.55);
   return m.life > 0;
 }
 function stepMissile(m, dt) {

@@ -185,6 +185,28 @@ function buildDoomVisuals() {
 }
 const SWORD_END = MOBIUS_CY, WAVE_Z = TOMB_POS.z + MOBIUS_OFF;   // 衝擊中心＝紐帶中心（巨劍刺穿 ∞ 交叉點的位置）
 const _hv = new THREE.Vector3(), _hv2 = new THREE.Vector3(), SWORD_GRIP = 9800;   // 巨劍組：原點在劍尖；雙手握在護手上方 +9800 處
+/* ── 艦載飛彈的彈體（InstancedMesh）：圓柱彈身＋尖頭＋尾部噴口＋四片尾翼，朝彈頭方向；火焰與煙跡由 sw-sim 的粒子／光束負責 ── */
+const MSL_CAP = 160, mslMesh = (() => {
+  const P = [], Nn = [], I = []; const add = (g, tr) => { g = g.clone(); if (tr) tr(g); const ni = P.length / 3, pos = g.attributes.position, nor = g.attributes.normal, idx = g.index; for (let i = 0; i < pos.count; i++) { P.push(pos.getX(i), pos.getY(i), pos.getZ(i)); Nn.push(nor.getX(i), nor.getY(i), nor.getZ(i)); } for (let i = 0; i < idx.count; i++) I.push(idx.getX(i) + ni); };
+  add(new THREE.CylinderGeometry(1.5, 1.5, 12, 10), (g) => g.rotateX(Math.PI / 2));                                   // 彈身（沿 +Z）
+  add(new THREE.ConeGeometry(1.5, 6, 10), (g) => g.rotateX(Math.PI / 2).translate(0, 0, 9));                         // 尖頭
+  add(new THREE.CylinderGeometry(1.1, 1.7, 2, 10), (g) => g.rotateX(Math.PI / 2).translate(0, 0, -7));                // 噴口
+  for (let k = 0; k < 4; k++) add(new THREE.BoxGeometry(0.25, 3.4, 4.2), (g) => g.translate(0, 2.9, -3.4).rotateZ(k * Math.PI / 2));   // 尾翼
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(Nn, 3)); g.setIndex(I);
+  const m = new THREE.InstancedMesh(g, new THREE.MeshStandardMaterial({ color: 0xc9ced8, metalness: 0.55, roughness: 0.42, emissive: 0x15181f }), MSL_CAP); m.frustumCulled = false; m.count = 0; scene.add(m); return m;
+})();
+const _mm = new THREE.Matrix4(), _mq = new THREE.Quaternion(), _mv = new THREE.Vector3(), _mu = new THREE.Vector3(0, 0, 1), _ms = new THREE.Vector3(1, 1, 1);
+const _mp = new THREE.Vector3();
+function updateMissileViz() {
+  let n = 0;
+  for (let i = 0; i < shots.length && n < MSL_CAP; i++) {
+    const m = shots[i]; if (!m.vls) continue;
+    if (m.stage === 0) _mv.set(m.ux, m.uy, m.uz); else _mv.set(m.fx, m.fy, m.fz);
+    if (_mv.lengthSq() < 1e-6) continue;
+    _mq.setFromUnitVectors(_mu, _mv.normalize()); _mp.set(m.x, m.y, m.z); _mm.compose(_mp, _mq, _ms); mslMesh.setMatrixAt(n++, _mm);
+  }
+  mslMesh.count = n; mslMesh.instanceMatrix.needsUpdate = true;
+}
 function updateDoomVisuals(dt) {
   const D = doomObj; if (!D.sword) return;
   if (G.mode === 'script' && G.t >= T.DOOM) {
@@ -292,7 +314,7 @@ function frameUpdate(dt) {
   cockRoot.visible = cockpitVisible();
   if (tombMeshes) tombMeshes.rotation.y = Math.sin(G.t * 0.05) * 0.03;
   mobius.userData.mats.forEach((m) => { m.uniforms.uTime.value = G.t; }); { const pu = 1 + 0.06 * Math.sin(G.t * 1.7); ringCore.scale.setScalar(6200 * pu); ringCore2.scale.setScalar(1500 * pu); } mobius.rotation.x = Math.sin(G.t * 0.07) * 0.06; mobius.rotation.y = Math.sin(G.t * 0.05) * 0.08;   // 只輕微晃動，始終正對聯軍陣線
-  updateDoomVisuals(dt); updateBubbleViz(); updateShieldViz(); updateShadows();
+  updateDoomVisuals(dt); updateMissileViz(); updateBubbleViz(); updateShieldViz(); updateShadows();
 }
 
 /* 鐵墓：本體壓暗、環境反射降到最低，只保留邊緣的紅色輪廓光（菲涅爾），像被體內的紅光逆光照亮的巨大剪影 */
