@@ -607,18 +607,21 @@ function fireBeamCannon(s, tg, spec) {
   const gun = fleet.gunWorld(s, V); fx.emit(gun.x, gun.y, gun.z, 0, 0, 0, spec.col[0], spec.col[1], spec.col[2], spec.w * 2.2, 0.35, 0, 1);
   FPVAudio.cannon({ x: gun.x, y: gun.y, z: gun.z });
 }
-/* 電焊般的反濺：命中點一顆忽明忽暗的藍白弧光核心 + 高速細長火花（短光束線，向表面外法線半球飛濺，暖白／橘黃為主，少量帶光束色），偶有彈跳的慢速火星 */
+/* 光束命中的「電焊噴濺」（參考 Squadron 42）：命中點只有一顆小而亮的白熱點；周圍是大量「細碎的火花片」往外噴灑（速度差很大、拖著飛遠），
+ * 顏色對應光束（紅／藍／紫；混少量白熱與暖黃），再加一團很淡的、帶光束色的薄霧。刻意偏美術：火花多而小、不用大光球。 */
 function weldSparks(x, y, z, N, w, col, dt) {
-  const hot = [col[0] * 0.3 + 0.7, col[1] * 0.3 + 0.7, col[2] * 0.3 + 0.7];
-  if (Math.random() < 0.85) fx.emit(x, y, z, 0, 0, 0, hot[0], hot[1], hot[2], w * rnd(1.4, 3.2), 0.05, 0, 1);                         // 弧光核心閃爍
-  if (Math.random() < 0.5) fx.emit(x + N.x * w, y + N.y * w, z + N.z * w, 0, 0, 0, col[0] * 0.5 + 0.5, col[1] * 0.5 + 0.5, col[2] * 0.6 + 0.4, w * rnd(3, 6), 0.04, 0, 0);   // 偶爾一圈更大的閃光
-  const n = Math.max(2, Math.round(7 * dt * 60 / 3));
+  const fr = dt * 60, hotC = [col[0] * 0.25 + 0.75, col[1] * 0.25 + 0.75, col[2] * 0.25 + 0.75], vivid = [Math.min(1, col[0] * 1.15 + 0.12), Math.min(1, col[1] * 1.15 + 0.12), Math.min(1, col[2] * 1.15 + 0.12)];
+  fx.emit(x, y, z, 0, 0, 0, hotC[0], hotC[1], hotC[2], Math.max(2.2, w * rnd(0.55, 0.95)), 0.05, 0, 0);                    // 命中亮點（小）
+  if (Math.random() < 0.35 * fr) fx.emit(x, y, z, 0, 0, 0, vivid[0], vivid[1], vivid[2], Math.max(3.5, w * rnd(1.0, 1.6)), 0.06, 0, 0);   // 偶爾一次稍大的閃爍
+  if (fx.smoke && !G.lite && Math.random() < 0.22 * fr) fx.smoke(x + N.x * w * 0.6, y + N.y * w * 0.6, z + N.z * w * 0.6, N.x * w * 2.5 + rnd(-1, 1) * w, N.y * w * 2.5 + rnd(-1, 1) * w, N.z * w * 2.5 + rnd(-1, 1) * w, Math.max(2, w * 0.7), Math.max(7, w * 2.6), rnd(0.5, 0.9), [col[0] * 0.65 + 0.12, col[1] * 0.65 + 0.12, col[2] * 0.65 + 0.12], 0.5, 0.45);   // 淡薄霧
+  const n = Math.max(3, Math.round(15 * fr));
   for (let j = 0; j < n; j++) {
-    let dx = N.x * rnd(0.5, 1.2) + rnd(-1, 1), dy = N.y * rnd(0.5, 1.2) + rnd(-1, 1), dz = N.z * rnd(0.5, 1.2) + rnd(-1, 1); const dl = Math.hypot(dx, dy, dz) || 1;
+    let dx = N.x * rnd(0.2, 1.1) + rnd(-1, 1), dy = N.y * rnd(0.2, 1.1) + rnd(-1, 1), dz = N.z * rnd(0.2, 1.1) + rnd(-1, 1); const dl = Math.hypot(dx, dy, dz) || 1;
     if (dx * N.x + dy * N.y + dz * N.z < 0) { dx = -dx; dy = -dy; dz = -dz; }   // 只往表面外飛
-    const sp = w * rnd(8, 26), len = sp * rnd(0.05, 0.12), warm = Math.random() < 0.7, c = warm ? [1.0, rnd(0.65, 0.95), rnd(0.3, 0.6)] : [hot[0], hot[1], hot[2]];
-    fx.beam(x, y, z, x + dx / dl * len, y + dy / dl * len, z + dz / dl * len, { color: c, width: Math.max(0.5, w * rnd(0.05, 0.12)), dur: rnd(0.04, 0.1), len: 0 });
-    if (j % 3 === 0) fx.emit(x, y, z, dx / dl * sp, dy / dl * sp, dz / dl * sp, c[0], c[1], c[2], Math.max(0.8, w * 0.07), rnd(0.3, 0.7), 2.4);   // 火星：拖著飛遠
+    dx /= dl; dy /= dl; dz /= dl;
+    const r = Math.random(), c = r < 0.6 ? vivid : r < 0.85 ? hotC : [1.0, 0.78, 0.35], sp = w * (r < 0.2 ? rnd(14, 34) : rnd(3, 20)) * rnd(0.6, 1.25);
+    fx.emit(x, y, z, dx * sp, dy * sp, dz * sp, c[0], c[1], c[2], Math.max(1.0, w * rnd(0.07, 0.14)), rnd(0.35, 1.1), 1.6);   // 火花碎片（小點，拖著飛遠）
+    if (j % 4 === 0) fx.beam(x, y, z, x + dx * sp * 0.07, y + dy * sp * 0.07, z + dz * sp * 0.07, { color: c, width: Math.max(0.4, w * 0.05), dur: rnd(0.04, 0.09), len: 0 });   // 少量短曳光
   }
 }
 function stepBeams(dt) {
@@ -643,13 +646,6 @@ function stepBeams(dt) {
     // v2：命中點改成「火花噴濺」——從受擊表面朝射手方向噴出的一束細小火花（高速、有阻力、很快熄滅），加少量慢速熔渣；不再冒大團火球
     if (hullN) V3.set(_hb.nx, _hb.ny, _hb.nz); else V3.set(s.x - tx, s.y - ty, s.z - tz).normalize();   // 表面外法線（艦體橢球法線；無橢球時近似為朝向射手）
     b.hx = tx; b.hy = ty; b.hz = tz; weldSparks(tx, ty, tz, V3, w, col, dt);
-    const nsp = Math.max(2, Math.round(10 * dt * 60 / 3));              // 每幀約 3~6 顆（與幀率無關）
-    for (let j = 0; j < nsp; j++) {
-      const sp0 = w * rnd(10, 34), sx = V3.x + rnd(-0.75, 0.75), sy = V3.y + rnd(-0.75, 0.75), sz = V3.z + rnd(-0.75, 0.75), hot = j % 3 === 0;
-      fx.emit(tx, ty, tz, sx * sp0, sy * sp0, sz * sp0, hot ? col[0] * 0.5 + 0.5 : col[0] * 0.85 + 0.15, hot ? col[1] * 0.5 + 0.5 : col[1] * 0.85 + 0.15, hot ? col[2] * 0.5 + 0.5 : col[2] * 0.85 + 0.15, Math.max(1.0, w * rnd(0.06, 0.14)), rnd(0.25, 0.65), 2.2);
-    }
-    if (Math.random() < dt * 22) fx.emit(tx, ty, tz, V3.x * w * 3 + rnd(-1, 1) * w * 2, V3.y * w * 3 + rnd(-1, 1) * w * 2, V3.z * w * 3 + rnd(-1, 1) * w * 2, col[0] * 0.8 + 0.2, col[1] * 0.8 + 0.2, col[2] * 0.8 + 0.2, Math.max(1.5, w * rnd(0.08, 0.16)), rnd(0.8, 1.6), 0.8);   // 慢速熔渣（與光束同色、小顆）
-    if (fx.smoke && !G.lite && Math.random() < dt * 1.5) fx.smoke(tx, ty, tz, V3.x * w, V3.y * w + w * 0.5, V3.z * w, w * 0.8, w * 2.2, 1.8, [0.1, 0.085, 0.08], 0.6, 0.6);
     b.tick += dt;
     if (b.tick >= BEAM_TICK) {
       b.tick -= BEAM_TICK; const dmg = sp.dmg * BEAM_TICK / BEAM_DUR;
