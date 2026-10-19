@@ -12,7 +12,7 @@ const scene = new THREE.Scene(); scene.background = new THREE.Color(0x03050c);
 const camera = new THREE.PerspectiveCamera(FOV, 1, 1, 60000);
 const sky = SWEnv.makeSky(30000, { linear: true }); scene.add(sky);
 SWEnv.makeEnvironment(renderer, scene);
-const lights = SWEnv.addLights(scene, { hemi: 0.2, key: 1.5, rim: 0.55 });   // v2：主光 3.0 → 1.5，艦艇不再被照到發白   // 低環境光＋強主光：明暗反差大
+const lights = SWEnv.addLights(scene, { hemi: 0.2, key: 1.5, rim: 0.3 });   // v2：主光 3.0 → 1.5，艦艇不再被照到發白   // 低環境光＋強主光：明暗反差大
 let W = 1, H = 1, post = null, hurtK = 0, fovCur = FOV, speedFx = 0;
 
 // 駕駛艙疊加層：獨立的場景＋相機（近平面極近），畫在主場景之後
@@ -38,7 +38,8 @@ const SUN_DIR = sun.position.clone().normalize();
 const tombGlow = glowSprite(0xff2040, 9500, 0.42, 1.5); tombGlow.position.copy(TOMB_POS).add(new THREE.Vector3(0, 300, 0)); scene.add(tombGlow);
 const tombGlow2 = glowSprite(0xff5a30, 4200, 0.38, 2.0); tombGlow2.position.copy(TOMB_POS); scene.add(tombGlow2);
 // 紅光從鐵墓體內向外照：艦隊被染成血紅，而鐵墓自己的表面背向光源，反而是陰暗的剪影
-const tombLight = new THREE.PointLight(0xff2a45, 6.0, 26000, 1.05); tombLight.position.copy(TOMB_POS); scene.add(tombLight);
+const tombLight = new THREE.PointLight(0xff2a45, 168000, 26000); tombLight.decay = 1.4;   // 注意：boot.js 包裝的 PointLight 建構子會忽略 decay 參數（舊版等於無衰減，整支艦隊都被染成桃紅）→ 建構後再設。1500 單位處與舊版等亮，艦隊環（約 7000）約 1/8
+tombLight.position.copy(TOMB_POS); scene.add(tombLight);
 
 const DUST = 900;
 const dp = new Float32Array(DUST * 3); for (let i = 0; i < dp.length; i++) dp[i] = Math.random();
