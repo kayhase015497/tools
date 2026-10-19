@@ -93,6 +93,8 @@ function setSel(btnGroup, val) { document.querySelectorAll(btnGroup + ' button')
 document.querySelectorAll('#b-mode button').forEach((b) => b.addEventListener('click', () => { selMode = b.dataset.v; setSel('#b-mode', selMode); $('#b-hint-t').textContent = selMode === 'script' ? L().hintScript : L().hintFree; }));
 document.querySelectorAll('#b-rolesel button').forEach((b) => b.addEventListener('click', () => { selRole = b.dataset.v; setSel('#b-rolesel', selRole); renderKeys(); }));
 document.querySelectorAll('#b-langsel button').forEach((b) => b.addEventListener('click', () => applyLang(b.dataset.v)));
+function applyVoice(v) { VOICE_SEL = v; try { localStorage.setItem('sw-voice', v); } catch (e) {} applyCueLang(G.lang); setSel('#b-voicesel', v); }   // 配音語言與介面語言分開選
+document.querySelectorAll('#b-voicesel button').forEach((b) => b.addEventListener('click', () => applyVoice(b.dataset.v)));
 $('#b-q').addEventListener('click', () => { QUALITY = QUALITY === 'high' ? 'low' : 'high'; try { localStorage.setItem('sw-q', QUALITY); } catch (e) {} setQLabel(); });
 function uiRoleChanged() {
   document.body.classList.toggle('role-cmd', G.role === 'commander'); document.body.classList.toggle('role-pilot', G.role === 'pilot');
@@ -373,4 +375,5 @@ $('#b-c-pilot').addEventListener('click', toggleRole);
 let storedLang = 'en'; try { storedLang = localStorage.getItem('sw-lang'); if (!LANGS.includes(storedLang)) storedLang = 'en'; } catch (e) {}
 try { const r = JSON.parse(sessionStorage.getItem('sw2-restart') || 'null'); if (r) { selMode = r.mode || selMode; selRole = r.role || selRole; sessionStorage.removeItem('sw2-restart'); } } catch (e) {}   // 「重新開始」：重新載入後沿用原本的模式與角色
 $('#b-restart').addEventListener('click', () => { try { sessionStorage.setItem('sw2-restart', JSON.stringify({ mode: G.mode, role: G.role })); } catch (e) {} location.reload(); });
-applyLang(storedLang); setSel('#b-mode', selMode); setSel('#b-rolesel', selRole);
+try { const sv = localStorage.getItem('sw-voice'); if (['follow', 'en', 'zh', 'ja', 'ko', 'off'].includes(sv)) VOICE_SEL = sv; } catch (e) {}
+applyLang(storedLang); setSel('#b-voicesel', VOICE_SEL); setSel('#b-mode', selMode); setSel('#b-rolesel', selRole);

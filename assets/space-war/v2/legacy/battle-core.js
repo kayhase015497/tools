@@ -75,10 +75,12 @@ const VOICE_DUR = {   // 各語言各句的語音秒數
   ko: [8.4, 6.7, 3.2, 5.6, 0, 3.9, 3.6, 3.9, 7.3, 8.0, 18.9]
 };
 CUES.forEach((c) => { c.t0 = c.t; c.dur0 = c.dur; c.type0 = c.type; });
-function applyCueLang(l) {   // 語言切換時重算：字幕長度與浮現速度跟著該語言的語音走
+let VOICE_SEL = 'follow';   // 配音語言：follow（跟隨介面語言）／en／zh／ja／ko／off（無配音）。字幕永遠跟介面語言
+function applyCueLang(l) {   // 語言或配音語言切換時重算：字幕長度與浮現速度跟著「配音語言」的語音走（沒有該語言配音的句子只顯示字幕）
+  const vl = VOICE_SEL === 'follow' ? l : VOICE_SEL;
   CUES.forEach((c, i) => {
-    c.t = c.t0; c.dur = c.dur0; c.type = c.type0; const nm = VOICE_NAMES[i], vd = VOICE_DUR[l][i];
-    if (nm && vd) { c.voice = '../assets/space-war/voice/' + l + '/' + nm + '.mp3'; c.vdur = vd; if (c.endBy) c.t = Math.min(c.t0, c.endBy - vd); c.dur = Math.max(c.dur0, vd + 1); c.type = Math.min(c.type0, vd * 0.8); } else { c.voice = null; c.vdur = 0; }
+    c.t = c.t0; c.dur = c.dur0; c.type = c.type0; const nm = VOICE_NAMES[i], vd = vl === 'off' ? 0 : VOICE_DUR[vl][i];
+    if (nm && vd) { c.voice = '../assets/space-war/voice/' + vl + '/' + nm + '.mp3'; c.vdur = vd; if (c.endBy) c.t = Math.min(c.t0, c.endBy - vd); c.dur = Math.max(c.dur0, vd + 1); c.type = Math.min(c.type0, vd * 0.8); } else { c.voice = null; c.vdur = 0; }
   });
   const chain = (a, b, gap) => { b.t = a.t + a.vdur + gap; a.dur = a.vdur + gap; };   // 對話連著講：下一句緊接在上一句語音結束後
   chain(CUES[2], CUES[3], 0.5);                                    // 黑塔兩句
@@ -138,8 +140,10 @@ const STR = {
   }
 };
 STR.en.langLabel = 'LANGUAGE'; STR.zh.langLabel = '語言';
+STR.en.voiceLabel = 'VOICE'; STR.en.voiceFollow = 'Same as UI'; STR.en.voiceOff = 'Off';
+STR.zh.voiceLabel = '配音'; STR.zh.voiceFollow = '跟隨介面語言'; STR.zh.voiceOff = '關閉';
 STR.ja = {
-    objLabel: '目標', objText: 'ヘルタ宇宙ステーションを守れ', langLabel: '言語',
+    objLabel: '目標', objText: 'ヘルタ宇宙ステーションを守れ', langLabel: '言語', voiceLabel: '音声', voiceFollow: '表示言語に合わせる', voiceOff: 'オフ',
     title: 'オンパロス終章・戦場', sub: '反鉄墓宇宙連合軍 対 反物質軍団。艦隊を指揮するもよし、自ら戦闘機で戦線に立つもよし。',
     mode: 'モード', script: 'ストーリー・5分', free: 'フリー・無限', role: '役割', pilot: 'パイロット', commander: '指揮官', go: '出撃', loading: '読み込み中…', resume: '再開', restart: '最初から',
     qHigh: '画質：高', qLow: '画質：低', soundOn: 'サウンド：オン', soundOff: 'サウンド：オフ',
@@ -156,7 +160,7 @@ STR.ja = {
     endA: ['宇宙の第四の刹那——鉄墓の戴冠。', 'この戦いに、勝利は最初から書かれていなかった。', '生命の第一原因とは何か？「ノウス」との究極の論争が、今始まる。']
   };
 STR.ko = {
-    objLabel: '목표', objText: '헤르타 우주 정거장을 지켜라', langLabel: '언어',
+    objLabel: '목표', objText: '헤르타 우주 정거장을 지켜라', langLabel: '언어', voiceLabel: '음성', voiceFollow: '표시 언어와 동일', voiceOff: '끄기',
     title: '옴파로스 종장 · 전장', sub: '반 아이언툼 우주 연합군 대 반물질 군단. 함대를 지휘하거나 직접 전투기를 몰고 전선에 서십시오.',
     mode: '모드', script: '스토리 · 5분', free: '자유 · 무한', role: '역할', pilot: '파일럿', commander: '지휘관', go: '출격', loading: '불러오는 중…', resume: '계속', restart: '다시 시작',
     qHigh: '화질: 높음', qLow: '화질: 낮음', soundOn: '소리: 켜짐', soundOff: '소리: 꺼짐',
