@@ -333,14 +333,64 @@ function stepShots(dt) {
     fx.beam(b.x - b.vx * inv * L, b.y - b.vy * inv * L, b.z - b.vz * inv * L, b.x, b.y, b.z, { color: b.col, width: b.w, dur: Math.max(dt * 1.6, 0.03), len: 0 });
   }
 }
+function missileHit(m, tg, dist) {   // 飛彈是否已碰到目標（大艦用艦體橢球，其餘用球）；碰到就引爆並結算傷害
+  const inH = tg.d && tg.d.hp > 1000 ? inHull(tg, m.x, m.y, m.z, 14) : null;
+  if (!(inH === null ? dist < tg.rad + 14 : inH)) return false;
+  impact(m.x, m.y, m.z, 8, [1, 0.8, 0.4]); fx.explode(m.x, m.y, m.z, 1.4, m.side === 'e', 1); smokeCloud(m.x, m.y, m.z, 48, 22); boomLight(m.x, m.y, m.z, 1.4, [1, 0.7, 0.4]); FPVAudio.explode(1.4, m); damage(tg, m.dmg, m.x, m.y, m.z, m.src); return true;
+}
+/* 艦載飛彈（垂直發射、兩段點火）：
+ *  第一段「冷發射」：彈體被燃氣沿艦背「向上」彈出（約 0.6~0.85 秒，減速、白色燃氣團、沒有火焰）；
+ *  第二段「點火」：到達高度後主發動機點火（閃光＋星芒＋火花），急加速並轉向目標。
+ *  導引有「慣性」：彈頭朝向（nose）受角加速度與最大角速度限制，速度向量再延遲追上彈頭方向（會滑移），
+ *  但角速度上限很高、角加速度很大（非常敏捷），並依剩餘角度預先減速，不會繞著目標打轉。 */
+const MSL_WMAX = 4.6, MSL_AC = 20, MSL_SPD = 470, MSL_ACC = 640;
+function stepVLS(m, dt) {
+  m.age += dt; m.life -= dt; const tg = m.tgt, mk = 6;
+  if (m.stage === 0) {
+    const k = clamp(m.age / m.t1, 0, 1), sp = m.cold * (1 - 0.5 * k);
+    m.vx = m.ux * sp + m.dvx; m.vy = m.uy * sp + m.dvy; m.vz = m.uz * sp + m.dvz;
+    m.x += m.vx * dt; m.y += m.vy * dt; m.z += m.vz * dt;
+    if (fx.smoke && !G.lite && Math.random() < dt * 30) fx.smoke(m.x, m.y, m.z, rnd(-7, 7), rnd(-7, 7), rnd(-7, 7), 6, 20, 1.7, [0.78, 0.78, 0.8], 0.55, 0.6);   // 冷發射的白色燃氣
+    fx.emit(m.x, m.y, m.z, 0, 0, 0, 0.85, 0.9, 1, 5 * mk * 0.6, 0.08, 0, 0);
+    if (m.age >= m.t1) {   // 第二段點火
+      m.stage = 1; m.spd = Math.max(sp, 60);
+      fx.emit(m.x, m.y, m.z, 0, 0, 0, 1, 0.85, 0.55, 90, 0.28, 0, 1); fx.emit(m.x, m.y, m.z, 0, 0, 0, 1, 1, 1, 42, 0.12, 0, 0, 1.2);
+      for (let j = 0; j < 10; j++) fx.emit(m.x, m.y, m.z, rnd(-1, 1) * 120, rnd(-1, 1) * 120, rnd(-1, 1) * 120, 1, rnd(0.6, 0.9), rnd(0.3, 0.5), rnd(3, 6), rnd(0.2, 0.5), 2.2);
+      boomLight(m.x, m.y, m.z, 0.5, [1, 0.8, 0.5]); if (fx.smoke && !G.lite) fx.smoke(m.x, m.y, m.z, 0, 0, 0, 10, 38, 1.6, [0.9, 0.85, 0.8], 0.6, 0.6);
+    }
+    return m.life > 0;
+  }
+  if (tg && !tg.dead) {
+    const D = leadPoint(m, tg, Math.max(m.spd, 100), V); V.set(D.x - m.x, D.y - m.y, D.z - m.z); const dist = V.length(); V.divideScalar(dist || 1);
+    let nx = m.fx, ny = m.fy, nz = m.fz;
+    const cx = ny * V.z - nz * V.y, cy = nz * V.x - nx * V.z, cz = nx * V.y - ny * V.x, sn = Math.hypot(cx, cy, cz), cs = nx * V.x + ny * V.y + nz * V.z, ang = Math.atan2(sn, cs);
+    const wT = Math.min(MSL_WMAX, Math.sqrt(2 * MSL_AC * ang * 0.8));
+    m.w += clamp(wT - m.w, -MSL_AC * dt, MSL_AC * dt);
+    const step = Math.min(m.w * dt, ang);
+    if (sn > 1e-5 && step > 0) {   // 繞軸（nose × 目標方向）轉 step 弧度（軸垂直於 nose）
+      const ax = cx / sn, ay = cy / sn, az = cz / sn, c = Math.cos(step), s_ = Math.sin(step), kx = ay * nz - az * ny, ky = az * nx - ax * nz, kz = ax * ny - ay * nx;
+      nx = nx * c + kx * s_; ny = ny * c + ky * s_; nz = nz * c + kz * s_; const nl = Math.hypot(nx, ny, nz) || 1; m.fx = nx / nl; m.fy = ny / nl; m.fz = nz / nl;
+    }
+    m.spd = Math.min(m.spd + MSL_ACC * dt, MSL_SPD);
+    const sl = Math.min(1, 4.2 * dt);   // 速度向量延遲追上彈頭方向（慣性滑移）
+    m.vx += (m.fx * m.spd - m.vx) * sl; m.vy += (m.fy * m.spd - m.vy) * sl; m.vz += (m.fz * m.spd - m.vz) * sl;
+    if (missileHit(m, tg, dist)) return false;
+  } else { m.spd = Math.min(m.spd + MSL_ACC * dt, MSL_SPD); m.vx = m.fx * m.spd; m.vy = m.fy * m.spd; m.vz = m.fz * m.spd; }
+  m.x += m.vx * dt; m.y += m.vy * dt; m.z += m.vz * dt;
+  const fl = m.age - m.t1 < 0.35 ? 1.6 : 1;   // 點火後前 0.35 秒火焰特別亮
+  fx.emit(m.x - m.fx * 6, m.y - m.fy * 6, m.z - m.fz * 6, rnd(-3, 3), rnd(-3, 3), rnd(-3, 3), 1, 0.65, 0.3, 6 * mk * fl, 0.9, 1.5);
+  fx.emit(m.x, m.y, m.z, 0, 0, 0, 1, 0.95, 0.8, 4.5 * mk * fl, 0.05, 0, 0);
+  if (fx.smoke && !G.lite && Math.random() < dt * 14) fx.smoke(m.x - m.fx * 10, m.y - m.fy * 10, m.z - m.fz * 10, rnd(-5, 5), rnd(-5, 5), rnd(-5, 5), 5, 18, 2.4, [0.5, 0.48, 0.46], 0.4, 0.7);
+  return m.life > 0;
+}
 function stepMissile(m, dt) {
+  if (m.vls) return stepVLS(m, dt);
   const tg = m.tgt;
   if (tg && !tg.dead) {
     V.set(tg.x - m.x, tg.y - m.y, tg.z - m.z); const dist = V.length(); V.divideScalar(dist || 1);
     V2.set(m.vx, m.vy, m.vz); const sp = Math.min(m.spd + 330 * dt, 340); V2.normalize();
     V2.lerp(V, Math.min(1, 2.6 * dt)).normalize(); m.spd = sp; m.vx = V2.x * sp; m.vy = V2.y * sp; m.vz = V2.z * sp;
-    const inH = tg.d && tg.d.hp > 1000 ? inHull(tg, m.x, m.y, m.z, 14) : null;
-    if (inH === null ? dist < tg.rad + 14 : inH) { impact(m.x, m.y, m.z, 8, [1, 0.8, 0.4]); fx.explode(m.x, m.y, m.z, 1.4, m.side === 'e', 1); smokeCloud(m.x, m.y, m.z, 48, 22); boomLight(m.x, m.y, m.z, 1.4, [1, 0.7, 0.4]); FPVAudio.explode(1.4, m); damage(tg, m.dmg, m.x, m.y, m.z, m.src); return false; }
+    if (missileHit(m, tg, dist)) return false;
   } else { m.spd = Math.min(m.spd + 330 * dt, 340); m.vx = m.fx * m.spd; m.vy = m.fy * m.spd; m.vz = m.fz * m.spd; }
   m.x += m.vx * dt; m.y += m.vy * dt; m.z += m.vz * dt; m.life -= dt;
   const mk = m.big ? 6 : 1;   // 艦載飛彈體型大，拖尾與彈頭光點跟著放大才看得見
@@ -531,16 +581,17 @@ function aiCapital(s, dt) {
   }
 }
 /** 艦載飛彈：一串追蹤飛彈自發射陣列依序射出（帶散布），沿用玩家飛彈的追蹤與爆炸 */
-function fireShipMissiles(s, tg, spec) {
-  const hasA = fleet.hasAnchor(s.kind, 'HP_MSL_1');
+function fireShipMissiles(s, tg, spec) {   // 垂直發射：從艦背沿艦艇「上方」冷發射，再二段點火轉向目標
   for (let i = 0; i < spec.n; i++) {
     fx.later(i * 0.12, () => {
       if (s.dead || tg.dead) return;
-      if (hasA) fleet.anchorWorld(s, 'HP_MSL_' + (1 + (i % 2)), V); else fleet.gunWorld(s, V);
-      V2.set(tg.x - V.x, tg.y - V.y, tg.z - V.z).normalize();
-      const sx = V.x + rnd(-40, 40), sy = V.y + rnd(-40, 40), sz = V.z + rnd(-40, 40), fxx = V2.x + rnd(-0.35, 0.35), fyy = V2.y + rnd(0.0, 0.5), fzz = V2.z + rnd(-0.35, 0.35), l = Math.hypot(fxx, fyy, fzz);
-      shots.push({ homing: true, x: sx, y: sy, z: sz, vx: fxx / l * 90, vy: fyy / l * 90, vz: fzz / l * 90, fx: fxx / l, fy: fyy / l, fz: fzz / l, spd: 90, life: 16, big: true, dmg: s.side === 'e' ? spec.dmg * G.enemyDmg : spec.dmg, side: s.side, src: s, tgt: tg });
-      fx.emit(sx, sy, sz, 0, 0, 0, 1, 0.8, 0.5, 70, 0.3, 0, 0, 1);
+      let ux, uy, uz, sx, sy, sz;
+      if (hullSetup(s)) { const B = _hb, a = rnd(-0.6, 0.6) * B.rx, c = rnd(-0.55, 0.55) * B.rz, up = B.ry * 0.95; ux = B.ey.x; uy = B.ey.y; uz = B.ey.z; sx = s.x + B.ex.x * a + B.ez.x * c + ux * up; sy = s.y + B.ex.y * a + B.ez.y * c + uy * up; sz = s.z + B.ex.z * a + B.ez.z * c + uz * up; }
+      else { ux = 0; uy = 1; uz = 0; sx = s.x + rnd(-1, 1) * s.rad * 0.4; sy = s.y + s.rad * 0.35; sz = s.z + rnd(-1, 1) * s.rad * 0.4; }
+      const tx = rnd(-0.1, 0.1), tz = rnd(-0.1, 0.1), tl = Math.hypot(ux + tx, uy, uz + tz); ux = (ux + tx) / tl; uy /= tl; uz = (uz + tz) / tl;   // 微小散布，齊射時呈扇形
+      shots.push({ homing: true, vls: true, stage: 0, age: 0, t1: rnd(0.6, 0.85), cold: rnd(110, 150), ux, uy, uz, dvx: s.vx || 0, dvy: s.vy || 0, dvz: s.vz || 0, w: 0,
+        x: sx, y: sy, z: sz, vx: ux * 130, vy: uy * 130, vz: uz * 130, fx: ux, fy: uy, fz: uz, spd: 130, life: 18, big: true, dmg: s.side === 'e' ? spec.dmg * G.enemyDmg : spec.dmg, side: s.side, src: s, tgt: tg });
+      fx.emit(sx, sy, sz, 0, 0, 0, 0.9, 0.9, 1, 70, 0.22, 0, 0, 1); if (fx.smoke && !G.lite) fx.smoke(sx, sy, sz, ux * 20, uy * 20, uz * 20, 8, 30, 1.8, [0.85, 0.85, 0.88], 0.6, 0.6);   // 發射口閃光與噴煙
     });
   }
   FPVAudio.missile();
