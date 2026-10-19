@@ -333,8 +333,8 @@ function stepShots(dt) {
     fx.beam(b.x - b.vx * inv * L, b.y - b.vy * inv * L, b.z - b.vz * inv * L, b.x, b.y, b.z, { color: b.col, width: b.w, dur: Math.max(dt * 1.6, 0.03), len: 0 });
   }
 }
-function missileLost(m, dt) {   // 目標已被摧毀（或沒有目標）：短暫延遲後自毀，不留遊蕩飛彈（每顆延遲不同，齊射時會錯落引爆）
-  if (m.sd == null) m.sd = rnd(0.35, 0.95); m.sd -= dt; if (m.sd > 0) return false;
+function missileLost(m, dt) {   // 目標已被摧毀（或沒有目標）：延遲 3~5 秒（每顆不同）自毀，不留遊蕩飛彈；這段時間繼續直飛，戰場上保持熱鬧
+  if (m.sd == null) m.sd = rnd(3, 5); m.sd -= dt; if (m.sd > 0) return false;
   fx.explode(m.x, m.y, m.z, 0.8, m.side === 'e', 1); fx.emit(m.x, m.y, m.z, 0, 0, 0, 1, 0.8, 0.5, 40, 0.18, 0, 1); return true;
 }
 function missileHit(m, tg, dist) {   // 飛彈是否已碰到目標（大艦用艦體橢球，其餘用球）；碰到就引爆並結算傷害
