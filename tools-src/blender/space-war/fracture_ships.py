@@ -11,7 +11,9 @@ PLANS = {'A': 2, 'B': 3, 'C': 4}
 
 def load(ship):
     bpy.ops.wm.read_factory_settings(use_empty=True)
-    bpy.ops.import_scene.gltf(filepath=f'/home/user/tools/assets/space-war/models/{ship}.glb')
+    import os
+    gp = f'/home/user/tools/godot/assets/models/{ship}.glb'   # Godot 專用版（含新艦橋／新造型）優先
+    bpy.ops.import_scene.gltf(filepath=gp if os.path.exists(gp) else f'/home/user/tools/assets/space-war/models/{ship}.glb')
     return [o for o in bpy.context.scene.objects if o.type == 'MESH']
 
 def break_material():
@@ -37,11 +39,36 @@ def make_chunk(src_obj, planes, lo, hi, tag, seed):
         res = bmesh.ops.bisect_plane(bm, geom=geom, plane_co=co, plane_no=no, clear_inner=(keep == 'above'), clear_outer=(keep == 'below'))
         cut = [e for e in res['geom_cut'] if isinstance(e, bmesh.types.BMEdge)]
         if not cut: continue
-        fill = bmesh.ops.holes_fill(bm, edges=cut, sides=0)
-        faces = fill['faces'] or []
-        if not faces:
-            fill = bmesh.ops.edgenet_fill(bm, edges=cut, mat_nr=break_idx)
-            faces = fill['faces']
+        faces = []
+        try:   # 先試「三角填充」：能處理非平面、多個斷口輪廓
+            fill = bmesh.ops.triangle_fill(bm, use_beauty=True, use_dissolve=False, edges=cut, normal=Vector(no))
+            faces = [f for f in fill['geom'] if isinstance(f, bmesh.types.BMFace)]
+        except Exception:
+            faces = []
+        if not faces:   # 後備：斷口頂點在切面上的 2D 凸包（較大的一團），當成一整片隔板
+            pts = sorted({v for e in cut for v in e.verts}, key=lambda v: v.index)
+            if len(pts) >= 3:
+                n_ = Vector(no).normalized()
+                u_ = n_.cross(Vector((0, 0, 1)))
+                if u_.length < 1e-4: u_ = n_.cross(Vector((1, 0, 0)))
+                u_.normalize(); w_ = n_.cross(u_)
+                cen = sum((v.co for v in pts), Vector()) / len(pts)
+                keep = [v for v in pts if (v.co - cen).length < 2.2 * sorted((p.co - cen).length for p in pts)[len(pts) // 2] + 1e-4]
+                P2 = sorted([((v.co - cen).dot(u_), (v.co - cen).dot(w_), v) for v in keep], key=lambda t: (t[0], t[1]))
+                def cr(o, a, b): return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
+                lower, upper = [], []
+                for pnt in P2:
+                    while len(lower) >= 2 and cr(lower[-2], lower[-1], pnt) <= 0: lower.pop()
+                    lower.append(pnt)
+                for pnt in reversed(P2):
+                    while len(upper) >= 2 and cr(upper[-2], upper[-1], pnt) <= 0: upper.pop()
+                    upper.append(pnt)
+                hull = lower[:-1] + upper[:-1]
+                if len(hull) >= 3:
+                    try:
+                        faces = [bm.faces.new([h[2] for h in hull])]
+                    except ValueError:
+                        faces = []
         for f in faces:
             f.material_index = break_idx
             cap_faces.append((f, co, no))
@@ -97,6 +124,8 @@ def build(ship, plan, n):
         hi = planes[ci] if ci < n - 1 else None
         for o in srcs:
             obj = make_chunk(o, planes, lo, hi, f'FRAG{ci}', seed + ci)
+            if len(obj.data.polygons) == 0:
+                bpy.data.objects.remove(obj, do_unlink=True); continue
             chunks.append((ci, obj))
     # 質心 Empty
     for ci in range(n):

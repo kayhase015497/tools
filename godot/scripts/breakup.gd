@@ -15,13 +15,25 @@ class Chunk:
 	var vel: Vector3
 	var ang: Vector3
 
+# ───── 殘骸效能保護 ─────
+# 同時存在的斷裂組數上限（超過時最舊的一組在 1.2 秒內縮小消失）；離鏡頭很遠的斷裂組直接略過餘燼／火焰／煙；
+# 存活 20 秒後最後 4 秒縮小淡出，大戰後不會到處飄著殘骸。
+static var MAX_ACTIVE := 7
+static var active: Array = []
+const LIFETIME := 20.0
+const FAR_NO_FX := 7000.0
+const FAR_REMOVE := 22000.0
+
 var chunks: Array[Chunk] = []
 var age := 0.0
+var killed := -1.0
+var fx_nodes: Array = []
+var fx_on := true
 
 static func _get_break_material(ember: Color) -> ShaderMaterial:
 	var m := ShaderMaterial.new()
-	m.shader = load("res://shaders/ship_hull.gdshader")
-	m.set_shader_parameter("albedo_color", Color(0.05, 0.045, 0.05))
+	m.shader = load("res://shaders/ship_break.gdshader")
+	m.set_shader_parameter("albedo_color", Color(0.04, 0.035, 0.035))
 	m.set_shader_parameter("height_tex", load("res://assets/models/frag/break_height.png"))
 	m.set_shader_parameter("roughness", 0.95)
 	m.set_shader_parameter("metallic", 0.25)
@@ -30,7 +42,7 @@ static func _get_break_material(ember: Color) -> ShaderMaterial:
 	m.set_shader_parameter("wear", 0.9)
 	m.set_shader_parameter("bump_strength", 1.8)
 	m.set_shader_parameter("ember_color", Vector3(ember.r, ember.g, ember.b))
-	m.set_shader_parameter("ember_gain", 5.0)
+	m.set_shader_parameter("ember_gain", 4.5)
 	m.set_shader_parameter("burn_override", 1.0)
 	return m
 
@@ -51,6 +63,15 @@ static func spawn(parent: Node, kind: String, xf: Transform3D, ship_vel: Vector3
 	var root := Breakup.new()
 	parent.add_child(root)   # 先放在原點以模型座標處理，最後才套上艦艇的世界變換
 	var sc := xf.basis.get_scale().x
+	var cam := parent.get_viewport().get_camera_3d() if parent.get_viewport() else null
+	if cam != null and cam.global_position.distance_to(xf.origin) > FAR_REMOVE:
+		root.queue_free()
+		return null
+	active.append(root)
+	while active.size() > MAX_ACTIVE:
+		var old = active.pop_front()
+		if is_instance_valid(old):
+			(old as Breakup).kill()
 	var scene := (load(path) as PackedScene).instantiate() as Node3D
 	root.add_child(scene)
 	var meshes: Array = []
@@ -141,16 +162,80 @@ static func spawn(parent: Node, kind: String, xf: Transform3D, ship_vel: Vector3
 		ep.draw_pass_1 = qm
 		holder.add_child(ep)
 		ep.emitting = true
+		root.fx_nodes.append(ep)
+		# 火焰：斷面持續噴出的小火舌（用爆炸的火球著色器，聯軍橘／軍團紫），前 ~4 秒
+		var fmat := Explosion._fire_mat.duplicate() as ShaderMaterial if Explosion._fire_mat != null else null
+		if fmat == null:
+			Explosion._prep()
+			fmat = Explosion._fire_mat.duplicate() as ShaderMaterial
+		if style == 1:
+			fmat.set_shader_parameter("cool_color", Vector3(0.22, 0.04, 0.45))
+			fmat.set_shader_parameter("mid_color", Vector3(0.62, 0.22, 1.0))
+			fmat.set_shader_parameter("hot_color", Vector3(2.0, 1.55, 2.4))
+		fmat.set_shader_parameter("intensity", 1.6)
+		var flame := Explosion._quad_particles(fmat, 14, 1.1, span * 0.09, box.size.length() * sc * 0.18, 0.0, span * 0.012, [Vector2(0, 0.4), Vector2(0.3, 1.0), Vector2(1, 0.2)])
+		flame.one_shot = false
+		flame.explosiveness = 0.0
+		flame.randomness = 0.8
+		holder.add_child(flame)
+		flame.emitting = true
+		root.fx_nodes.append(flame)
+		get_tree_delay_node(root, 4.5, func(): if is_instance_valid(flame): flame.emitting = false)
+		# 細煙尾跡：黑色細煙，跟著斷片
+		var smat := Explosion._smoke_mat.duplicate() as ShaderMaterial
+		smat.set_shader_parameter("center", cen)
+		smat.set_shader_parameter("radius", span * 0.5)
+		if style == 1:
+			smat.set_shader_parameter("fire_color", Vector3(0.62, 0.25, 1.0))
+			smat.set_shader_parameter("smoke_color", Vector3(0.03, 0.02, 0.05))
+		smat.set_shader_parameter("shift", 0.0)
+		var trail := Explosion._quad_particles(smat, 12, 4.0, span * 0.1, box.size.length() * sc * 0.1, 0.0, span * 0.006, [Vector2(0, 0.3), Vector2(0.4, 1.0), Vector2(1, 1.4)])
+		trail.one_shot = false
+		trail.explosiveness = 0.0
+		trail.draw_order = GPUParticles3D.DRAW_ORDER_VIEW_DEPTH
+		holder.add_child(trail)
+		trail.emitting = true
+		root.fx_nodes.append(trail)
 	root.transform = xf
 	# 斷面燃燒餘燼：1 → 0（約 7 秒）
 	var tw := root.create_tween()
 	tw.tween_method(func(v: float): bmat.set_shader_parameter("burn_override", v), 1.0, 0.0, 7.0).set_trans(Tween.TRANS_SINE)
-	# 清理
-	root.get_tree().create_timer(16.0).timeout.connect(root.queue_free)
 	return root
+
+static func get_tree_delay_node(node: Node, sec: float, fn: Callable) -> void:
+	node.get_tree().create_timer(sec).timeout.connect(fn)
+
+func kill() -> void:   # 預算超限：1.2 秒內縮小消失
+	if killed < 0.0:
+		killed = age
+
+func _exit_tree() -> void:
+	active.erase(self)
 
 func _process(dt: float) -> void:
 	age += dt
+	var sc_fade := 1.0
+	if killed >= 0.0:
+		sc_fade = clampf(1.0 - (age - killed) / 1.2, 0.0, 1.0)
+	elif age > LIFETIME - 4.0:
+		sc_fade = clampf((LIFETIME - age) / 4.0, 0.0, 1.0)
+	if sc_fade <= 0.0:
+		queue_free()
+		return
+	# 距離略過特效（遠離鏡頭的斷裂組不放餘燼／火焰／煙）
+	var cam := get_viewport().get_camera_3d() if get_viewport() else null
+	if cam != null and chunks.size() > 0:
+		var d := cam.global_position.distance_to(chunks[0].node.global_position)
+		var want := d < FAR_NO_FX and age < 8.0
+		if want != fx_on:
+			fx_on = want
+			for n in fx_nodes:
+				if is_instance_valid(n) and not want:
+					(n as GPUParticles3D).emitting = false
+		if d > FAR_REMOVE:
+			queue_free()
+			return
 	for c in chunks:
 		c.node.position += c.vel * dt
 		c.node.rotate(c.ang.normalized(), c.ang.length() * dt)
+		c.node.scale = Vector3.ONE * sc_fade
