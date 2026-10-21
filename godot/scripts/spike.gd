@@ -59,6 +59,15 @@ func _ready() -> void:
 		yaw = atan2(-dv.x, -dv.z)
 		pitch = asin(dv.y)
 		get_tree().create_timer(0.3).timeout.connect(func(): Explosion.spawn(self, P + Vector3(120.0, 140.0, -80.0), 120.0, (1 if "--explode-demo-purple" in OS.get_cmdline_user_args() else (2 if "--explode-demo-shift" in OS.get_cmdline_user_args() else 0))))
+	if "--explode-gallery" in OS.get_cmdline_user_args():   # 3 種顏色 × 5 種變體的展示牆（橘／紫／先橘後紫 各一列）
+		var C := Vector3(20000.0, 0.0, 0.0)
+		cam.position = C + Vector3(0.0, 0.0, 1500.0)
+		yaw = 0.0
+		pitch = 0.0
+		for row in range(3):
+			for col in range(5):
+				var gp := C + Vector3((col - 2) * 340.0, (1 - row) * 300.0, 0.0)
+				get_tree().create_timer(0.3).timeout.connect(func(): Explosion.spawn(self, gp, 85.0, row, col))
 	if auto_bench:
 		fleet_mult = bench_steps[0]
 		_apply_mult()
