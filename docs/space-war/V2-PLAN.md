@@ -358,3 +358,5 @@ assets/space-war/v2/
 - **火球／煙霧著色器**（`engine/nodes.js` 的 `puffMaterial`，移植自 Godot `fireball.gdshader`／`smoke.gdshader`）：花椰菜泡泡火團（黃白過曝中心、先橘後紫）、近黑濃煙（高度場假法線、火光只染朝向爆炸中心的一側）。
 - **斷裂殘骸**（`legacy/sw-breakup.js`）：擊毀大艦時改成 2~4 塊斷片（`assets/space-war/models/frag/*.glb`，第一次用到才載入）；斷面熔融材質（`breakMaterial`，21 秒由亮到暗）、火焰（13 秒）、餘燼與黑煙尾；陣營決定餘燼顏色（橘／紫）；同時最多 14 組、存活 60 秒、>16 km 不放特效。支援巡洋艦、IPC、護衛艦、軍團母艦、黑塔、IPC SID（預警機）；無畏艦、月球艦沒有斷片（只爆炸）。黑塔的 C 方案（6 MB）未帶進網頁版。
 - 驗證：無頭 Chromium（WebGL2 軟體渲染）擊毀一艘巡洋艦，截圖確認火球、斷成兩塊、斷面橘色熔光，無執行期錯誤。**未驗證**：WebGPU 後端、真實 GPU 的幀數、大量同時爆炸的效能（遇到掉幀可按 F8 關閉護盾／損傷特效，爆炸有距離降級與 `G.lite` 降級）。
+
+- v3 build 2：飛彈命中／自毀改用 8 種爆焰變體；頁面更名 `space-war-battle-v3.html`（F3 資訊面板顯示 `v3 build N`）。

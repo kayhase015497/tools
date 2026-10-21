@@ -27,7 +27,12 @@ func _project(p: Vector3) -> Variant:
 	return cam.unproject_position(p)
 
 func _draw() -> void:
-	if battle == null or battle.pl.is_empty():
+	if battle == null or not battle.started:
+		return
+	if battle.bpaused:
+		draw_rect(Rect2(Vector2.ZERO, size), Color(0, 0, 0, 0.55))
+		draw_string(_font(), Vector2(0, size.y * 0.5), "PAUSED  ·  Esc to resume", HORIZONTAL_ALIGNMENT_CENTER, size.x, 36, Color.WHITE)
+	if battle.pl.is_empty() or not battle.hud_on:
 		return
 	var vp := size
 	var c := vp * 0.5
@@ -123,17 +128,24 @@ func _draw() -> void:
 		_txt(c + Vector2(0, -10), "PILOT LOST · REDEPLOY IN %.0f" % maxf(P["respawn"], 0.0), 28, Color(1, 0.4, 0.4), HORIZONTAL_ALIGNMENT_CENTER, 0)
 		draw_string(_font(), c + Vector2(-300, -10), "PILOT LOST · REDEPLOY IN %.0f" % maxf(P["respawn"], 0.0), HORIZONTAL_ALIGNMENT_CENTER, 600.0, 28, Color(1, 0.4, 0.4))
 	# 上方：任務目標與狀態
-	draw_string(_font(), Vector2(0, 30), "OBJECTIVE · PROTECT THE HERTA SPACE STATION", HORIZONTAL_ALIGNMENT_CENTER, vp.x, 20, Color(1.0, 0.85, 0.4))
 	var hss_alive := false
 	for a in battle.allies:
 		if a.kind == "hss" and not a.dead:
 			hss_alive = true
-			draw_rect(Rect2(c.x - 150, 40, 300, 8), Color(0, 0, 0, 0.5))
-			draw_rect(Rect2(c.x - 150, 40, 300 * a.hp / a.hp_max, 8), Color(1.0, 0.85, 0.4))
-			if a.sh_max > 0.0:
-				draw_rect(Rect2(c.x - 150, 49, 300 * a.sh / a.sh_max, 4), COL_A)
-	if not hss_alive:
-		draw_string(_font(), Vector2(0, 66), "HSS DESTROYED", HORIZONTAL_ALIGNMENT_CENTER, vp.x, 26, Color(1, 0.3, 0.3))
+			if battle.obj_on:
+				draw_rect(Rect2(c.x - 150, 40, 300, 8), Color(0, 0, 0, 0.5))
+				draw_rect(Rect2(c.x - 150, 40, 300 * a.hp / a.hp_max, 8), Color(1.0, 0.85, 0.4))
+				if a.sh_max > 0.0:
+					draw_rect(Rect2(c.x - 150, 49, 300 * a.sh / a.sh_max, 4), COL_A)
+	if battle.obj_on:
+		draw_string(_font(), Vector2(0, 30), "%s · %s" % [battle.tr_("objLabel"), battle.tr_("objText")], HORIZONTAL_ALIGNMENT_CENTER, vp.x, 20, Color(1.0, 0.85, 0.4))
+		if not hss_alive:
+			draw_string(_font(), Vector2(0, 66), "HSS DESTROYED", HORIZONTAL_ALIGNMENT_CENTER, vp.x, 26, Color(1, 0.3, 0.3))
+	if battle.game_mode == "script":   # 鐵墓血條（只降到 80%：鐵墓不會倒下）
+		var bf: float = battle.iron_frac()
+		draw_string(_font(), Vector2(vp.x - 330, 52), "IRONTOMB", HORIZONTAL_ALIGNMENT_RIGHT, 320.0, 13, Color(1.0, 0.45, 0.55))
+		draw_rect(Rect2(vp.x - 330, 58, 320, 8), Color(0, 0, 0, 0.5))
+		draw_rect(Rect2(vp.x - 330, 58, 320.0 * bf, 8), Color(1.0, 0.3, 0.4))
 	var fps := Engine.get_frames_per_second()
 	_txt(Vector2(vp.x - 330, 22), "FPS %d   ALLIES %d   LEGION %d   KILLS %d   WAVE %d" % [fps, battle.allies.size(), battle.enemies.size(), battle.kills, battle.wave], 14, Color(0.7, 0.95, 0.9, 0.9), HORIZONTAL_ALIGNMENT_RIGHT, 320.0)
 	if not P.is_empty() and P.get("msg", "") != "":
@@ -152,9 +164,6 @@ func _draw() -> void:
 		y += 20.0
 	# 按鍵提示
 	_txt(Vector2(24, vp.y - 14), "Mouse steer  W/S throttle  Q/E roll  A/D/R/F strafe  Shift boost  X stop  LMB fire  RMB missile  T lock  Y next  U AWACS tgt  C focus  G charge  V cam  Z assist  N radar  Esc pause", 12, Color(0.6, 0.8, 0.8, 0.7))
-	if battle.bpaused:
-		draw_rect(Rect2(Vector2.ZERO, vp), Color(0, 0, 0, 0.55))
-		draw_string(_font(), Vector2(0, c.y), "PAUSED  ·  Esc to resume", HORIZONTAL_ALIGNMENT_CENTER, vp.x, 36, Color.WHITE)
 
 func _draw_radar(ctr: Vector2, r: float, ship) -> void:
 	draw_circle(ctr, r, Color(0, 0.05, 0.08, 0.55))
