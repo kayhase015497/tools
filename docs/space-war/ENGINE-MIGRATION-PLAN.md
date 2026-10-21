@@ -197,3 +197,4 @@
 - **IPC 巡洋艦**：`ipc_boxify.py` 把圓斷面壓成方形並做平面減面（約 3.8k 面），仍保留部分原模型的雜亂細節。
 - **黑塔空間站**：`hss_build.py` 程序式重建（尾端白環＋輻條＋輪轂＋三具藍光引擎、長白陶瓷艦體、橘飾板、深灰分段、艦橋、天線＋紅色航行燈、太陽能板臂、艦首黑方塊＋藍色甲板導引光條）；材質以 `hss_` 前綴對應，共用 `make_hss_panels.py` 產生的面板貼圖（高度／粗糙度）＋ POM；白色＝陶瓷清漆。
 - `sync_models.sh` 不再覆蓋 cruiser／ipc／hss。尚未做：DX12 後製（SSAO/SSIL/SSR/景深/顆粒）、受損與血量串接、其他艦種斷裂。
+- **還原（同日）**：使用者看縮圖認為 cruiser／ipc／hss 的改造模型不對，三艘已換回原版（與網頁版相同），斷裂碎片也還原；hss 之後由使用者請 TRIPO 重拉。改造腳本（`cruiser_temple.py`、`ipc_boxify.py`、`hss_build.py`）保留備查，`sync_models.sh` 恢復同步三艘。
