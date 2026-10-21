@@ -15,8 +15,8 @@ static var _debris_mat: StandardMaterial3D
 # 4) 連爆的子爆炸不再連鎖，且在預算吃緊時被取消
 const MAX_ACTIVE := 14
 const MAX_LIGHTS := 6
-const LOD_NEAR := 2500.0
-const LOD_FAR := 9000.0
+const LOD_NEAR := 6000.0
+const LOD_FAR := 24000.0
 static var active_count := 0
 static var budget_enabled := false   # 預設關閉（想要大混戰更混亂）；按 P 切換。展示牆也會暫時關閉
 static var light_count := 0
@@ -26,7 +26,7 @@ static func _lod_for(parent: Node, pos: Vector3, size: float) -> float:
 	if cam == null:
 		return 1.0
 	var d := cam.global_position.distance_to(pos) / maxf(size / 120.0, 0.6)   # 大爆炸可以在更遠處仍保持細節
-	return clampf(1.0 - (d - LOD_NEAR) / (LOD_FAR - LOD_NEAR), 0.12, 1.0)
+	return clampf(1.0 - (d - LOD_NEAR) / (LOD_FAR - LOD_NEAR), 0.4, 1.0)
 
 static func prep_public() -> void:
 	_prep()

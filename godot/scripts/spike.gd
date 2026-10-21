@@ -46,10 +46,6 @@ var rng := RandomNumberGenerator.new()
 var auto_boom := false
 var boom_t := 0.0
 var demo_explode := false
-var env: Environment
-var cam_attr: CameraAttributesPractical
-var grain_layer: CanvasLayer
-var post_on := true          # T：DX12 後製（SSAO／SSIL／SSR／景深／顆粒）開關
 var combat := false          # H：光束真的造成傷害，血量歸零 → 斷裂（有斷片的艦種）或爆炸
 var wounded := {}            # "kind:i" → 下次冒小爆炸的倒數（血量低於 35% 的艦）
 
@@ -136,41 +132,10 @@ func _make_environment() -> void:
 	env.adjustment_enabled = true
 	env.adjustment_saturation = 1.1
 	env.adjustment_contrast = 1.08
-	self.env = env
-	# ── DX12 後製：螢幕空間環境遮蔽／間接光／反射、景深（遠景柔化）、顆粒＋暗角 ──
-	env.ssao_enabled = true
-	env.ssao_radius = 1.6
-	env.ssao_intensity = 1.6
-	env.ssao_power = 1.5
-	env.ssil_enabled = true
-	env.ssil_radius = 4.0
-	env.ssil_intensity = 0.8
-	env.ssr_enabled = true
-	env.ssr_max_steps = 48
-	env.ssr_fade_in = 0.15
-	env.ssr_fade_out = 2.0
-	env.ssr_depth_tolerance = 0.2
-	cam_attr = CameraAttributesPractical.new()
-	cam_attr.dof_blur_near_enabled = true   # 只做近景模糊（鏡頭旁的碎片、火星）；遠景不糊，否則天空星點會變成大光斑
-	cam_attr.dof_blur_near_distance = 25.0
-	cam_attr.dof_blur_near_transition = 40.0
-	cam_attr.dof_blur_amount = 0.05
 	var we := WorldEnvironment.new()
 	we.environment = env
-	we.camera_attributes = cam_attr
 	add_child(we)
-	grain_layer = CanvasLayer.new()
-	grain_layer.layer = 0
-	var gr := ColorRect.new()
-	gr.set_anchors_preset(Control.PRESET_FULL_RECT)
-	gr.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var gm := ShaderMaterial.new()
-	gm.shader = load("res://shaders/post_grain.gdshader")
-	gr.material = gm
-	grain_layer.add_child(gr)
-	add_child(grain_layer)
-	if "--no-post" in OS.get_cmdline_user_args():
-		call_deferred("_toggle_post")
+
 	var key := DirectionalLight3D.new()   # 主光（恆星方向）
 	key.light_color = Color(0.85, 0.92, 1.0)
 	key.light_energy = 0.95
@@ -417,14 +382,6 @@ func _break_index(kind: String, best: int, style: int) -> void:
 		(part["mm"] as MultiMesh).set_instance_transform(best, hidden)
 	if not ("--no-boom" in OS.get_cmdline_user_args()):
 		Explosion.spawn(self, xf.origin, clampf(float(KINDS[kind][1]) * 0.35, 25.0, 300.0), style, 0 if style == 0 else 1)
-
-func _toggle_post() -> void:
-	post_on = not post_on
-	env.ssao_enabled = post_on
-	env.ssil_enabled = post_on
-	env.ssr_enabled = post_on
-	cam_attr.dof_blur_near_enabled = post_on
-	grain_layer.visible = post_on
 
 func _toggle_pom() -> void:
 	pom_on = not pom_on
@@ -714,8 +671,6 @@ func _input(e: InputEvent) -> void:
 				_break_nearest("ipc", 0)
 			KEY_O:   # 斷裂：仙舟巡洋艦，紫色餘燼（預覽軍團配色）
 				_break_nearest("cruiser", 1)
-			KEY_T:   # DX12 後製開關（SSAO／SSIL／SSR／景深／顆粒）
-				_toggle_post()
 			KEY_H:   # 戰鬥開關：光束造成傷害，血量歸零 → 斷裂（有斷片的艦種）或爆炸
 				combat = not combat
 				for b in beams: _retarget_beam(b)
@@ -764,7 +719,7 @@ func _process(dt: float) -> void:
 	if hud_t > 0.25:
 		hud_t = 0.0
 		var fps := Engine.get_frames_per_second()
-		hud.text = "%s\nFPS %d · %.1f ms · ships %d (x%d)%s\n[PgUp/PgDn] fleet x2 / x0.5   [M] move ships   [F3] 3D scale   [F2] save bench\n[X/C] ally destroyed (orange)  [V/B] Legion destroyed (purple)  [N] missile hit (orange->purple)  [Z] auto  [K] POM  [P] explosion budget  [T] post FX  [H] combat (beams deal damage)  [G] kill nearest  [U/I/O] ship breaks (cruiser / IPC / purple)   [RMB+mouse] look   WASD/QE fly   Shift fast" % [
+		hud.text = "%s\nFPS %d · %.1f ms · ships %d (x%d)%s\n[PgUp/PgDn] fleet x2 / x0.5   [M] move ships   [F3] 3D scale   [F2] save bench\n[X/C] ally destroyed (orange)  [V/B] Legion destroyed (purple)  [N] missile hit (orange->purple)  [Z] auto  [K] POM  [P] explosion budget  [H] combat (beams deal damage)  [G] kill nearest  [U/I/O] ship breaks (cruiser / IPC / purple)   [RMB+mouse] look   WASD/QE fly   Shift fast" % [
 			RenderingServer.get_video_adapter_name(), fps, 1000.0 / maxf(fps, 1.0), _total_ships(), fleet_mult, "  · MOVING" if animate else ""]
 	bench_t += dt
 	if bench_t >= 2.0:

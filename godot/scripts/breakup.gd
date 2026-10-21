@@ -18,11 +18,11 @@ class Chunk:
 # ───── 殘骸效能保護 ─────
 # 同時存在的斷裂組數上限（超過時最舊的一組在 1.2 秒內縮小消失）；離鏡頭很遠的斷裂組直接略過餘燼／火焰／煙；
 # 存活 20 秒後最後 4 秒縮小淡出，大戰後不會到處飄著殘骸。
-static var MAX_ACTIVE := 7
+static var MAX_ACTIVE := 14
 static var active: Array = []
-const LIFETIME := 20.0
-const FAR_NO_FX := 7000.0
-const FAR_REMOVE := 22000.0
+const LIFETIME := 60.0
+const FAR_NO_FX := 16000.0
+const FAR_REMOVE := 40000.0
 
 var chunks: Array[Chunk] = []
 var age := 0.0
@@ -180,7 +180,7 @@ static func spawn(parent: Node, kind: String, xf: Transform3D, ship_vel: Vector3
 		holder.add_child(flame)
 		flame.emitting = true
 		root.fx_nodes.append(flame)
-		get_tree_delay_node(root, 4.5, func(): if is_instance_valid(flame): flame.emitting = false)
+		get_tree_delay_node(root, 13.0, func(): if is_instance_valid(flame): flame.emitting = false)
 		# 細煙尾跡：黑色細煙，跟著斷片
 		var smat := Explosion._smoke_mat.duplicate() as ShaderMaterial
 		smat.set_shader_parameter("center", cen)
@@ -199,7 +199,7 @@ static func spawn(parent: Node, kind: String, xf: Transform3D, ship_vel: Vector3
 	root.transform = xf
 	# 斷面燃燒餘燼：1 → 0（約 7 秒）
 	var tw := root.create_tween()
-	tw.tween_method(func(v: float): bmat.set_shader_parameter("burn_override", v), 1.0, 0.0, 7.0).set_trans(Tween.TRANS_SINE)
+	tw.tween_method(func(v: float): bmat.set_shader_parameter("burn_override", v), 1.0, 0.0, 21.0).set_trans(Tween.TRANS_SINE)
 	return root
 
 static func get_tree_delay_node(node: Node, sec: float, fn: Callable) -> void:
@@ -217,8 +217,8 @@ func _process(dt: float) -> void:
 	var sc_fade := 1.0
 	if killed >= 0.0:
 		sc_fade = clampf(1.0 - (age - killed) / 1.2, 0.0, 1.0)
-	elif age > LIFETIME - 4.0:
-		sc_fade = clampf((LIFETIME - age) / 4.0, 0.0, 1.0)
+	elif age > LIFETIME - 6.0:
+		sc_fade = clampf((LIFETIME - age) / 6.0, 0.0, 1.0)
 	if sc_fade <= 0.0:
 		queue_free()
 		return
@@ -226,7 +226,7 @@ func _process(dt: float) -> void:
 	var cam := get_viewport().get_camera_3d() if get_viewport() else null
 	if cam != null and chunks.size() > 0:
 		var d := cam.global_position.distance_to(chunks[0].node.global_position)
-		var want := d < FAR_NO_FX and age < 8.0
+		var want := d < FAR_NO_FX and age < 24.0
 		if want != fx_on:
 			fx_on = want
 			for n in fx_nodes:
