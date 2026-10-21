@@ -59,6 +59,14 @@ func _ready() -> void:
 		yaw = atan2(-dv.x, -dv.z)
 		pitch = asin(dv.y)
 		get_tree().create_timer(0.3).timeout.connect(func(): Explosion.spawn(self, P + Vector3(120.0, 140.0, -80.0), 120.0, (1 if "--explode-demo-purple" in OS.get_cmdline_user_args() else (2 if "--explode-demo-shift" in OS.get_cmdline_user_args() else 0))))
+	if "--break-demo" in OS.get_cmdline_user_args():   # 鏡頭對著第 0 艘巡洋艦，0.4 秒後斷裂
+		var P3: Vector3 = (kinds_data["cruiser"]["xf"][0] as Transform3D).origin
+		cam.position = P3 + (Vector3(130.0, 50.0, -150.0) if "--close" in OS.get_cmdline_user_args() else Vector3(300.0, 120.0, -380.0))
+		var dv3 := (P3 - cam.position).normalized()
+		yaw = atan2(-dv3.x, -dv3.z)
+		pitch = asin(dv3.y)
+		if not ("--no-break" in OS.get_cmdline_user_args()):
+			get_tree().create_timer(0.4).timeout.connect(func(): _break_index("cruiser", 0, 1 if "--purple" in OS.get_cmdline_user_args() else 0))
 	if "--hull-demo" in OS.get_cmdline_user_args():   # 鏡頭貼近一艘巡洋艦看艦體材質（POM）
 		var P2: Vector3 = (kinds_data["cruiser"]["xf"][0] as Transform3D).origin
 		cam.position = P2 + Vector3(160.0, 70.0, -200.0)
@@ -196,6 +204,7 @@ func _load_kinds() -> void:
 var _hull_shader: Shader
 var pom_on := true
 var _hull_mats: Array[ShaderMaterial] = []
+var _hull_by_name := {}   # 材質名 → POM 材質（斷片外表沿用，與完整艦一致）
 
 func _tex_sibling(tex: Texture2D, suffix: String) -> Texture2D:
 	if tex == null or tex.resource_path == "":
@@ -236,6 +245,39 @@ func _convert_materials(mesh: Mesh) -> void:
 				sm.set_shader_parameter("use_emission_tex", true)
 		mesh.surface_set_material(si, sm)
 		_hull_mats.append(sm)
+		_hull_by_name[b.resource_name] = sm
+
+func _break_nearest(kind: String, style: int) -> void:
+	var d: Dictionary = kinds_data[kind]
+	var best := -1
+	var bd := 1e18
+	var fwd := -cam.global_transform.basis.z
+	for i in range(int(d["count"])):
+		var xf: Transform3D = d["xf"][i]
+		var to := xf.origin - cam.global_position
+		var dist := to.length()
+		if dist < 1.0 or to.normalized().dot(fwd) < 0.5:
+			continue
+		if dist < bd:
+			bd = dist
+			best = i
+	if best < 0:
+		return
+	_break_index(kind, best, style)
+
+func _break_index(kind: String, best: int, style: int) -> void:
+	var d: Dictionary = kinds_data[kind]
+	var xf: Transform3D = d["xf"][best]
+	var sc: float = d["scale"]
+	var center: Vector3 = d["center"]
+	var spawn_xf := Transform3D(xf.basis, xf.origin - xf.basis * center)
+	Breakup.spawn(self, kind, spawn_xf, (d["vel"][best] as Vector3), style, _hull_by_name)
+	var hidden := xf
+	hidden.basis = Basis.IDENTITY * 0.0001
+	for part in d["parts"]:
+		(part["mm"] as MultiMesh).set_instance_transform(best, hidden)
+	if not ("--no-boom" in OS.get_cmdline_user_args()):
+		Explosion.spawn(self, xf.origin, 160.0, style, 0 if style == 0 else 1)
 
 func _toggle_pom() -> void:
 	pom_on = not pom_on
@@ -423,6 +465,12 @@ func _input(e: InputEvent) -> void:
 				Explosion.spawn(self, cam.global_position - cam.global_transform.basis.z * 900.0, 120.0, 1)   # 紫色焰（反物質軍團）小
 			KEY_B:
 				Explosion.spawn(self, cam.global_position - cam.global_transform.basis.z * 1600.0, 260.0, 1)   # 紫色焰 大
+			KEY_U:   # 斷裂：鏡頭正前方最近的仙舟巡洋艦（聯軍，橘色餘燼）
+				_break_nearest("cruiser", 0)
+			KEY_I:   # 斷裂：IPC 巡洋艦（聯軍，橘色餘燼）
+				_break_nearest("ipc", 0)
+			KEY_O:   # 斷裂：仙舟巡洋艦，紫色餘燼（預覽軍團配色）
+				_break_nearest("cruiser", 1)
 			KEY_K:   # POM 材質開關（比較升級前後）
 				_toggle_pom()
 			KEY_P:   # 爆炸效能保護開關（預設關閉）
@@ -464,7 +512,7 @@ func _process(dt: float) -> void:
 	if hud_t > 0.25:
 		hud_t = 0.0
 		var fps := Engine.get_frames_per_second()
-		hud.text = "%s\nFPS %d · %.1f ms · ships %d (x%d)%s\n[PgUp/PgDn] fleet x2 / x0.5   [M] move ships   [F3] 3D scale   [F2] save bench\n[X/C] ally destroyed (orange)  [V/B] Legion destroyed (purple)  [N] missile hit (orange->purple)  [Z] auto  [K] POM on/off  [P] explosion budget   [RMB+mouse] look   WASD/QE fly   Shift fast" % [
+		hud.text = "%s\nFPS %d · %.1f ms · ships %d (x%d)%s\n[PgUp/PgDn] fleet x2 / x0.5   [M] move ships   [F3] 3D scale   [F2] save bench\n[X/C] ally destroyed (orange)  [V/B] Legion destroyed (purple)  [N] missile hit (orange->purple)  [Z] auto  [K] POM  [P] explosion budget  [U/I/O] ship breaks (cruiser / IPC / purple)   [RMB+mouse] look   WASD/QE fly   Shift fast" % [
 			RenderingServer.get_video_adapter_name(), fps, 1000.0 / maxf(fps, 1.0), _total_ships(), fleet_mult, "  · MOVING" if animate else ""]
 	bench_t += dt
 	if bench_t >= 2.0:

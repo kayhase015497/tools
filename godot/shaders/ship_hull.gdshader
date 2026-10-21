@@ -23,6 +23,9 @@ uniform float lod_distance = 3200.0;
 uniform float bump_strength = 1.2;
 uniform float wear = 0.55;              // 凹處髒汙／凸緣磨亮強度
 uniform float pom_max_steps = 20.0;
+uniform float burn_override = 0.0;      // 斷面燃燒度（腳本以 Tween 由 1 降到 0）
+uniform vec3 ember_color : source_color = vec3(1.0, 0.28, 0.05);   // 聯軍橘、軍團紫
+uniform float ember_gain = 2.5;
 
 varying float burn;
 varying float seed;
@@ -41,7 +44,7 @@ mat3 cotangent_frame(vec3 N, vec3 p, vec2 uv) {
 float hgt(vec2 uv) { return 1.0 - textureLod(height_tex, uv, 0.0).r; }   // 0＝表面，1＝最深（圖上黑＝凹）
 
 void vertex() {
-	burn = INSTANCE_CUSTOM.x;
+	burn = INSTANCE_CUSTOM.x + burn_override;
 	seed = INSTANCE_CUSTOM.y;
 	vdist = -(MODELVIEW_MATRIX * vec4(VERTEX, 1.0)).z;
 }
@@ -102,6 +105,6 @@ void fragment() {
 	vec3 em = use_emission_tex ? texture(emission_tex, uv).rgb * emission_energy : emission_color * emission_energy;
 	// 燃燒餘燼（斷面用；burn>0 時凹處透出橘紅光，隨時間閃動）
 	float flick = 0.7 + 0.3 * sin(TIME * 3.1 + seed * 11.0 + depth * 25.0);
-	vec3 ember = vec3(1.0, 0.28, 0.05) * pow(depth, 1.3) * burn * 2.5 * flick;
+	vec3 ember = ember_color * pow(depth, 1.3) * clamp(burn, 0.0, 1.0) * ember_gain * flick;
 	EMISSION = em + ember;
 }
