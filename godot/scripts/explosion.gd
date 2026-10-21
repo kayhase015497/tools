@@ -34,7 +34,7 @@ static func _curve(points: Array) -> CurveTexture:
 	t.curve = c
 	return t
 
-static func _quad_particles(mat: Material, amount: int, life: float, size: float, radius: float, vel_min: float, vel_max: float, grow: Array) -> GPUParticles3D:
+static func _quad_particles(mat: Material, amount: int, life: float, size: float, radius: float, vel_min: float, vel_max: float, grow: Array, dir: Vector3 = Vector3.ZERO, spread: float = 180.0) -> GPUParticles3D:
 	var p := GPUParticles3D.new()
 	p.amount = amount
 	p.lifetime = life
@@ -46,8 +46,8 @@ static func _quad_particles(mat: Material, amount: int, life: float, size: float
 	var pm := ParticleProcessMaterial.new()
 	pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
 	pm.emission_sphere_radius = radius
-	pm.direction = Vector3(0, 0, 0)
-	pm.spread = 180.0
+	pm.direction = dir
+	pm.spread = spread
 	pm.initial_velocity_min = vel_min
 	pm.initial_velocity_max = vel_max
 	pm.gravity = Vector3.ZERO
@@ -63,25 +63,43 @@ static func _quad_particles(mat: Material, amount: int, life: float, size: float
 	p.draw_pass_1 = qm
 	return p
 
+## 5 種爆焰變體（每種顏色都有）：0 經典、1 連爆（接連 3 次小爆）、2 噴流（定向火舌）、3 閃爆（強光、火花極多、煙少）、4 悶燒（火光較暗、煙與餘燼多）
+const VARIANTS := [
+	{"fire_n": 12, "fire_life": 1.1, "fire_size": 1.5, "fire_r": 0.6, "fire_v": 0.25, "spark_n": 320, "spark_sp": 1.0, "spark_len": 1.0, "smoke_n": 42, "smoke_size": 1.75, "smoke_life": 5.5, "smoke_v": 0.5, "ember_n": 160, "deb_n": 90, "light": 1.0, "chain": 0, "jet": false},
+	{"fire_n": 8, "fire_life": 1.0, "fire_size": 1.15, "fire_r": 0.5, "fire_v": 0.25, "spark_n": 220, "spark_sp": 1.0, "spark_len": 0.9, "smoke_n": 30, "smoke_size": 1.5, "smoke_life": 5.0, "smoke_v": 0.45, "ember_n": 120, "deb_n": 70, "light": 0.9, "chain": 3, "jet": false},
+	{"fire_n": 14, "fire_life": 1.0, "fire_size": 1.05, "fire_r": 0.25, "fire_v": 1.3, "spark_n": 440, "spark_sp": 1.7, "spark_len": 1.3, "smoke_n": 34, "smoke_size": 1.45, "smoke_life": 5.0, "smoke_v": 0.9, "ember_n": 110, "deb_n": 80, "light": 1.0, "chain": 0, "jet": true},
+	{"fire_n": 6, "fire_life": 0.7, "fire_size": 2.2, "fire_r": 0.4, "fire_v": 0.3, "spark_n": 700, "spark_sp": 1.5, "spark_len": 1.2, "smoke_n": 16, "smoke_size": 1.25, "smoke_life": 3.2, "smoke_v": 0.5, "ember_n": 90, "deb_n": 50, "light": 1.8, "chain": 0, "jet": false},
+	{"fire_n": 16, "fire_life": 1.9, "fire_size": 1.25, "fire_r": 0.7, "fire_v": 0.2, "spark_n": 170, "spark_sp": 0.75, "spark_len": 0.9, "smoke_n": 52, "smoke_size": 2.0, "smoke_life": 6.0, "smoke_v": 0.35, "ember_n": 340, "deb_n": 140, "light": 0.8, "chain": 0, "jet": false},
+]
+
 ## style 0＝橘色火焰（聯軍艦艇被擊毀）、1＝紫色焰（反物質軍團艦艇被擊毀）、2＝先橘後紫（聯軍飛彈命中反物質軍團艦艇）
-static func spawn(parent: Node, pos: Vector3, size: float, style: int = 0) -> Node3D:
+## variant：0~4 指定變體，-1＝隨機；每次還會對顏色、尺寸做小幅亂數，所以同一種也不會長得一樣。
+static func spawn(parent: Node, pos: Vector3, size: float, style: int = 0, variant: int = -1, allow_chain: bool = true) -> Node3D:
 	_prep()
 	var purple := style == 1
 	var shift := 1.0 if style == 2 else 0.0
+	var vi := variant if variant >= 0 else randi() % VARIANTS.size()
+	var V: Dictionary = VARIANTS[vi]
+	size *= randf_range(0.88, 1.15)
+	var jd := Vector3(randf_range(-1, 1), randf_range(-0.6, 1), randf_range(-1, 1)).normalized()   # 噴流方向
+	var jet: bool = V["jet"]
 	var root := Node3D.new()
 	root.position = pos
 	parent.add_child(root)
-	# 1) 火團：多團，錯時冒出
+	# 1) 火團：多團，錯時冒出（顏色小幅亂數）
 	var fire_mat := _fire_mat.duplicate() as ShaderMaterial
 	if purple:
-		fire_mat.set_shader_parameter("cool_color", Vector3(0.22, 0.04, 0.45))
-		fire_mat.set_shader_parameter("mid_color", Vector3(0.62, 0.22, 1.0))
-		fire_mat.set_shader_parameter("hot_color", Vector3(2.0, 1.55, 2.4))
+		fire_mat.set_shader_parameter("cool_color", Vector3(randf_range(0.15, 0.3), 0.04, randf_range(0.35, 0.55)))
+		fire_mat.set_shader_parameter("mid_color", Vector3(randf_range(0.5, 0.75), randf_range(0.15, 0.3), randf_range(0.9, 1.0)))
+		fire_mat.set_shader_parameter("hot_color", Vector3(randf_range(1.8, 2.2), randf_range(1.4, 1.7), 2.4))
+	else:
+		fire_mat.set_shader_parameter("cool_color", Vector3(randf_range(0.45, 0.65), randf_range(0.06, 0.14), 0.04))
+		fire_mat.set_shader_parameter("mid_color", Vector3(1.0, randf_range(0.28, 0.55), randf_range(0.04, 0.12)))
 	fire_mat.set_shader_parameter("shift", shift)
-	var fire := _quad_particles(fire_mat, 12, 1.1, size * 1.5, size * 0.6, 0.0, size * 0.25, [Vector2(0, 0.35), Vector2(0.2, 1.0), Vector2(1, 0.7)])
+	var fire := _quad_particles(fire_mat, V["fire_n"], V["fire_life"], size * V["fire_size"], size * V["fire_r"], 0.0, size * V["fire_v"], [Vector2(0, 0.35), Vector2(0.2, 1.0), Vector2(1, 0.7)], (jd if jet else Vector3.ZERO), (28.0 if jet else 180.0))
 	root.add_child(fire)
 	fire.emitting = true
-	# 2) 濃煙：大、慢、壽命長
+	# 2) 濃煙：黑、厚、短命（5~6 秒）
 	var sm_mat := _smoke_mat.duplicate() as ShaderMaterial
 	sm_mat.set_shader_parameter("center", pos)
 	sm_mat.set_shader_parameter("radius", size * 2.5)
@@ -89,15 +107,15 @@ static func spawn(parent: Node, pos: Vector3, size: float, style: int = 0) -> No
 		sm_mat.set_shader_parameter("fire_color", Vector3(0.62, 0.25, 1.0))
 		sm_mat.set_shader_parameter("smoke_color", Vector3(0.03, 0.02, 0.05))
 	sm_mat.set_shader_parameter("shift", shift)
-	var smoke := _quad_particles(sm_mat, 42, 5.5, size * 1.75, size * 0.65, 0.0, size * 0.5, [Vector2(0, 0.25), Vector2(0.25, 0.85), Vector2(1, 1.6)])
+	var smoke := _quad_particles(sm_mat, V["smoke_n"], V["smoke_life"], size * V["smoke_size"], size * 0.65, 0.0, size * V["smoke_v"], [Vector2(0, 0.25), Vector2(0.25, 0.85), Vector2(1, 1.6)], (jd if jet else Vector3.ZERO), (40.0 if jet else 180.0))
 	smoke.explosiveness = 0.55
-	smoke.draw_order = GPUParticles3D.DRAW_ORDER_VIEW_DEPTH   # 煙需要依深度排序，才不會前後互相穿透
+	smoke.draw_order = GPUParticles3D.DRAW_ORDER_VIEW_DEPTH
 	root.add_child(smoke)
 	smoke.emitting = true
 	# 3) 火花雨：速度差很大的細長亮點（橘黃＋粉紫兩種色系）
 	for k in range(2):
 		var sp := GPUParticles3D.new()
-		sp.amount = 320
+		sp.amount = int(V["spark_n"] * (1.0 if k == 0 else 0.8))
 		sp.lifetime = 1.6
 		sp.one_shot = true
 		sp.explosiveness = 0.9
@@ -106,10 +124,10 @@ static func spawn(parent: Node, pos: Vector3, size: float, style: int = 0) -> No
 		var pm := ParticleProcessMaterial.new()
 		pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
 		pm.emission_sphere_radius = size * 0.4
-		pm.direction = Vector3(0, 0, 0)
-		pm.spread = 180.0
-		pm.initial_velocity_min = size * 0.4
-		pm.initial_velocity_max = size * 3.2
+		pm.direction = jd if jet else Vector3.ZERO
+		pm.spread = 22.0 if jet else 180.0
+		pm.initial_velocity_min = size * 0.4 * V["spark_sp"]
+		pm.initial_velocity_max = size * 3.2 * V["spark_sp"]
 		pm.damping_min = size * 0.3
 		pm.damping_max = size * 1.1
 		pm.scale_min = 0.6
@@ -130,7 +148,7 @@ static func spawn(parent: Node, pos: Vector3, size: float, style: int = 0) -> No
 		pm.color_ramp = gt
 		sp.process_material = pm
 		var qm := QuadMesh.new()
-		qm.size = Vector2(size * 0.006, size * 0.07)
+		qm.size = Vector2(size * 0.006, size * 0.07 * V["spark_len"])
 		qm.material = _spark_mat
 		sp.draw_pass_1 = qm
 		root.add_child(sp)
@@ -138,9 +156,9 @@ static func spawn(parent: Node, pos: Vector3, size: float, style: int = 0) -> No
 			get_tree_delay(root, 0.35, func(): sp.emitting = true)
 		else:
 			sp.emitting = true
-	# 3b) 餘燼：慢速、飄很久的小亮點（太空中不會立刻熄滅）
+	# 3b) 餘燼：慢速、飄很久的小亮點
 	var em := GPUParticles3D.new()
-	em.amount = 160
+	em.amount = V["ember_n"]
 	em.lifetime = 4.5
 	em.one_shot = true
 	em.explosiveness = 0.8
@@ -148,7 +166,7 @@ static func spawn(parent: Node, pos: Vector3, size: float, style: int = 0) -> No
 	var ep := ParticleProcessMaterial.new()
 	ep.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
 	ep.emission_sphere_radius = size * 0.6
-	ep.direction = Vector3(0, 0, 0)
+	ep.direction = Vector3.ZERO
 	ep.spread = 180.0
 	ep.initial_velocity_min = size * 0.05
 	ep.initial_velocity_max = size * 0.5
@@ -169,9 +187,9 @@ static func spawn(parent: Node, pos: Vector3, size: float, style: int = 0) -> No
 	em.draw_pass_1 = eq
 	root.add_child(em)
 	em.emitting = true
-	# 4) 碎片：黑色薄片，慢速翻滾（逆光剪影；被火光短暫照亮）
+	# 4) 碎片：黑色薄片，慢速翻滾
 	var deb := GPUParticles3D.new()
-	deb.amount = 90
+	deb.amount = V["deb_n"]
 	deb.lifetime = 10.0
 	deb.one_shot = true
 	deb.explosiveness = 1.0
@@ -179,7 +197,7 @@ static func spawn(parent: Node, pos: Vector3, size: float, style: int = 0) -> No
 	var dm := ParticleProcessMaterial.new()
 	dm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
 	dm.emission_sphere_radius = size * 0.5
-	dm.direction = Vector3(0, 0, 0)
+	dm.direction = Vector3.ZERO
 	dm.spread = 180.0
 	dm.initial_velocity_min = size * 0.15
 	dm.initial_velocity_max = size * 0.9
@@ -194,7 +212,7 @@ static func spawn(parent: Node, pos: Vector3, size: float, style: int = 0) -> No
 	deb.draw_pass_1 = bm
 	root.add_child(deb)
 	deb.emitting = true
-	# 5) 暖色短命光源：照亮附近艦體金屬（朝向火球的面變亮）
+	# 5) 短命光源：照亮附近艦體金屬
 	var l := OmniLight3D.new()
 	l.light_color = Color(0.7, 0.32, 1.0) if purple else Color(1.0, 0.55, 0.2)
 	l.omni_range = size * 7.0
@@ -205,11 +223,18 @@ static func spawn(parent: Node, pos: Vector3, size: float, style: int = 0) -> No
 		var ct := root.create_tween()
 		ct.tween_interval(0.25)
 		ct.tween_property(l, "light_color", Color(0.7, 0.32, 1.0), 0.6)
+	var lm: float = V["light"]
 	var tw := root.create_tween()
-	# 光源強度單位：Godot 點光源是線性衰減、數值要很大才打得亮數百單位外的金屬（實測 300 在 190 單位外才開始明顯）
-	tw.tween_property(l, "light_energy", size * 14.0, 0.06)
-	tw.tween_property(l, "light_energy", size * 5.0, 0.35).set_trans(Tween.TRANS_QUAD)
+	# Godot 點光源是線性衰減，數值要很大才打得亮數百單位外的金屬
+	tw.tween_property(l, "light_energy", size * 14.0 * lm, 0.06)
+	tw.tween_property(l, "light_energy", size * 5.0 * lm, 0.35).set_trans(Tween.TRANS_QUAD)
 	tw.tween_property(l, "light_energy", 0.0, 1.4).set_trans(Tween.TRANS_QUAD)
+	# 連爆：接連 N 次小爆（位置散布在附近，亂數延遲）
+	if allow_chain and int(V["chain"]) > 0:
+		for i in range(int(V["chain"])):
+			var off := Vector3(randf_range(-1, 1), randf_range(-1, 1), randf_range(-1, 1)) * size * 0.9
+			var delay := 0.16 * (i + 1) + randf_range(0.0, 0.18)
+			get_tree_delay(root, delay, func(): Explosion.spawn(parent, pos + off, size * 0.55, style, [0, 3][randi() % 2], false))
 	# 清理
 	var t := root.get_tree().create_timer(14.0)
 	t.timeout.connect(root.queue_free)
