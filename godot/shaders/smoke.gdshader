@@ -46,11 +46,11 @@ void fragment() {
 	float r2 = r + (fbm(q * 1.9 + 5.0) - 0.5) * 0.7;               // 用噪聲侵蝕輪廓：不再是規則圓盤，而是凹凸的積雲邊緣
 	float edge = smoothstep(1.0, 0.45, r2);
 	// 濃：高度場拉高後夾到 1（團塊核心完全不透明，只有邊緣半透明），壽命前 60% 幾乎不淡出
-	float a = clamp(h * 2.0, 0.0, 1.0) * edge * smoothstep(0.0, 0.05, age) * (1.0 - smoothstep(0.6, 1.0, age));
+	float a = clamp(h * 1.6, 0.0, 1.0) * edge * smoothstep(0.0, 0.05, age) * (1.0 - smoothstep(0.3, 0.95, age)) * 0.9;   // 壽命 5.5 秒，約 1.6 秒後開始淡出（大戰時不堆積成一片）
 	if (a < 0.015) discard;
 	float facing_fire = clamp(dot(n, normalize(vec3(ldir_v, 0.55))), 0.0, 1.0);          // 朝向爆炸中心的面
 	// 時間軸：前期火光強（濃煙中帶火光）→ 後期以濃煙為主、火光為輔（Squad 爆炸）
-	float fire_t = pow(clamp(1.0 - age * 3.2, 0.0, 1.0), 1.6) * 1.15 + 0.12 * pow(clamp(1.0 - age, 0.0, 1.0), 4.0);
+	float fire_t = pow(clamp(1.0 - age * 2.6, 0.0, 1.0), 1.6) * 1.15 + 0.12 * pow(clamp(1.0 - age, 0.0, 1.0), 4.0);
 	float fire = pow(facing_fire, 1.8) * fire_t * dist_k * fire_glow * 0.55;
 	float facing_key = clamp(dot(n, normalize(vec3(-0.45, 0.65, 0.6))), 0.0, 1.0);        // 冷色主光（左上）
 	float ao = 0.35 + 0.65 * smoothstep(0.0, 0.9, r);                                      // 團塊中心較暗（自遮蔽）

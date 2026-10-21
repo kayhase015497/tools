@@ -89,7 +89,7 @@ static func spawn(parent: Node, pos: Vector3, size: float, style: int = 0) -> No
 		sm_mat.set_shader_parameter("fire_color", Vector3(0.62, 0.25, 1.0))
 		sm_mat.set_shader_parameter("smoke_color", Vector3(0.03, 0.02, 0.05))
 	sm_mat.set_shader_parameter("shift", shift)
-	var smoke := _quad_particles(sm_mat, 60, 11.0, size * 2.1, size * 0.7, 0.0, size * 0.5, [Vector2(0, 0.25), Vector2(0.25, 0.85), Vector2(1, 1.6)])
+	var smoke := _quad_particles(sm_mat, 42, 5.5, size * 1.75, size * 0.65, 0.0, size * 0.5, [Vector2(0, 0.25), Vector2(0.25, 0.85), Vector2(1, 1.6)])
 	smoke.explosiveness = 0.55
 	smoke.draw_order = GPUParticles3D.DRAW_ORDER_VIEW_DEPTH   # 煙需要依深度排序，才不會前後互相穿透
 	root.add_child(smoke)
