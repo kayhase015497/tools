@@ -68,8 +68,12 @@ func _ready() -> void:
 		if not ("--no-break" in OS.get_cmdline_user_args()):
 			get_tree().create_timer(0.4).timeout.connect(func(): _break_index("cruiser", 0, 1 if "--purple" in OS.get_cmdline_user_args() else 0))
 	if "--hull-demo" in OS.get_cmdline_user_args():   # 鏡頭貼近一艘巡洋艦看艦體材質（POM）
-		var P2: Vector3 = (kinds_data["cruiser"]["xf"][0] as Transform3D).origin
-		cam.position = P2 + Vector3(160.0, 70.0, -200.0)
+		var hk := "cruiser"
+		for a_ in OS.get_cmdline_user_args():
+			if a_.begins_with("--kind="): hk = a_.substr(7)
+		var P2: Vector3 = (kinds_data[hk]["xf"][0] as Transform3D).origin
+		var hl: float = float(KINDS[hk][1])
+		cam.position = P2 + Vector3(0.35, 0.15, -0.45) * hl
 		var dv2 := (P2 - cam.position).normalized()
 		yaw = atan2(-dv2.x, -dv2.z)
 		pitch = asin(dv2.y)
@@ -189,7 +193,7 @@ func _load_kinds() -> void:
 			mm.mesh = p["mesh"]
 			mm.use_custom_data = true   # 每艘艦的燃燒度（x）與亂數種子（y），斷裂後的斷面燃燒餘燼用；要在設 instance_count 之前開啟
 			mm.instance_count = cap
-			_convert_materials(mm.mesh)
+			_convert_materials(mm.mesh, kind)
 			mm.visible_instance_count = 0
 			var mmi := MultiMeshInstance3D.new()
 			mmi.multimesh = mm
@@ -212,7 +216,7 @@ func _tex_sibling(tex: Texture2D, suffix: String) -> Texture2D:
 	var path := tex.resource_path.get_basename() + suffix
 	return load(path) as Texture2D if ResourceLoader.exists(path) else null
 
-func _convert_materials(mesh: Mesh) -> void:
+func _convert_materials(mesh: Mesh, kind: String = "") -> void:
 	if _hull_shader == null:
 		_hull_shader = load("res://shaders/ship_hull.gdshader")
 	for si in range(mesh.get_surface_count()):
@@ -220,6 +224,17 @@ func _convert_materials(mesh: Mesh) -> void:
 		if not (src is BaseMaterial3D):
 			continue
 		var b := src as BaseMaterial3D
+		if kind == "cruiser" and b.resource_name == "trim":   # 仙舟巡洋艦的飾帶：淡淡的螢光（取代原本偏深的藍色發光）
+			var tm := StandardMaterial3D.new()
+			tm.albedo_color = Color(0.22, 0.36, 0.38)
+			tm.roughness = 0.4
+			tm.emission_enabled = true
+			tm.emission = Color(0.45, 0.9, 0.85)
+			tm.emission_energy_multiplier = 0.5
+			tm.resource_name = "trim"
+			mesh.surface_set_material(si, tm)
+			_hull_by_name["trim"] = tm
+			continue
 		var hmap := _tex_sibling(b.albedo_texture, "_height.png")
 		if hmap == null:
 			continue   # 沒有貼圖的純色材質（飾條等）維持原樣
@@ -233,7 +248,7 @@ func _convert_materials(mesh: Mesh) -> void:
 			sm.set_shader_parameter("rough_tex", rmap)
 			sm.set_shader_parameter("use_rough_tex", true)
 		sm.set_shader_parameter("roughness", maxf(b.roughness, 0.35))
-		sm.set_shader_parameter("metallic", clampf(b.metallic + 0.45, 0.0, 0.85))
+		sm.set_shader_parameter("metallic", clampf(b.metallic + (0.45 if kind != "hss" else 0.0), 0.0, 0.85))
 		if b.normal_enabled and b.normal_texture != null:
 			sm.set_shader_parameter("normal_tex", b.normal_texture)
 			sm.set_shader_parameter("use_normal_tex", true)
@@ -243,6 +258,15 @@ func _convert_materials(mesh: Mesh) -> void:
 			if b.emission_texture != null:
 				sm.set_shader_parameter("emission_tex", b.emission_texture)
 				sm.set_shader_parameter("use_emission_tex", true)
+		if kind == "cruiser":
+			sm.set_shader_parameter("wood", 1.0)
+			sm.set_shader_parameter("metallic", 0.0)
+			sm.set_shader_parameter("wear", 0.3)
+		elif kind == "hss":
+			sm.set_shader_parameter("ceramic", 0.7)
+			sm.set_shader_parameter("metallic", 0.0)
+			sm.set_shader_parameter("wear", 0.2)
+			sm.set_shader_parameter("roughness", 0.5)
 		mesh.surface_set_material(si, sm)
 		_hull_mats.append(sm)
 		_hull_by_name[b.resource_name] = sm

@@ -28,6 +28,9 @@ static func _lod_for(parent: Node, pos: Vector3, size: float) -> float:
 	var d := cam.global_position.distance_to(pos) / maxf(size / 120.0, 0.6)   # 大爆炸可以在更遠處仍保持細節
 	return clampf(1.0 - (d - LOD_NEAR) / (LOD_FAR - LOD_NEAR), 0.12, 1.0)
 
+static func prep_public() -> void:
+	_prep()
+
 static func _prep() -> void:
 	if _fire_mat != null:
 		return
