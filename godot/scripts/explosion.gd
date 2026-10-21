@@ -18,7 +18,7 @@ const MAX_LIGHTS := 6
 const LOD_NEAR := 2500.0
 const LOD_FAR := 9000.0
 static var active_count := 0
-static var budget_enabled := true   # 展示牆（一次放 24 顆）會暫時關閉預算
+static var budget_enabled := false   # 預設關閉（想要大混戰更混亂）；按 P 切換。展示牆也會暫時關閉
 static var light_count := 0
 
 static func _lod_for(parent: Node, pos: Vector3, size: float) -> float:
