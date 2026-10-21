@@ -38,6 +38,9 @@ var bench_clock := 0.0
 var bench_samples: Array[float] = []
 var beams: Array[Dictionary] = []
 var rng := RandomNumberGenerator.new()
+var auto_boom := false
+var boom_t := 0.0
+var demo_explode := false
 
 func _ready() -> void:
 	rng.seed = 42
@@ -48,6 +51,12 @@ func _ready() -> void:
 	_make_beams()
 	_make_camera_and_hud()
 	auto_bench = "--benchmark" in OS.get_cmdline_user_args()
+	demo_explode = "--explode-demo" in OS.get_cmdline_user_args()
+	if demo_explode:
+		cam.position = Vector3(0, 300, -1900)
+		yaw = PI
+		pitch = 0.0
+		get_tree().create_timer(0.3).timeout.connect(func(): Explosion.spawn(self, Vector3(0, 250, -1500), 220.0))
 	if auto_bench:
 		fleet_mult = bench_steps[0]
 		_apply_mult()
@@ -63,7 +72,7 @@ func _make_environment() -> void:
 	env.background_mode = Environment.BG_SKY
 	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
-	env.ambient_light_energy = 0.35
+	env.ambient_light_energy = 0.22
 	env.tonemap_mode = Environment.TONE_MAPPER_ACES
 	env.tonemap_exposure = 1.0
 	env.glow_enabled = true
@@ -84,7 +93,7 @@ func _make_environment() -> void:
 	add_child(we)
 	var key := DirectionalLight3D.new()   # 主光（恆星方向）
 	key.light_color = Color(0.85, 0.92, 1.0)
-	key.light_energy = 1.6
+	key.light_energy = 1.15
 	key.rotation_degrees = Vector3(-35, 140, 0)
 	key.shadow_enabled = false
 	add_child(key)
@@ -332,6 +341,12 @@ func _input(e: InputEvent) -> void:
 				fleet_mult = maxi(fleet_mult / 2, 1); _apply_mult()
 			KEY_M:
 				animate = not animate
+			KEY_X:
+				Explosion.spawn(self, cam.global_position - cam.global_transform.basis.z * 900.0, 120.0)   # 護衛艦級爆炸（鏡頭前方）
+			KEY_C:
+				Explosion.spawn(self, cam.global_position - cam.global_transform.basis.z * 1600.0, 260.0)   # 巡洋艦級爆炸
+			KEY_Z:
+				auto_boom = not auto_boom
 			KEY_F2:
 				_save_bench()
 			KEY_F3:
@@ -352,13 +367,20 @@ func _process(dt: float) -> void:
 	var spd := fly_speed * (4.0 if Input.is_key_pressed(KEY_SHIFT) else 1.0)
 	cam.position += mv.normalized() * spd * dt
 	_update_beams(dt)
+	if auto_boom:
+		boom_t -= dt
+		if boom_t <= 0.0:
+			boom_t = rng.randf_range(0.5, 1.4)
+			var f := -cam.global_transform.basis.z
+			var off := cam.global_transform.basis.x * rng.randf_range(-700, 700) + cam.global_transform.basis.y * rng.randf_range(-300, 300)
+			Explosion.spawn(self, cam.global_position + f * rng.randf_range(900, 2200) + off, rng.randf_range(80, 260))
 	if animate:
 		_animate_ships(dt)
 	hud_t += dt
 	if hud_t > 0.25:
 		hud_t = 0.0
 		var fps := Engine.get_frames_per_second()
-		hud.text = "%s\nFPS %d · %.1f ms · ships %d (x%d)%s\n[PgUp/PgDn] fleet x2 / x0.5   [M] move ships   [F3] 3D scale   [F2] save bench\n[RMB+mouse] look   WASD/QE fly   Shift fast" % [
+		hud.text = "%s\nFPS %d · %.1f ms · ships %d (x%d)%s\n[PgUp/PgDn] fleet x2 / x0.5   [M] move ships   [F3] 3D scale   [F2] save bench\n[X] small boom  [C] big boom  [Z] auto booms   [RMB+mouse] look   WASD/QE fly   Shift fast" % [
 			RenderingServer.get_video_adapter_name(), fps, 1000.0 / maxf(fps, 1.0), _total_ships(), fleet_mult, "  · MOVING" if animate else ""]
 	bench_t += dt
 	if bench_t >= 2.0:
