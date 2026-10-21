@@ -11,7 +11,9 @@ PLANS = {'A': 2, 'B': 3, 'C': 4}
 
 def load(ship):
     bpy.ops.wm.read_factory_settings(use_empty=True)
-    bpy.ops.import_scene.gltf(filepath=f'/home/user/tools/assets/space-war/models/{ship}.glb')
+    import os
+    gp = f'/home/user/tools/godot/assets/models/{ship}.glb'   # Godot 專用版（含新艦橋／新造型）優先
+    bpy.ops.import_scene.gltf(filepath=gp if os.path.exists(gp) else f'/home/user/tools/assets/space-war/models/{ship}.glb')
     return [o for o in bpy.context.scene.objects if o.type == 'MESH']
 
 def break_material():
@@ -122,6 +124,8 @@ def build(ship, plan, n):
         hi = planes[ci] if ci < n - 1 else None
         for o in srcs:
             obj = make_chunk(o, planes, lo, hi, f'FRAG{ci}', seed + ci)
+            if len(obj.data.polygons) == 0:
+                bpy.data.objects.remove(obj, do_unlink=True); continue
             chunks.append((ci, obj))
     # 質心 Empty
     for ci in range(n):

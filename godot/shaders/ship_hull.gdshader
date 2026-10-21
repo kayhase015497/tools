@@ -52,17 +52,15 @@ float h31(vec3 p) { p = fract(p * vec3(0.1031, 0.1030, 0.0973)); p += dot(p, p.y
 float vn3(vec3 p) { vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
 	return mix(mix(mix(h31(i), h31(i + vec3(1, 0, 0)), f.x), mix(h31(i + vec3(0, 1, 0)), h31(i + vec3(1, 1, 0)), f.x), f.y),
 		mix(mix(h31(i + vec3(0, 0, 1)), h31(i + vec3(1, 0, 1)), f.x), mix(h31(i + vec3(0, 1, 1)), h31(i + vec3(1, 1, 1)), f.x), f.y), f.z); }
-// 檜木：沿船身長軸（模型 Z）的細直紋；年輪由 (x,y) 同心環加噪聲扭曲，淡黃褐色，偶有深色節疤與長條亮紋
-vec3 cypress(vec3 p) {
+// 檜木紋理（只提供「紋理起伏」，不改顏色）：沿船身長軸（模型 Z）的細直紋；年輪由 (x,y) 同心環加噪聲扭曲，淡黃褐色，偶有深色節疤與長條亮紋
+float wood_grain(vec3 p) {
 	vec3 q = vec3(p.x * 0.9, p.y * 0.9, p.z * 0.06);
 	float warp = vn3(q * vec3(2.5, 2.5, 0.8)) * 0.9 + vn3(q * vec3(9.0, 9.0, 1.6)) * 0.25;
 	float rings = fract((length(q.xy) + warp) * 7.0);
 	float grain = smoothstep(0.0, 0.35, rings) * (1.0 - smoothstep(0.65, 1.0, rings));
 	float fine = vn3(vec3(p.x * 30.0, p.y * 30.0, p.z * 0.7));
 	float knot = smoothstep(0.78, 0.92, vn3(vec3(p.x * 1.2, p.y * 1.2, p.z * 0.12) + 9.0));
-	vec3 light = vec3(0.60, 0.43, 0.23), dark = vec3(0.36, 0.23, 0.11);
-	vec3 c = mix(dark, light, grain * 0.75 + fine * 0.25);
-	return mix(c, vec3(0.22, 0.12, 0.06), knot * 0.7);
+	return clamp(grain * 0.75 + fine * 0.25 - knot * 0.5, 0.0, 1.0);
 }
 
 void vertex() {
@@ -105,13 +103,14 @@ void fragment() {
 	}
 	vec4 base = texture(albedo_tex, uv) * albedo_color;
 	float trim_mask = 0.0;
-	if (wood > 0.0) {   // 原底色中偏藍的飾帶 → 淡螢光；其餘 → 檜木
+	float grain = 0.5;
+	if (wood > 0.0) {   // 檜木質感＝木紋的凹凸（法線、粗糙度、微弱明暗），顏色保留原本的深色與紅色；偏藍的飾帶 → 淡螢光
 		float bl = base.b - max(base.r, base.g * 0.8);
 		trim_mask = smoothstep(0.04, 0.16, bl) * smoothstep(0.25, 0.45, base.b);
-		vec3 wc = cypress(mpos);
-		float lum = dot(base.rgb, vec3(0.3, 0.59, 0.11));
-		wc *= 0.7 + 0.45 * lum;   // 保留原底色的明暗（面板、汙損）
-		base.rgb = mix(base.rgb, mix(wc, vec3(0.3, 0.45, 0.46), trim_mask), wood);
+		grain = wood_grain(mpos);
+		base.rgb *= mix(1.0, 0.72 + 0.5 * grain, wood * (1.0 - trim_mask));
+		base.rgb = mix(base.rgb, vec3(0.3, 0.45, 0.46), trim_mask * wood);
+		depth = clamp(depth + (1.0 - grain) * 0.35 * wood * (1.0 - trim_mask), 0.0, 1.0);   // 木紋凹槽加進高度場 → 法線凹凸
 	}
 	if (ceramic > 0.0) {   // 白色高溫陶瓷：把底色拉向暖白，保留一點明暗（接縫、塗裝）
 		float l2 = dot(base.rgb, vec3(0.3, 0.59, 0.11));
@@ -125,7 +124,7 @@ void fragment() {
 	ALBEDO = albedo;
 	float rgh = use_rough_tex ? texture(rough_tex, uv).r * roughness * 1.6 : roughness;
 	ROUGHNESS = clamp(rgh + depth * 0.25 * wear, 0.12, 1.0);
-	if (wood > 0.0) ROUGHNESS = mix(ROUGHNESS, 0.42 + 0.2 * vn3(mpos * 20.0), wood * (1.0 - trim_mask));
+	if (wood > 0.0) ROUGHNESS = mix(ROUGHNESS, 0.38 + 0.3 * (1.0 - grain), wood * (1.0 - trim_mask));
 	if (ceramic > 0.0) { ROUGHNESS = mix(ROUGHNESS, 0.32 + depth * 0.4, ceramic); CLEARCOAT = ceramic * 0.85; CLEARCOAT_ROUGHNESS = 0.12; }
 	METALLIC = clamp(metallic + clamp(curv * 2.0, 0.0, 1.0) * 0.2 * wear, 0.0, 1.0);
 	METALLIC = mix(METALLIC, 0.0, max(wood, ceramic));   // 木頭與陶瓷都是非金屬

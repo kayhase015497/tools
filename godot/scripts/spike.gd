@@ -235,6 +235,57 @@ func _convert_materials(mesh: Mesh, kind: String = "") -> void:
 			mesh.surface_set_material(si, tm)
 			_hull_by_name["trim"] = tm
 			continue
+		if kind == "cruiser" and b.resource_name.begins_with("temple_"):   # 艦橋廟宇：木＝檜木 POM 材質，瓦＝深青灰瓦片，門窗＝深色
+			var tmat: Material
+			if b.resource_name == "temple_wood":
+				var wm := ShaderMaterial.new()
+				wm.shader = _hull_shader
+				wm.set_shader_parameter("wood", 1.0)
+				wm.set_shader_parameter("albedo_color", Color(0.30, 0.05, 0.04))   # 深紅漆（廟宇）
+				wm.set_shader_parameter("metallic", 0.0)
+				wm.set_shader_parameter("wear", 0.15)
+				wm.set_shader_parameter("roughness", 0.5)
+				_hull_mats.append(wm)
+				tmat = wm
+			else:
+				var sm2 := StandardMaterial3D.new()
+				sm2.albedo_color = Color(0.17, 0.38, 0.33) if b.resource_name == "temple_roof" else Color(0.02, 0.018, 0.015)
+				sm2.roughness = 0.25 if b.resource_name == "temple_roof" else 0.7
+				sm2.metallic = 0.35 if b.resource_name == "temple_roof" else 0.0
+				tmat = sm2
+			tmat.resource_name = b.resource_name
+			mesh.surface_set_material(si, tmat)
+			_hull_by_name[b.resource_name] = tmat
+			continue
+		if kind == "hss" and b.resource_name.begins_with("hss_"):   # 黑塔空間站（程序式重建）：共用面板貼圖 + 各材質底色
+			var hn: String = b.resource_name
+			if hn in ["hss_red", "hss_blue", "hss_window"]:
+				continue   # 發光件維持原樣
+			var hm := ShaderMaterial.new()
+			hm.shader = _hull_shader
+			var ptex: Texture2D = load("res://assets/models/hss_panel_albedo.png")
+			hm.set_shader_parameter("albedo_tex", ptex)
+			hm.set_shader_parameter("height_tex", load("res://assets/models/hss_panel_albedo_height.png"))
+			hm.set_shader_parameter("rough_tex", load("res://assets/models/hss_panel_albedo_rough.png"))
+			hm.set_shader_parameter("use_rough_tex", true)
+			hm.set_shader_parameter("albedo_color", b.albedo_color)
+			hm.set_shader_parameter("parallax_depth", 0.05)
+			hm.set_shader_parameter("wear", 0.25)
+			if hn == "hss_white":   # 白色耐高溫陶瓷：釉面清漆
+				hm.set_shader_parameter("ceramic", 0.7)
+				hm.set_shader_parameter("metallic", 0.0)
+				hm.set_shader_parameter("roughness", 0.5)
+			elif hn == "hss_solar":   # 太陽能板：深藍、偏光滑、半金屬
+				hm.set_shader_parameter("metallic", 0.55)
+				hm.set_shader_parameter("roughness", 0.25)
+			else:   # 深灰金屬／橘色烤漆飾板
+				hm.set_shader_parameter("metallic", 0.5 if hn == "hss_dark" else 0.15)
+				hm.set_shader_parameter("roughness", 0.5)
+			hm.resource_name = hn
+			mesh.surface_set_material(si, hm)
+			_hull_mats.append(hm)
+			_hull_by_name[hn] = hm
+			continue
 		var hmap := _tex_sibling(b.albedo_texture, "_height.png")
 		if hmap == null:
 			continue   # 沒有貼圖的純色材質（飾條等）維持原樣
