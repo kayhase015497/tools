@@ -352,7 +352,7 @@ assets/space-war/v2/
 
 ## v3（space-battle-v3.html）— 新爆炸與斷裂殘骸
 
-入口：`gadget/space-battle-v3.html`（與 v2 一樣不在首頁列出；網址 `…/tools/gadget/space-battle-v3.html`）。程式在 `assets/space-war/v3/`：只放有改動的檔案，其餘沿用 `v2/legacy`、`v2/vendor`（`boot.js` 的 `V3_FILES` 決定哪些從 v3 載入）。v2 不受影響。
+入口：`gadget/space-war-battle-v3.html`（與 v2 一樣不在首頁列出；網址 `…/tools/gadget/space-war-battle-v3.html`）。程式在 `assets/space-war/v3/`：只放有改動的檔案，其餘沿用 `v2/legacy`、`v2/vendor`（`boot.js` 的 `V3_FILES` 決定哪些從 v3 載入）。v2 不受影響。
 
 - **爆炸**（`legacy/sw-fx.js` 的 `fx.explode3`，移植自 Godot `explosion.gd`）：8 種變體（經典、連爆、噴流、閃爆、悶燒、環形衝擊、花瓣、延遲爆）× 3 種配色（橘＝聯軍被擊毀、紫＝軍團被擊毀、先橘後紫＝聯軍飛彈命中軍團艦）。尺寸≈船長×0.35（25~300 m）、距離降級（6~24 km）、舊的 `fx.explode(k, enemy, U)` 自動轉接到新系統。
 - **火球／煙霧著色器**（`engine/nodes.js` 的 `puffMaterial`，移植自 Godot `fireball.gdshader`／`smoke.gdshader`）：花椰菜泡泡火團（黃白過曝中心、先橘後紫）、近黑濃煙（高度場假法線、火光只染朝向爆炸中心的一側）。
