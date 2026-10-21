@@ -17,6 +17,11 @@ const KINDS := {
 	"hss":        ["hss.glb",        2040.0, 2, 1,  false],
 	"ipc_sid":    ["ipc_sid.glb",     528.0, 2, 1,  false],
 }
+# 血量（每艘）與陣營。xzd（無畏艦）不可被摧毀；反物質軍團＝whale，其餘為聯軍。
+const HP := {"cruiser": 120.0, "ipc": 120.0, "frigate": 50.0, "fighter": 15.0, "ipc_fighter": 15.0, "whale": 150.0, "hss": 600.0, "ipc_sid": 150.0}
+const LEGION := ["whale"]
+const BEAM_DPS := 40.0
+const FRAG_KINDS := ["cruiser", "ipc", "whale", "hss", "ipc_sid", "frigate"]   # 有預先切好斷片的艦種
 const TOMB_HEIGHT := 3000.0
 const MAX_MULT := 64
 
@@ -41,6 +46,12 @@ var rng := RandomNumberGenerator.new()
 var auto_boom := false
 var boom_t := 0.0
 var demo_explode := false
+var env: Environment
+var cam_attr: CameraAttributesPractical
+var grain_layer: CanvasLayer
+var post_on := true          # T：DX12 後製（SSAO／SSIL／SSR／景深／顆粒）開關
+var combat := false          # H：光束真的造成傷害，血量歸零 → 斷裂（有斷片的艦種）或爆炸
+var wounded := {}            # "kind:i" → 下次冒小爆炸的倒數（血量低於 35% 的艦）
 
 func _ready() -> void:
 	rng.seed = 42
@@ -51,6 +62,11 @@ func _ready() -> void:
 	_make_beams()
 	_make_camera_and_hud()
 	auto_bench = "--benchmark" in OS.get_cmdline_user_args()
+	if "--combat" in OS.get_cmdline_user_args():   # 測試用：開機即進入戰鬥；--timescale=N 加速
+		combat = true
+		for b_ in beams: _retarget_beam(b_)
+	for a_ in OS.get_cmdline_user_args():
+		if a_.begins_with("--timescale="): Engine.time_scale = float(a_.substr(12))
 	demo_explode = "--explode-demo" in OS.get_cmdline_user_args() or "--explode-demo-purple" in OS.get_cmdline_user_args() or "--explode-demo-shift" in OS.get_cmdline_user_args()
 	if demo_explode:   # 腳本化示範：鏡頭貼近一艘巡洋艦，在它旁邊引爆（檢查爆炸光對艦體金屬的照明）
 		var P: Vector3 = (kinds_data["cruiser"]["xf"][0] as Transform3D).origin
@@ -104,9 +120,9 @@ func _make_environment() -> void:
 	env.background_mode = Environment.BG_SKY
 	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
-	env.ambient_light_energy = 0.22
+	env.ambient_light_energy = 0.2
 	env.tonemap_mode = Environment.TONE_MAPPER_ACES
-	env.tonemap_exposure = 1.0
+	env.tonemap_exposure = 0.82   # 艦體在 ACES 下偏曝 → 降曝光、壓高光
 	env.glow_enabled = true
 	env.glow_intensity = 0.9
 	env.glow_bloom = 0.1
@@ -120,12 +136,44 @@ func _make_environment() -> void:
 	env.adjustment_enabled = true
 	env.adjustment_saturation = 1.1
 	env.adjustment_contrast = 1.08
+	self.env = env
+	# ── DX12 後製：螢幕空間環境遮蔽／間接光／反射、景深（遠景柔化）、顆粒＋暗角 ──
+	env.ssao_enabled = true
+	env.ssao_radius = 1.6
+	env.ssao_intensity = 1.6
+	env.ssao_power = 1.5
+	env.ssil_enabled = true
+	env.ssil_radius = 4.0
+	env.ssil_intensity = 0.8
+	env.ssr_enabled = true
+	env.ssr_max_steps = 48
+	env.ssr_fade_in = 0.15
+	env.ssr_fade_out = 2.0
+	env.ssr_depth_tolerance = 0.2
+	cam_attr = CameraAttributesPractical.new()
+	cam_attr.dof_blur_near_enabled = true   # 只做近景模糊（鏡頭旁的碎片、火星）；遠景不糊，否則天空星點會變成大光斑
+	cam_attr.dof_blur_near_distance = 25.0
+	cam_attr.dof_blur_near_transition = 40.0
+	cam_attr.dof_blur_amount = 0.05
 	var we := WorldEnvironment.new()
 	we.environment = env
+	we.camera_attributes = cam_attr
 	add_child(we)
+	grain_layer = CanvasLayer.new()
+	grain_layer.layer = 0
+	var gr := ColorRect.new()
+	gr.set_anchors_preset(Control.PRESET_FULL_RECT)
+	gr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var gm := ShaderMaterial.new()
+	gm.shader = load("res://shaders/post_grain.gdshader")
+	gr.material = gm
+	grain_layer.add_child(gr)
+	add_child(grain_layer)
+	if "--no-post" in OS.get_cmdline_user_args():
+		call_deferred("_toggle_post")
 	var key := DirectionalLight3D.new()   # 主光（恆星方向）
 	key.light_color = Color(0.85, 0.92, 1.0)
-	key.light_energy = 1.15
+	key.light_energy = 0.95
 	key.rotation_degrees = Vector3(-35, 140, 0)
 	key.shadow_enabled = false
 	add_child(key)
@@ -202,13 +250,26 @@ func _load_kinds() -> void:
 			add_child(mmi)
 			parts.append({"mm": mm, "local": p["local"]})
 		kinds_data[kind] = {"parts": parts, "scale": sc, "center": center, "cap": cap, "base": int(spec[3]), "count": 0,
-			"xf": [] as Array[Transform3D], "vel": [] as Array[Vector3], "fighter": spec[4]}
+			"xf": [] as Array[Transform3D], "vel": [] as Array[Vector3], "fighter": spec[4],
+			"hp": _make_hp(kind, cap), "dead": _make_dead(cap)}
 
 # ───────────── 艦體材質：換成 POM 版（高度圖由底色貼圖推導，見 tools-src/godot/make_heightmaps.py） ─────────────
 var _hull_shader: Shader
 var pom_on := true
 var _hull_mats: Array[ShaderMaterial] = []
 var _hull_by_name := {}   # 材質名 → POM 材質（斷片外表沿用，與完整艦一致）
+
+func _make_hp(kind: String, cap: int) -> PackedFloat32Array:
+	var a := PackedFloat32Array()
+	a.resize(cap)
+	a.fill(float(HP.get(kind, 1e9)))
+	return a
+
+func _make_dead(cap: int) -> Array:
+	var a := []
+	a.resize(cap)
+	a.fill(0)
+	return a
 
 func _tex_sibling(tex: Texture2D, suffix: String) -> Texture2D:
 	if tex == null or tex.resource_path == "":
@@ -342,17 +403,28 @@ func _break_nearest(kind: String, style: int) -> void:
 
 func _break_index(kind: String, best: int, style: int) -> void:
 	var d: Dictionary = kinds_data[kind]
+	(d["dead"] as Array)[best] = 1
+	print("[combat] destroyed ", kind, " #", best)
 	var xf: Transform3D = d["xf"][best]
 	var sc: float = d["scale"]
 	var center: Vector3 = d["center"]
 	var spawn_xf := Transform3D(xf.basis, xf.origin - xf.basis * center)
-	Breakup.spawn(self, kind, spawn_xf, (d["vel"][best] as Vector3), style, _hull_by_name)
+	if kind in FRAG_KINDS:
+		Breakup.spawn(self, kind, spawn_xf, (d["vel"][best] as Vector3), style, _hull_by_name)
 	var hidden := xf
 	hidden.basis = Basis.IDENTITY * 0.0001
 	for part in d["parts"]:
 		(part["mm"] as MultiMesh).set_instance_transform(best, hidden)
 	if not ("--no-boom" in OS.get_cmdline_user_args()):
-		Explosion.spawn(self, xf.origin, 160.0, style, 0 if style == 0 else 1)
+		Explosion.spawn(self, xf.origin, clampf(float(KINDS[kind][1]) * 0.35, 25.0, 300.0), style, 0 if style == 0 else 1)
+
+func _toggle_post() -> void:
+	post_on = not post_on
+	env.ssao_enabled = post_on
+	env.ssil_enabled = post_on
+	env.ssr_enabled = post_on
+	cam_attr.dof_blur_near_enabled = post_on
+	grain_layer.visible = post_on
 
 func _toggle_pom() -> void:
 	pom_on = not pom_on
@@ -398,6 +470,8 @@ func _write_instances(d: Dictionary, from_i: int, to_i: int) -> void:
 		# 模型中心對齊原點：先平移 -center，再套零件本地變換
 		var loc := Transform3D(local.basis, local.origin - center)
 		for i in range(from_i, to_i):
+			if (d["dead"] as Array)[i] != 0:
+				continue   # 已被擊毀（斷裂／爆炸）的艦保持隱藏
 			mm.set_instance_transform(i, (d["xf"][i] as Transform3D) * loc)
 
 func _apply_mult() -> void:
@@ -416,6 +490,80 @@ func _total_ships() -> int:
 	for kind in kinds_data.keys():
 		t += int(kinds_data[kind]["count"])
 	return t
+
+# ───────────── 戰鬥：光束傷害 → 血量 → 斷裂／爆炸 ─────────────
+func _faction_style(kind: String) -> int:
+	return 1 if kind in LEGION else 0   # 0＝聯軍（橘色餘燼）、1＝軍團（紫色）
+
+func _pick_target(side: int) -> Array:
+	# side 0＝聯軍光束（打軍團），1＝軍團光束（打聯軍）。回傳 [kind, index]，沒有活的目標回 []
+	var pool: Array = []
+	for kind in kinds_data.keys():
+		var is_legion: bool = kind in LEGION
+		if (side == 0) != is_legion or not HP.has(kind):
+			continue
+		pool.append(kind)
+	if pool.is_empty():
+		return []
+	for _t in range(12):
+		var kind: String = pool[rng.randi() % pool.size()]
+		var d: Dictionary = kinds_data[kind]
+		if int(d["count"]) <= 0:
+			continue
+		var i := rng.randi() % int(d["count"])
+		if (d["dead"] as Array)[i] == 0:
+			return [kind, i]
+	return []
+
+func _damage(kind: String, i: int, amount: float) -> void:
+	var d: Dictionary = kinds_data[kind]
+	if (d["dead"] as Array)[i] != 0:
+		return
+	var hp: PackedFloat32Array = d["hp"]
+	hp[i] -= amount
+	d["hp"] = hp
+	var key := "%s:%d" % [kind, i]
+	if hp[i] <= 0.0:
+		wounded.erase(key)
+		_break_index(kind, i, _faction_style(kind))
+	elif hp[i] < float(HP[kind]) * 0.35 and not wounded.has(key):
+		wounded[key] = 0.0
+
+func _update_wounded(dt: float) -> void:
+	# 重傷的艦（血量 < 35%）每隔一會兒冒一個小爆炸
+	for key in wounded.keys():
+		wounded[key] -= dt
+		if wounded[key] > 0.0:
+			continue
+		wounded[key] = rng.randf_range(0.8, 2.0)
+		var parts: PackedStringArray = (key as String).split(":")
+		var d: Dictionary = kinds_data[parts[0]]
+		var i := int(parts[1])
+		if (d["dead"] as Array)[i] != 0:
+			wounded.erase(key)
+			continue
+		var o: Vector3 = (d["xf"][i] as Transform3D).origin
+		var sz := clampf(float(KINDS[parts[0]][1]) * 0.05, 8.0, 40.0)
+		Explosion.spawn(self, o + Vector3(rng.randf_range(-1, 1), rng.randf_range(-1, 1), rng.randf_range(-1, 1)) * float(KINDS[parts[0]][1]) * 0.15, sz, _faction_style(parts[0]), 0, false)
+
+func _kill_nearest_in_view() -> void:   # G：鏡頭正前方最近的一艘當場血量歸零（測試血量→斷裂／爆炸串接）
+	var fwd := -cam.global_transform.basis.z
+	var bk := ""
+	var bi := -1
+	var bd := 1e18
+	for kind in kinds_data.keys():
+		if not HP.has(kind):
+			continue
+		var d: Dictionary = kinds_data[kind]
+		for i in range(int(d["count"])):
+			if (d["dead"] as Array)[i] != 0:
+				continue
+			var to := (d["xf"][i] as Transform3D).origin - cam.global_position
+			var dist := to.length()
+			if dist > 1.0 and to.normalized().dot(fwd) > 0.5 and dist < bd:
+				bd = dist; bk = kind; bi = i
+	if bi >= 0:
+		_damage(bk, bi, 1e9)
 
 # ───────────── 光束＋電焊火花 ─────────────
 func _make_beams() -> void:
@@ -440,7 +588,7 @@ func _make_beams() -> void:
 			b.add_child(q)
 		var sp := _make_sparks(c)
 		add_child(sp)
-		beams.append({"node": b, "sparks": sp, "from": Vector3.ZERO, "to": Vector3.ZERO, "t": rng.randf() * 3.0, "col": c})
+		beams.append({"node": b, "sparks": sp, "from": Vector3.ZERO, "to": Vector3.ZERO, "t": rng.randf() * 3.0, "col": c, "side": 1 if i % 3 == 2 else 0, "tk": "", "ti": -1})
 		_retarget_beam(beams[i])
 
 func _make_sparks(c: Color) -> GPUParticles3D:
@@ -482,6 +630,17 @@ func _make_sparks(c: Color) -> GPUParticles3D:
 	return p
 
 func _retarget_beam(b: Dictionary) -> void:
+	if combat:
+		var tg := _pick_target(int(b["side"]))
+		if not tg.is_empty():
+			var sd: Dictionary = kinds_data["whale" if int(b["side"]) == 1 else "cruiser"]
+			b["from"] = (sd["xf"][rng.randi() % maxi(int(sd["count"]), 1)] as Transform3D).origin
+			b["tk"] = tg[0]
+			b["ti"] = tg[1]
+			b["to"] = ((kinds_data[tg[0]]["xf"][tg[1]]) as Transform3D).origin
+			b["t"] = 0.0
+			return
+	b["tk"] = ""
 	var cd: Dictionary = kinds_data["cruiser"]
 	var a: Vector3 = (cd["xf"][rng.randi() % maxi(int(cd["count"]), 1)] as Transform3D).origin
 	var tgt := Vector3(rng.randf_range(-600, 600), rng.randf_range(-300, 600), rng.randf_range(-600, 600))   # 鐵墓附近
@@ -492,7 +651,16 @@ func _retarget_beam(b: Dictionary) -> void:
 func _update_beams(dt: float) -> void:
 	for b in beams:
 		b["t"] += dt
-		if b["t"] > 3.0:
+		var tk: String = b["tk"]
+		if combat and tk != "":
+			var td: Dictionary = kinds_data[tk]
+			var ti: int = b["ti"]
+			if (td["dead"] as Array)[ti] != 0:
+				_retarget_beam(b)   # 目標已毀 → 換目標
+			else:
+				b["to"] = (td["xf"][ti] as Transform3D).origin
+				_damage(tk, ti, BEAM_DPS * dt)
+		if b["t"] > (8.0 if (combat and tk != "") else 3.0):
 			_retarget_beam(b)
 		var a: Vector3 = b["from"]
 		var z: Vector3 = b["to"]
@@ -546,6 +714,13 @@ func _input(e: InputEvent) -> void:
 				_break_nearest("ipc", 0)
 			KEY_O:   # 斷裂：仙舟巡洋艦，紫色餘燼（預覽軍團配色）
 				_break_nearest("cruiser", 1)
+			KEY_T:   # DX12 後製開關（SSAO／SSIL／SSR／景深／顆粒）
+				_toggle_post()
+			KEY_H:   # 戰鬥開關：光束造成傷害，血量歸零 → 斷裂（有斷片的艦種）或爆炸
+				combat = not combat
+				for b in beams: _retarget_beam(b)
+			KEY_G:   # 鏡頭正前方最近的艦血量歸零
+				_kill_nearest_in_view()
 			KEY_K:   # POM 材質開關（比較升級前後）
 				_toggle_pom()
 			KEY_P:   # 爆炸效能保護開關（預設關閉）
@@ -574,6 +749,8 @@ func _process(dt: float) -> void:
 	var spd := fly_speed * (4.0 if Input.is_key_pressed(KEY_SHIFT) else 1.0)
 	cam.position += mv.normalized() * spd * dt
 	_update_beams(dt)
+	if combat:
+		_update_wounded(dt)
 	if auto_boom:
 		boom_t -= dt
 		if boom_t <= 0.0:
@@ -587,7 +764,7 @@ func _process(dt: float) -> void:
 	if hud_t > 0.25:
 		hud_t = 0.0
 		var fps := Engine.get_frames_per_second()
-		hud.text = "%s\nFPS %d · %.1f ms · ships %d (x%d)%s\n[PgUp/PgDn] fleet x2 / x0.5   [M] move ships   [F3] 3D scale   [F2] save bench\n[X/C] ally destroyed (orange)  [V/B] Legion destroyed (purple)  [N] missile hit (orange->purple)  [Z] auto  [K] POM  [P] explosion budget  [U/I/O] ship breaks (cruiser / IPC / purple)   [RMB+mouse] look   WASD/QE fly   Shift fast" % [
+		hud.text = "%s\nFPS %d · %.1f ms · ships %d (x%d)%s\n[PgUp/PgDn] fleet x2 / x0.5   [M] move ships   [F3] 3D scale   [F2] save bench\n[X/C] ally destroyed (orange)  [V/B] Legion destroyed (purple)  [N] missile hit (orange->purple)  [Z] auto  [K] POM  [P] explosion budget  [T] post FX  [H] combat (beams deal damage)  [G] kill nearest  [U/I/O] ship breaks (cruiser / IPC / purple)   [RMB+mouse] look   WASD/QE fly   Shift fast" % [
 			RenderingServer.get_video_adapter_name(), fps, 1000.0 / maxf(fps, 1.0), _total_ships(), fleet_mult, "  · MOVING" if animate else ""]
 	bench_t += dt
 	if bench_t >= 2.0:
