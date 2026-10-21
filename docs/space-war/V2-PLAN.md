@@ -349,3 +349,12 @@ assets/space-war/v2/
 - 標題畫面新增「配音」選項列：跟隨介面語言（預設）／English／中文／日本語／한국어／關閉。字幕永遠跟「語言」；配音可另選（例如中文介面＋英語配音）。選擇存在 localStorage（`sw-voice`）。
 - `applyCueLang` 依配音語言重算字幕時間（字幕長度與浮現速度跟著該語音長度；沒有該語言配音的句子只顯示字幕）；四語言標籤補齊。
 - 無頭驗證：zh 介面＋en／ko 配音時語音路徑與時間正確、關閉時無語音；標題畫面截圖版面正常。重新整理後的記憶未能在無頭環境驗證（localStorage 寫法與語言選項相同）。
+
+## v3（space-battle-v3.html）— 新爆炸與斷裂殘骸
+
+入口：`gadget/space-battle-v3.html`（與 v2 一樣不在首頁列出；網址 `…/tools/gadget/space-battle-v3.html`）。程式在 `assets/space-war/v3/`：只放有改動的檔案，其餘沿用 `v2/legacy`、`v2/vendor`（`boot.js` 的 `V3_FILES` 決定哪些從 v3 載入）。v2 不受影響。
+
+- **爆炸**（`legacy/sw-fx.js` 的 `fx.explode3`，移植自 Godot `explosion.gd`）：8 種變體（經典、連爆、噴流、閃爆、悶燒、環形衝擊、花瓣、延遲爆）× 3 種配色（橘＝聯軍被擊毀、紫＝軍團被擊毀、先橘後紫＝聯軍飛彈命中軍團艦）。尺寸≈船長×0.35（25~300 m）、距離降級（6~24 km）、舊的 `fx.explode(k, enemy, U)` 自動轉接到新系統。
+- **火球／煙霧著色器**（`engine/nodes.js` 的 `puffMaterial`，移植自 Godot `fireball.gdshader`／`smoke.gdshader`）：花椰菜泡泡火團（黃白過曝中心、先橘後紫）、近黑濃煙（高度場假法線、火光只染朝向爆炸中心的一側）。
+- **斷裂殘骸**（`legacy/sw-breakup.js`）：擊毀大艦時改成 2~4 塊斷片（`assets/space-war/models/frag/*.glb`，第一次用到才載入）；斷面熔融材質（`breakMaterial`，21 秒由亮到暗）、火焰（13 秒）、餘燼與黑煙尾；陣營決定餘燼顏色（橘／紫）；同時最多 14 組、存活 60 秒、>16 km 不放特效。支援巡洋艦、IPC、護衛艦、軍團母艦、黑塔、IPC SID（預警機）；無畏艦、月球艦沒有斷片（只爆炸）。黑塔的 C 方案（6 MB）未帶進網頁版。
+- 驗證：無頭 Chromium（WebGL2 軟體渲染）擊毀一艘巡洋艦，截圖確認火球、斷成兩塊、斷面橘色熔光，無執行期錯誤。**未驗證**：WebGPU 後端、真實 GPU 的幀數、大量同時爆炸的效能（遇到掉幀可按 F8 關閉護盾／損傷特效，爆炸有距離降級與 `G.lite` 降級）。
