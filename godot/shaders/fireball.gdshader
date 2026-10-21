@@ -2,6 +2,9 @@ shader_type spatial;
 render_mode unshaded, blend_add, depth_draw_never, cull_disabled;
 // 爆炸火團（Squadron 42 風）：花椰菜狀的泡泡團——中心黃白過曝、外緣橘紅，表面有顆粒與縫隙；粒子壽命（INSTANCE_CUSTOM.y）決定漸暗與縮小。
 uniform float intensity = 2.1;
+uniform vec3 cool_color : source_color = vec3(0.55, 0.1, 0.04);
+uniform vec3 mid_color : source_color = vec3(1.0, 0.42, 0.08);
+uniform vec3 hot_color : source_color = vec3(2.2, 2.0, 1.55);
 varying float age;
 varying float seed;
 
@@ -29,7 +32,7 @@ void fragment() {
 	float dens = smoothstep(0.0, 0.45, bubbles * 0.9 + core * 1.25 - 0.55 - age * 0.75);
 	if (dens < 0.01) discard;
 	float heat = clamp(core * 1.2 + n * 0.6 - age * 1.25, 0.0, 1.0);
-	vec3 cool = vec3(0.55, 0.1, 0.04), mid = vec3(1.0, 0.42, 0.08), hot = vec3(1.0, 0.92, 0.7) * 2.2;
+	vec3 cool = cool_color, mid = mid_color, hot = hot_color;
 	vec3 col = mix(cool, mid, smoothstep(0.1, 0.55, heat));
 	col = mix(col, hot, smoothstep(0.62, 1.0, heat));
 	float fade = pow(clamp(1.0 - age, 0.0, 1.0), 1.4);
