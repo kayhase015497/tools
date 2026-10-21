@@ -101,7 +101,7 @@ func _draw() -> void:
 				draw_colored_polygon(PackedVector2Array([sp3 + Vector2(0, -9), sp3 + Vector2(9, 0), sp3 + Vector2(0, 9), sp3 + Vector2(-9, 0)]), Color(COL_T, 0.35))
 		# 左下：護盾／船體／能量
 		var bx := 24.0
-		var by := vp.y - 120.0
+		var by := vp.y - 150.0
 		_bar(Vector2(bx, by), Vector2(220, 16), P["shield"] / P["shield_max"], Color(0.3, 0.65, 1.0, 0.85), "SHIELD")
 		_bar(Vector2(bx, by + 22), Vector2(220, 16), P["hull"] / P["hull_max"], Color(0.4, 1.0, 0.5, 0.85) if P["hull"] > P["hull_max"] * 0.35 else Color(1.0, 0.3, 0.3, 0.9), "HULL")
 		_bar(Vector2(bx, by + 44), Vector2(220, 10), P["energy"] / 100.0, Color(1.0, 0.8, 0.3, 0.8), "")
