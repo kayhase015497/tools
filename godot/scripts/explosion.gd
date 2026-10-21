@@ -8,6 +8,26 @@ static var _smoke_mat: ShaderMaterial
 static var _spark_mat: StandardMaterial3D
 static var _debris_mat: StandardMaterial3D
 
+# ───────────── 效能保護 ─────────────
+# 1) 距離降級：離鏡頭越遠，粒子數量越少（遠到看不見細節時只留一團火球）
+# 2) 同時爆炸上限：超過上限時新爆炸降級成輕量版（火球＋少量火花，不放煙／碎片／光源）
+# 3) 動態光源上限：同時最多 MAX_LIGHTS 盞爆炸光源，且只有靠近鏡頭的爆炸才配光源
+# 4) 連爆的子爆炸不再連鎖，且在預算吃緊時被取消
+const MAX_ACTIVE := 14
+const MAX_LIGHTS := 6
+const LOD_NEAR := 2500.0
+const LOD_FAR := 9000.0
+static var active_count := 0
+static var budget_enabled := true   # 展示牆（一次放 24 顆）會暫時關閉預算
+static var light_count := 0
+
+static func _lod_for(parent: Node, pos: Vector3, size: float) -> float:
+	var cam := parent.get_viewport().get_camera_3d() if parent.get_viewport() else null
+	if cam == null:
+		return 1.0
+	var d := cam.global_position.distance_to(pos) / maxf(size / 120.0, 0.6)   # 大爆炸可以在更遠處仍保持細節
+	return clampf(1.0 - (d - LOD_NEAR) / (LOD_FAR - LOD_NEAR), 0.12, 1.0)
+
 static func _prep() -> void:
 	if _fire_mat != null:
 		return
@@ -63,7 +83,7 @@ static func _quad_particles(mat: Material, amount: int, life: float, size: float
 	p.draw_pass_1 = qm
 	return p
 
-## 10 種爆焰變體（每種顏色都有）：0 經典、1 連爆、2 噴流、3 閃爆、4 悶燒、5 環形衝擊、6 串燒（沿線 5 連爆）、7 花瓣（5 道放射火舌）、8 延遲爆（先悶光後炸開）、9 碎片風暴
+## 8 種爆焰變體（每種顏色都有）：0 經典、1 連爆、2 噴流、3 閃爆、4 悶燒、5 環形衝擊、6 花瓣（5 道放射火舌）、7 延遲爆（先悶光後炸開）。（原「串燒」「碎片風暴」已依使用者要求刪除）
 const VARIANTS := [
 	{"fire_n": 12, "fire_life": 1.1, "fire_size": 1.5, "fire_r": 0.6, "fire_v": 0.25, "spark_n": 320, "spark_sp": 1.0, "spark_len": 1.0, "smoke_n": 42, "smoke_size": 1.75, "smoke_life": 5.5, "smoke_v": 0.5, "ember_n": 160, "deb_n": 90, "light": 1.0, "chain": 0, "jet": false},
 	{"fire_n": 8, "fire_life": 1.0, "fire_size": 1.15, "fire_r": 0.5, "fire_v": 0.25, "spark_n": 220, "spark_sp": 1.0, "spark_len": 0.9, "smoke_n": 30, "smoke_size": 1.5, "smoke_life": 5.0, "smoke_v": 0.45, "ember_n": 120, "deb_n": 70, "light": 0.9, "chain": 3, "jet": false},
@@ -72,14 +92,10 @@ const VARIANTS := [
 	{"fire_n": 16, "fire_life": 1.9, "fire_size": 1.25, "fire_r": 0.7, "fire_v": 0.2, "spark_n": 170, "spark_sp": 0.75, "spark_len": 0.9, "smoke_n": 52, "smoke_size": 2.0, "smoke_life": 6.0, "smoke_v": 0.35, "ember_n": 340, "deb_n": 140, "light": 0.8, "chain": 0, "jet": false},
 	# 5 環形衝擊：火球與火花排成向外擴張的環，中央較小
 	{"fire_n": 8, "fire_life": 1.0, "fire_size": 1.2, "fire_r": 0.3, "fire_v": 0.2, "spark_n": 260, "spark_sp": 1.0, "spark_len": 1.0, "smoke_n": 34, "smoke_size": 1.6, "smoke_life": 5.0, "smoke_v": 0.5, "ember_n": 140, "deb_n": 80, "light": 1.1, "chain": 0, "jet": false, "ring": true},
-	# 6 串燒：沿一條線連續 5 次小爆（像艦身被一路炸穿）
-	{"fire_n": 6, "fire_life": 0.9, "fire_size": 1.0, "fire_r": 0.4, "fire_v": 0.2, "spark_n": 160, "spark_sp": 1.0, "spark_len": 0.9, "smoke_n": 24, "smoke_size": 1.35, "smoke_life": 4.8, "smoke_v": 0.4, "ember_n": 100, "deb_n": 60, "light": 0.8, "chain": 5, "jet": false, "line": true},
 	# 7 花瓣：5 道細火舌向四面八方放射
 	{"fire_n": 10, "fire_life": 1.0, "fire_size": 1.2, "fire_r": 0.35, "fire_v": 0.6, "spark_n": 160, "spark_sp": 1.3, "spark_len": 1.3, "smoke_n": 36, "smoke_size": 1.55, "smoke_life": 5.2, "smoke_v": 0.6, "ember_n": 120, "deb_n": 80, "light": 1.0, "chain": 0, "jet": false, "jets": 5},
 	# 8 延遲爆：先一小團悶光，約 0.4 秒後才整個炸開（強光＋大量火花）
 	{"fire_n": 14, "fire_life": 1.1, "fire_size": 1.8, "fire_r": 0.6, "fire_v": 0.35, "spark_n": 520, "spark_sp": 1.3, "spark_len": 1.1, "smoke_n": 44, "smoke_size": 1.8, "smoke_life": 5.5, "smoke_v": 0.55, "ember_n": 180, "deb_n": 100, "light": 1.4, "chain": 0, "jet": false, "delay": 0.4},
-	# 9 碎片風暴：中等火球，極大量長曳光火花與碎片
-	{"fire_n": 9, "fire_life": 0.9, "fire_size": 1.2, "fire_r": 0.5, "fire_v": 0.3, "spark_n": 620, "spark_sp": 1.8, "spark_len": 1.8, "smoke_n": 28, "smoke_size": 1.4, "smoke_life": 4.5, "smoke_v": 0.7, "ember_n": 200, "deb_n": 230, "light": 1.0, "chain": 0, "jet": false},
 ]
 
 ## style 0＝橘色火焰（聯軍艦艇被擊毀）、1＝紫色焰（反物質軍團艦艇被擊毀）、2＝先橘後紫（聯軍飛彈命中反物質軍團艦艇）
@@ -88,15 +104,25 @@ static func spawn(parent: Node, pos: Vector3, size: float, style: int = 0, varia
 	_prep()
 	var purple := style == 1
 	var shift := 1.0 if style == 2 else 0.0
+	var lod := _lod_for(parent, pos, size)
+	var lite := budget_enabled and active_count >= MAX_ACTIVE
+	if lite:
+		lod = minf(lod, 0.3)
 	var vi := variant if variant >= 0 else randi() % VARIANTS.size()
-	var V: Dictionary = VARIANTS[vi]
+	var V: Dictionary = VARIANTS[vi].duplicate()
+	for key in ["fire_n", "spark_n", "smoke_n", "ember_n", "deb_n"]:
+		V[key] = maxi(int(float(V[key]) * (lod if key != "fire_n" else maxf(lod, 0.5))), 2)
+	if lite:
+		V["smoke_n"] = 0
+		V["deb_n"] = 0
+		V["ember_n"] = 0
+	active_count += 1
 	size *= randf_range(0.88, 1.15)
 	var jd := Vector3(randf_range(-1, 1), randf_range(-0.6, 1), randf_range(-1, 1)).normalized()   # 噴流方向
 	var jet: bool = V["jet"]
 	var ring: bool = V.get("ring", false)
 	var jets: int = V.get("jets", 0)
 	var delay: float = V.get("delay", 0.0)
-	var line: bool = V.get("line", false)
 	var root := Node3D.new()
 	root.position = pos
 	parent.add_child(root)
@@ -139,11 +165,13 @@ static func spawn(parent: Node, pos: Vector3, size: float, style: int = 0, varia
 		sm_mat.set_shader_parameter("fire_color", Vector3(0.62, 0.25, 1.0))
 		sm_mat.set_shader_parameter("smoke_color", Vector3(0.03, 0.02, 0.05))
 	sm_mat.set_shader_parameter("shift", shift)
-	var smoke := _quad_particles(sm_mat, V["smoke_n"], V["smoke_life"], size * V["smoke_size"], size * 0.65, 0.0, size * V["smoke_v"], [Vector2(0, 0.25), Vector2(0.25, 0.85), Vector2(1, 1.6)], (jd if jet else Vector3.ZERO), (40.0 if jet else 180.0))
-	smoke.explosiveness = 0.55
-	smoke.draw_order = GPUParticles3D.DRAW_ORDER_VIEW_DEPTH
-	root.add_child(smoke)
-	smoke.emitting = true
+	var smoke: GPUParticles3D = null
+	if V["smoke_n"] > 0:
+		smoke = _quad_particles(sm_mat, V["smoke_n"], V["smoke_life"], size * V["smoke_size"], size * 0.65, 0.0, size * V["smoke_v"], [Vector2(0, 0.25), Vector2(0.25, 0.85), Vector2(1, 1.6)], (jd if jet else Vector3.ZERO), (40.0 if jet else 180.0))
+		smoke.explosiveness = 0.55
+		smoke.draw_order = GPUParticles3D.DRAW_ORDER_VIEW_DEPTH
+		root.add_child(smoke)
+		smoke.emitting = true
 	# 3) 火花雨：速度差很大的細長亮點（橘黃＋粉紫兩種色系）。每個發射器：方向、擴散角、顏色組、數量
 	var emitters: Array = []
 	if jets > 0:   # 花瓣：多道細火舌
@@ -213,7 +241,7 @@ static func spawn(parent: Node, pos: Vector3, size: float, style: int = 0, varia
 			sp.emitting = true
 	# 3b) 餘燼：慢速、飄很久的小亮點
 	var em := GPUParticles3D.new()
-	em.amount = V["ember_n"]
+	em.amount = maxi(V["ember_n"], 1)
 	em.lifetime = 4.5
 	em.one_shot = true
 	em.explosiveness = 0.8
@@ -240,11 +268,12 @@ static func spawn(parent: Node, pos: Vector3, size: float, style: int = 0, varia
 	eq.size = Vector2(size * 0.03, size * 0.03)
 	eq.material = _spark_mat
 	em.draw_pass_1 = eq
-	root.add_child(em)
-	em.emitting = true
+	if V["ember_n"] > 0:
+		root.add_child(em)
+		em.emitting = true
 	# 4) 碎片：黑色薄片，慢速翻滾
 	var deb := GPUParticles3D.new()
-	deb.amount = V["deb_n"]
+	deb.amount = maxi(V["deb_n"], 1)
 	deb.lifetime = 10.0
 	deb.one_shot = true
 	deb.explosiveness = 1.0
@@ -265,36 +294,44 @@ static func spawn(parent: Node, pos: Vector3, size: float, style: int = 0, varia
 	bm.size = Vector3(1.0, 0.12, 0.8)
 	bm.material = _debris_mat
 	deb.draw_pass_1 = bm
-	root.add_child(deb)
-	deb.emitting = true
+	if V["deb_n"] > 0:
+		root.add_child(deb)
+		deb.emitting = true
 	# 5) 短命光源：照亮附近艦體金屬
 	var l := OmniLight3D.new()
+	var want_light := (light_count < MAX_LIGHTS or not budget_enabled) and lod > 0.4
+	if want_light:
+		light_count += 1
 	l.light_color = Color(0.7, 0.32, 1.0) if purple else Color(1.0, 0.55, 0.2)
 	l.omni_range = size * 7.0
 	l.omni_attenuation = 1.2
 	l.light_energy = 0.0
-	root.add_child(l)
-	if style == 2:   # 光色也由橘轉紫
+	if want_light:
+		root.add_child(l)
+	if style == 2 and want_light:   # 光色也由橘轉紫
 		var ct := root.create_tween()
 		ct.tween_interval(0.25)
 		ct.tween_property(l, "light_color", Color(0.7, 0.32, 1.0), 0.6)
 	var lm: float = V["light"]
 	var tw := root.create_tween()
-	if delay > 0.0:
+	if not want_light:
+		tw.kill()
+	elif delay > 0.0:
 		tw.tween_interval(delay)
 	# Godot 點光源是線性衰減，數值要很大才打得亮數百單位外的金屬
-	tw.tween_property(l, "light_energy", size * 14.0 * lm, 0.06)
-	tw.tween_property(l, "light_energy", size * 5.0 * lm, 0.35).set_trans(Tween.TRANS_QUAD)
-	tw.tween_property(l, "light_energy", 0.0, 1.4).set_trans(Tween.TRANS_QUAD)
+	if want_light:
+		tw.tween_property(l, "light_energy", size * 14.0 * lm, 0.06)
+		tw.tween_property(l, "light_energy", size * 5.0 * lm, 0.35).set_trans(Tween.TRANS_QUAD)
+		tw.tween_property(l, "light_energy", 0.0, 1.4).set_trans(Tween.TRANS_QUAD)
+		get_tree_delay(root, 2.2 + delay, func(): light_count = maxi(light_count - 1, 0))
 	# 連爆：接連 N 次小爆（位置散布在附近，亂數延遲）
-	if allow_chain and int(V["chain"]) > 0:
+	if allow_chain and int(V["chain"]) > 0 and not lite and lod > 0.5:
 		for i in range(int(V["chain"])):
 			var off := Vector3(randf_range(-1, 1), randf_range(-1, 1), randf_range(-1, 1)) * size * 0.9
-			if line:   # 串燒：沿同一軸線一路炸過去
-				off = jd * size * 0.75 * (i + 1 - 0.5 * int(V["chain"])) + Vector3(randf_range(-1, 1), randf_range(-1, 1), randf_range(-1, 1)) * size * 0.12
 			var cdelay := 0.16 * (i + 1) + randf_range(0.0, 0.18)
 			get_tree_delay(root, cdelay, func(): Explosion.spawn(parent, pos + off, size * 0.55, style, [0, 3][randi() % 2], false))
 	# 清理
+	get_tree_delay(root, 5.0, func(): active_count = maxi(active_count - 1, 0))   # 預算只算前 5 秒（爆炸最耗時的階段）
 	var t := root.get_tree().create_timer(14.0)
 	t.timeout.connect(root.queue_free)
 	return root
