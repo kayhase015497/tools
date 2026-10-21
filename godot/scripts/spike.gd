@@ -59,14 +59,22 @@ func _ready() -> void:
 		yaw = atan2(-dv.x, -dv.z)
 		pitch = asin(dv.y)
 		get_tree().create_timer(0.3).timeout.connect(func(): Explosion.spawn(self, P + Vector3(120.0, 140.0, -80.0), 120.0, (1 if "--explode-demo-purple" in OS.get_cmdline_user_args() else (2 if "--explode-demo-shift" in OS.get_cmdline_user_args() else 0))))
-	if "--explode-gallery" in OS.get_cmdline_user_args():   # 3 種顏色 × 10 種變體的展示牆（橘／紫／先橘後紫 各一列）
+	if "--damage-demo" in OS.get_cmdline_user_args():   # 鏡頭貼近一艘巡洋艦，全艦隊損傷度 0.85（檢查裂縫、焦黑與熔岩光）
+		var P2: Vector3 = (kinds_data["cruiser"]["xf"][0] as Transform3D).origin
+		cam.position = P2 + Vector3(220.0, 90.0, -260.0)
+		var dv2 := (P2 - cam.position).normalized()
+		yaw = atan2(-dv2.x, -dv2.z)
+		pitch = asin(dv2.y)
+		_set_damage_level(0.85)
+	if "--explode-gallery" in OS.get_cmdline_user_args():   # 3 種顏色 × 8 種變體的展示牆（橘／紫／先橘後紫 各一列）
 		var C := Vector3(20000.0, 0.0, 0.0)
+		Explosion.budget_enabled = false
 		cam.position = C + Vector3(0.0, 0.0, 2300.0)
 		yaw = 0.0
 		pitch = 0.0
 		for row in range(3):
-			for col in range(10):
-				var gp := C + Vector3((col - 4.5) * 330.0, (1 - row) * 330.0, 0.0)
+			for col in range(8):
+				var gp := C + Vector3((col - 3.5) * 330.0, (1 - row) * 330.0, 0.0)
 				get_tree().create_timer(0.3).timeout.connect(func(): Explosion.spawn(self, gp, 85.0, row, col))
 	if auto_bench:
 		fleet_mult = bench_steps[0]
@@ -170,7 +178,9 @@ func _load_kinds() -> void:
 			var mm := MultiMesh.new()
 			mm.transform_format = MultiMesh.TRANSFORM_3D
 			mm.mesh = p["mesh"]
+			mm.use_custom_data = true   # 每艘艦的損傷度（x）與亂數種子（y）；要在設 instance_count 之前開啟
 			mm.instance_count = cap
+			_convert_materials(mm.mesh)
 			mm.visible_instance_count = 0
 			var mmi := MultiMeshInstance3D.new()
 			mmi.multimesh = mm
@@ -180,6 +190,50 @@ func _load_kinds() -> void:
 			parts.append({"mm": mm, "local": p["local"]})
 		kinds_data[kind] = {"parts": parts, "scale": sc, "center": center, "cap": cap, "base": int(spec[3]), "count": 0,
 			"xf": [] as Array[Transform3D], "vel": [] as Array[Vector3], "fighter": spec[4]}
+
+# ───────────── 損傷：把艦體材質換成帶 POM 的損傷著色器 ─────────────
+var damage_level := 0.0
+var _dmg_shader: Shader
+
+func _convert_materials(mesh: Mesh) -> void:
+	if _dmg_shader == null:
+		_dmg_shader = load("res://shaders/ship_damage.gdshader")
+	for si in range(mesh.get_surface_count()):
+		var src := mesh.surface_get_material(si)
+		var sm := ShaderMaterial.new()
+		sm.shader = _dmg_shader
+		if src is BaseMaterial3D:
+			var b := src as BaseMaterial3D
+			sm.set_shader_parameter("albedo_color", b.albedo_color)
+			if b.albedo_texture != null:
+				sm.set_shader_parameter("albedo_tex", b.albedo_texture)
+				sm.set_shader_parameter("use_albedo_tex", true)
+			else:
+				sm.set_shader_parameter("use_albedo_tex", false)
+			sm.set_shader_parameter("roughness", b.roughness)
+			sm.set_shader_parameter("metallic", b.metallic)
+			if b.emission_enabled:
+				sm.set_shader_parameter("emission_color", Vector3(b.emission.r, b.emission.g, b.emission.b))
+				sm.set_shader_parameter("emission_energy", b.emission_energy_multiplier)
+				if b.emission_texture != null:
+					sm.set_shader_parameter("emission_tex", b.emission_texture)
+					sm.set_shader_parameter("use_emission_tex", true)
+		mesh.surface_set_material(si, sm)
+
+func _set_damage_level(level: float) -> void:
+	damage_level = level
+	for kind in kinds_data.keys():
+		var d: Dictionary = kinds_data[kind]
+		if not d.has("seed"):
+			var seeds: Array[float] = []
+			for i in range(d["cap"]):
+				seeds.append(rng.randf() * 10.0)
+			d["seed"] = seeds
+		for part in d["parts"]:
+			var mm: MultiMesh = part["mm"]
+			for i in range(d["cap"]):
+				var dm := clampf(level * rng.randf_range(0.7, 1.2), 0.0, 1.0) if level > 0.0 else 0.0
+				mm.set_instance_custom_data(i, Color(dm, (d["seed"] as Array)[i], 0.0, 0.0))
 
 func _random_in_cap(r0: float, r1: float) -> Vector3:
 	var az := rng.randf_range(-1.0, 1.0)
@@ -360,6 +414,8 @@ func _input(e: InputEvent) -> void:
 				Explosion.spawn(self, cam.global_position - cam.global_transform.basis.z * 900.0, 120.0, 1)   # 紫色焰（反物質軍團）小
 			KEY_B:
 				Explosion.spawn(self, cam.global_position - cam.global_transform.basis.z * 1600.0, 260.0, 1)   # 紫色焰 大
+			KEY_K:   # 損傷預覽：全艦隊損傷度 0 → 0.35 → 0.7 → 1.0 → 0 循環
+				_set_damage_level(fmod(damage_level + 0.35, 1.4) if damage_level < 1.0 else 0.0)
 			KEY_N:
 				Explosion.spawn(self, cam.global_position - cam.global_transform.basis.z * 700.0, 70.0, 2)   # 聯軍飛彈命中反物質軍團艦艇：先橘後紫
 			KEY_Z:
@@ -397,7 +453,7 @@ func _process(dt: float) -> void:
 	if hud_t > 0.25:
 		hud_t = 0.0
 		var fps := Engine.get_frames_per_second()
-		hud.text = "%s\nFPS %d · %.1f ms · ships %d (x%d)%s\n[PgUp/PgDn] fleet x2 / x0.5   [M] move ships   [F3] 3D scale   [F2] save bench\n[X/C] ally destroyed (orange)  [V/B] Legion destroyed (purple)  [N] missile hit (orange->purple)  [Z] auto   [RMB+mouse] look   WASD/QE fly   Shift fast" % [
+		hud.text = "%s\nFPS %d · %.1f ms · ships %d (x%d)%s\n[PgUp/PgDn] fleet x2 / x0.5   [M] move ships   [F3] 3D scale   [F2] save bench\n[X/C] ally destroyed (orange)  [V/B] Legion destroyed (purple)  [N] missile hit (orange->purple)  [Z] auto  [K] damage preview   [RMB+mouse] look   WASD/QE fly   Shift fast" % [
 			RenderingServer.get_video_adapter_name(), fps, 1000.0 / maxf(fps, 1.0), _total_ships(), fleet_mult, "  · MOVING" if animate else ""]
 	bench_t += dt
 	if bench_t >= 2.0:
