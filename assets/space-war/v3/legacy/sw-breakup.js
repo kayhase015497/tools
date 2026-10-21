@@ -30,7 +30,7 @@
   function frameLoader() { return loader || (loader = new THREE.GLTFLoader()); }
 
   function loadFrag(prefix, plan, assetKey) {
-    const key = prefix + '_' + plan;
+    const key = prefix + '_frag_' + plan;
     if (cache[key]) return cache[key];
     const a = assets && assets[assetKey];
     return (cache[key] = new Promise((resolve, reject) => {
