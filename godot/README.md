@@ -48,3 +48,6 @@
 - 艦艇底色貼圖都配了**高度圖**與**粗糙度圖**（由 `tools-src/godot/make_heightmaps.py` 從底色推導；面板接縫、凹槽在高度圖上是凹的）。`shaders/ship_hull.gdshader` 用視差遮蔽貼圖（POM）讓它們真的凹進去，視角改變有視差與遮擋；另有凹處髒汙、凸緣磨亮、高度場法線擾動、凹槽自遮蔭。POM 層數隨距離遞減，遠於 3200 單位略過。
 - **K**：POM 開／關（比較升級前後）；`-- --hull-demo`（可加 `--no-pom`）貼近一艘巡洋艦看材質。
 - **P**：爆炸效能保護開／關，**預設關閉**（想要大混戰更混亂）。
+
+## 艦艇斷裂原型
+按 **U**（仙舟巡洋艦）／**I**（IPC 巡洋艦）：鏡頭正前方最近的一艘巡洋艦爆炸並斷成 2~4 塊（隨機方案），斷面有燃燒餘燼（橘色）；**O**：紫色餘燼預覽。命令列 `-- --break-demo [--purple] [--no-boom] [--close]` 自動示範。斷片由 `tools-src/blender/space-war/fracture_ships.py` 產生。詳見 `docs/space-war/DAMAGE-BREAKUP-PLAN.md`。
