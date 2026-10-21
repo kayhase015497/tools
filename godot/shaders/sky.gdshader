@@ -3,6 +3,7 @@ shader_type sky;
 uniform vec3 nebula_red : source_color = vec3(0.85, 0.12, 0.3);
 uniform vec3 nebula_purple : source_color = vec3(0.45, 0.2, 0.85);
 uniform vec3 nebula_blue : source_color = vec3(0.15, 0.35, 0.9);
+uniform float doom = 0.0;   // 劇本末日：星空壓暗、整體染深紅
 
 float hash13(vec3 p) { p = fract(p * 0.1031); p += dot(p, p.zyx + 31.32); return fract((p.x + p.y) * p.z); }
 
@@ -16,5 +17,6 @@ void sky() {
 	float h = hash13(g);
 	float star = step(0.9965, h) * (0.4 + 2.2 * hash13(g + 7.0));
 	col += vec3(0.85, 0.9, 1.0) * star;
+	col = mix(col, col * 0.35 + vec3(0.22, 0.015, 0.04) * (0.6 + 0.4 * (1.0 - abs(d.y))), doom);
 	COLOR = col;
 }

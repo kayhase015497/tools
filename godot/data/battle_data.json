@@ -1,0 +1,981 @@
+{
+ "T": {
+  "REVEAL": 12,
+  "FLASH": 236,
+  "DOOM": 242,
+  "IMPACT": 254,
+  "WHITE": 272,
+  "END": 280
+ },
+ "cuesBy": {
+  "en": [
+   {
+    "t": 1.5,
+    "dur": 9.8,
+    "type": 4.2,
+    "box": "center",
+    "who": "lyc",
+    "obj": false,
+    "voice": "en/lyc1.mp3",
+    "vdur": 8.8
+   },
+   {
+    "t": 13.040000000000001,
+    "dur": 8.450000000000001,
+    "type": 3.6399999999999997,
+    "box": "sub",
+    "who": "lyc",
+    "obj": false,
+    "voice": "en/lyc2.mp3",
+    "vdur": 7.2
+   },
+   {
+    "t": 34.1,
+    "dur": 4,
+    "type": 2.3400000000000003,
+    "box": "sub",
+    "who": "herta",
+    "obj": false,
+    "voice": "en/herta1.mp3",
+    "vdur": 3.5
+   },
+   {
+    "t": 38.1,
+    "dur": 10.14,
+    "type": 4.42,
+    "box": "sub",
+    "who": "herta",
+    "obj": false,
+    "voice": "en/herta2.mp3",
+    "vdur": 6.7
+   },
+   {
+    "t": 65.30000000000001,
+    "dur": 7.279999999999999,
+    "type": 3.3800000000000003,
+    "box": "sub",
+    "who": "herta",
+    "obj": true,
+    "voice": "",
+    "vdur": 0
+   },
+   {
+    "t": 73.1,
+    "dur": 4.45,
+    "type": 2.8600000000000003,
+    "box": "sub",
+    "who": "cyrene",
+    "obj": false,
+    "voice": "en/cyrene.mp3",
+    "vdur": 4
+   },
+   {
+    "t": 77.55,
+    "dur": 3.5,
+    "type": 2.4800000000000004,
+    "box": "sub",
+    "who": "dan",
+    "obj": false,
+    "voice": "en/dan.mp3",
+    "vdur": 3.1
+   },
+   {
+    "t": 81.05,
+    "dur": 4.3,
+    "type": 2.72,
+    "box": "sub",
+    "who": "march",
+    "obj": false,
+    "voice": "en/march.mp3",
+    "vdur": 3.4
+   },
+   {
+    "t": 85.35000000000001,
+    "dur": 9.1,
+    "type": 4.16,
+    "box": "sub",
+    "who": "tb",
+    "obj": false,
+    "voice": "en/tb.mp3",
+    "vdur": 5.6
+   },
+   {
+    "t": 246.5,
+    "dur": 9,
+    "type": 6.4,
+    "box": "sub",
+    "who": "lyc",
+    "obj": false,
+    "voice": "en/lyc3.mp3",
+    "vdur": 8
+   },
+   {
+    "t": 255,
+    "dur": 22,
+    "type": 15,
+    "box": "center",
+    "who": "lyc",
+    "obj": false,
+    "voice": "en/lyc4.mp3",
+    "vdur": 21
+   }
+  ],
+  "zh": [
+   {
+    "t": 1.5,
+    "dur": 9.5,
+    "type": 4.2,
+    "box": "center",
+    "who": "lyc",
+    "obj": false,
+    "voice": "zh/lyc1.mp3",
+    "vdur": 7.9
+   },
+   {
+    "t": 13.040000000000001,
+    "dur": 8.450000000000001,
+    "type": 3.6399999999999997,
+    "box": "sub",
+    "who": "lyc",
+    "obj": false,
+    "voice": "zh/lyc2.mp3",
+    "vdur": 6.7
+   },
+   {
+    "t": 34.1,
+    "dur": 4.9,
+    "type": 2.3400000000000003,
+    "box": "sub",
+    "who": "herta",
+    "obj": false,
+    "voice": "zh/herta1.mp3",
+    "vdur": 4.4
+   },
+   {
+    "t": 39,
+    "dur": 10.14,
+    "type": 4.42,
+    "box": "sub",
+    "who": "herta",
+    "obj": false,
+    "voice": "zh/herta2.mp3",
+    "vdur": 7
+   },
+   {
+    "t": 65.30000000000001,
+    "dur": 7.279999999999999,
+    "type": 3.3800000000000003,
+    "box": "sub",
+    "who": "herta",
+    "obj": true,
+    "voice": "",
+    "vdur": 0
+   },
+   {
+    "t": 73.1,
+    "dur": 4.75,
+    "type": 2.8600000000000003,
+    "box": "sub",
+    "who": "cyrene",
+    "obj": false,
+    "voice": "zh/cyrene.mp3",
+    "vdur": 4.3
+   },
+   {
+    "t": 77.85,
+    "dur": 3.9,
+    "type": 2.8000000000000003,
+    "box": "sub",
+    "who": "dan",
+    "obj": false,
+    "voice": "zh/dan.mp3",
+    "vdur": 3.5
+   },
+   {
+    "t": 81.75,
+    "dur": 4.5,
+    "type": 2.8800000000000003,
+    "box": "sub",
+    "who": "march",
+    "obj": false,
+    "voice": "zh/march.mp3",
+    "vdur": 3.6
+   },
+   {
+    "t": 86.25,
+    "dur": 9.1,
+    "type": 4.16,
+    "box": "sub",
+    "who": "tb",
+    "obj": false,
+    "voice": "zh/tb.mp3",
+    "vdur": 5.7
+   },
+   {
+    "t": 243.8,
+    "dur": 11.7,
+    "type": 7,
+    "box": "sub",
+    "who": "lyc",
+    "obj": false,
+    "voice": "zh/lyc3.mp3",
+    "vdur": 10.7
+   },
+   {
+    "t": 255,
+    "dur": 21.1,
+    "type": 15,
+    "box": "center",
+    "who": "lyc",
+    "obj": false,
+    "voice": "zh/lyc4.mp3",
+    "vdur": 20.1
+   }
+  ],
+  "ja": [
+   {
+    "t": 1.5,
+    "dur": 9.5,
+    "type": 4.2,
+    "box": "center",
+    "who": "lyc",
+    "obj": false,
+    "voice": "ja/lyc1.mp3",
+    "vdur": 7.9
+   },
+   {
+    "t": 13.040000000000001,
+    "dur": 8.450000000000001,
+    "type": 3.6399999999999997,
+    "box": "sub",
+    "who": "lyc",
+    "obj": false,
+    "voice": "ja/lyc2.mp3",
+    "vdur": 5.7
+   },
+   {
+    "t": 34.1,
+    "dur": 3.3,
+    "type": 2.2399999999999998,
+    "box": "sub",
+    "who": "herta",
+    "obj": false,
+    "voice": "ja/herta1.mp3",
+    "vdur": 2.8
+   },
+   {
+    "t": 37.4,
+    "dur": 10.14,
+    "type": 4.42,
+    "box": "sub",
+    "who": "herta",
+    "obj": false,
+    "voice": "ja/herta2.mp3",
+    "vdur": 5.9
+   },
+   {
+    "t": 65.30000000000001,
+    "dur": 7.279999999999999,
+    "type": 3.3800000000000003,
+    "box": "sub",
+    "who": "herta",
+    "obj": true,
+    "voice": "",
+    "vdur": 0
+   },
+   {
+    "t": 73.1,
+    "dur": 4.35,
+    "type": 2.8600000000000003,
+    "box": "sub",
+    "who": "cyrene",
+    "obj": false,
+    "voice": "ja/cyrene.mp3",
+    "vdur": 3.9
+   },
+   {
+    "t": 77.45,
+    "dur": 4,
+    "type": 2.8800000000000003,
+    "box": "sub",
+    "who": "dan",
+    "obj": false,
+    "voice": "ja/dan.mp3",
+    "vdur": 3.6
+   },
+   {
+    "t": 81.45,
+    "dur": 4.5,
+    "type": 2.8800000000000003,
+    "box": "sub",
+    "who": "march",
+    "obj": false,
+    "voice": "ja/march.mp3",
+    "vdur": 3.6
+   },
+   {
+    "t": 85.95,
+    "dur": 9.1,
+    "type": 4.16,
+    "box": "sub",
+    "who": "tb",
+    "obj": false,
+    "voice": "ja/tb.mp3",
+    "vdur": 5.9
+   },
+   {
+    "t": 246.5,
+    "dur": 8.6,
+    "type": 5.6000000000000005,
+    "box": "sub",
+    "who": "lyc",
+    "obj": false,
+    "voice": "ja/lyc3.mp3",
+    "vdur": 7
+   },
+   {
+    "t": 255,
+    "dur": 23,
+    "type": 15,
+    "box": "center",
+    "who": "lyc",
+    "obj": false,
+    "voice": "ja/lyc4.mp3",
+    "vdur": 22
+   }
+  ],
+  "ko": [
+   {
+    "t": 1.5,
+    "dur": 9.5,
+    "type": 4.2,
+    "box": "center",
+    "who": "lyc",
+    "obj": false,
+    "voice": "ko/lyc1.mp3",
+    "vdur": 8.4
+   },
+   {
+    "t": 13.040000000000001,
+    "dur": 8.450000000000001,
+    "type": 3.6399999999999997,
+    "box": "sub",
+    "who": "lyc",
+    "obj": false,
+    "voice": "ko/lyc2.mp3",
+    "vdur": 6.7
+   },
+   {
+    "t": 34.1,
+    "dur": 3.7,
+    "type": 2.3400000000000003,
+    "box": "sub",
+    "who": "herta",
+    "obj": false,
+    "voice": "ko/herta1.mp3",
+    "vdur": 3.2
+   },
+   {
+    "t": 37.800000000000004,
+    "dur": 10.14,
+    "type": 4.42,
+    "box": "sub",
+    "who": "herta",
+    "obj": false,
+    "voice": "ko/herta2.mp3",
+    "vdur": 5.6
+   },
+   {
+    "t": 65.30000000000001,
+    "dur": 7.279999999999999,
+    "type": 3.3800000000000003,
+    "box": "sub",
+    "who": "herta",
+    "obj": true,
+    "voice": "",
+    "vdur": 0
+   },
+   {
+    "t": 73.1,
+    "dur": 4.35,
+    "type": 2.8600000000000003,
+    "box": "sub",
+    "who": "cyrene",
+    "obj": false,
+    "voice": "ko/cyrene.mp3",
+    "vdur": 3.9
+   },
+   {
+    "t": 77.45,
+    "dur": 4,
+    "type": 2.8800000000000003,
+    "box": "sub",
+    "who": "dan",
+    "obj": false,
+    "voice": "ko/dan.mp3",
+    "vdur": 3.6
+   },
+   {
+    "t": 81.45,
+    "dur": 4.8,
+    "type": 3.12,
+    "box": "sub",
+    "who": "march",
+    "obj": false,
+    "voice": "ko/march.mp3",
+    "vdur": 3.9
+   },
+   {
+    "t": 86.25000000000001,
+    "dur": 9.1,
+    "type": 4.16,
+    "box": "sub",
+    "who": "tb",
+    "obj": false,
+    "voice": "ko/tb.mp3",
+    "vdur": 7.3
+   },
+   {
+    "t": 246.5,
+    "dur": 9,
+    "type": 6.4,
+    "box": "sub",
+    "who": "lyc",
+    "obj": false,
+    "voice": "ko/lyc3.mp3",
+    "vdur": 8
+   },
+   {
+    "t": 255,
+    "dur": 21,
+    "type": 15,
+    "box": "center",
+    "who": "lyc",
+    "obj": false,
+    "voice": "ko/lyc4.mp3",
+    "vdur": 18.9
+   }
+  ],
+  "off": [
+   {
+    "t": 1.5,
+    "dur": 9.5,
+    "type": 4.2,
+    "box": "center",
+    "who": "lyc",
+    "obj": false,
+    "voice": "",
+    "vdur": 0
+   },
+   {
+    "t": 13.040000000000001,
+    "dur": 8.450000000000001,
+    "type": 3.6399999999999997,
+    "box": "sub",
+    "who": "lyc",
+    "obj": false,
+    "voice": "",
+    "vdur": 0
+   },
+   {
+    "t": 34.1,
+    "dur": 0.5,
+    "type": 2.3400000000000003,
+    "box": "sub",
+    "who": "herta",
+    "obj": false,
+    "voice": "",
+    "vdur": 0
+   },
+   {
+    "t": 34.6,
+    "dur": 10.14,
+    "type": 4.42,
+    "box": "sub",
+    "who": "herta",
+    "obj": false,
+    "voice": "",
+    "vdur": 0
+   },
+   {
+    "t": 65.30000000000001,
+    "dur": 7.279999999999999,
+    "type": 3.3800000000000003,
+    "box": "sub",
+    "who": "herta",
+    "obj": true,
+    "voice": "",
+    "vdur": 0
+   },
+   {
+    "t": 73.1,
+    "dur": 0.45,
+    "type": 2.8600000000000003,
+    "box": "sub",
+    "who": "cyrene",
+    "obj": false,
+    "voice": "",
+    "vdur": 0
+   },
+   {
+    "t": 73.55,
+    "dur": 0.4,
+    "type": 3.12,
+    "box": "sub",
+    "who": "dan",
+    "obj": false,
+    "voice": "",
+    "vdur": 0
+   },
+   {
+    "t": 73.95,
+    "dur": 0.9,
+    "type": 3.12,
+    "box": "sub",
+    "who": "march",
+    "obj": false,
+    "voice": "",
+    "vdur": 0
+   },
+   {
+    "t": 74.85000000000001,
+    "dur": 9.1,
+    "type": 4.16,
+    "box": "sub",
+    "who": "tb",
+    "obj": false,
+    "voice": "",
+    "vdur": 0
+   },
+   {
+    "t": 246.5,
+    "dur": 8.6,
+    "type": 7,
+    "box": "sub",
+    "who": "lyc",
+    "obj": false,
+    "voice": "",
+    "vdur": 0
+   },
+   {
+    "t": 255,
+    "dur": 21,
+    "type": 15,
+    "box": "center",
+    "who": "lyc",
+    "obj": false,
+    "voice": "",
+    "vdur": 0
+   }
+  ]
+ },
+ "text": [
+  {
+   "en": "Bear witness, monarch of myriad machines, my ridiculous creation.",
+   "zh": "敬請見證，萬機之王，我荒謬的造物。",
+   "ja": "万機の王よ、私の歪な造物を、ご照覧ください。",
+   "ko": "만기의 왕이여, 나의 터무니없는 창조물을 똑똑히 지켜보라."
+  },
+  {
+   "en": "The instant in your calculations bears the name Destruction.",
+   "zh": "你計算中的時刻，名為「毀滅」。",
+   "ja": "あなたの演算にある刹那、その名は「壊滅」。",
+   "ko": "당신의 계산 속 그 순간의 이름은 '파멸'."
+  },
+  {
+   "en": "Who said you could speak, \"senior\"?",
+   "zh": "誰允許你發言了？前輩。",
+   "ja": "勝手に喋らないでくれる？先輩。",
+   "ko": "누가 발언권을 줬지? 선배."
+  },
+  {
+   "en": "Watch closely. See how your chaos ends at the hands of your juniors.",
+   "zh": "給我看仔細了，你這收拾不完的爛攤子如何被後進了結。",
+   "ja": "黙って見てなさい。先輩のやらかしを、後輩が始末してあげるから。",
+   "ko": "똑똑히 봐. 당신이 수습 못한 이 난장판을 후배들이 어떻게 마무리 짓는지."
+  },
+  {
+   "en": "Screwllum is helping the station search for the signal of Nous. All forces, protect the station.",
+   "zh": "螺絲星正在協助黑塔空間站搜索博識尊的信號，全軍保護好空間站。",
+   "ja": "スクリューガムはステーションの、ノウスの信号探索に協力している。全軍、ステーションを守り抜いて。",
+   "ko": "스크루룸이 누스의 신호를 찾는 스테이션을 돕고 있어. 전군, 스테이션을 지켜."
+  },
+  {
+   "en": "Don't get too worked up. Take a deep breath.",
+   "zh": "別太激動。深呼吸。",
+   "ja": "リラックスよ。深呼吸して。",
+   "ko": "긴장하지 말고, 숨 크게 들이마셔."
+  },
+  {
+   "en": "There's not a trace of life in that ominous shell.",
+   "zh": "那具不祥的空殼裡，沒有一絲生命的氣息。",
+   "ja": "あの禍々しい殻には、命の気配が微塵もない。",
+   "ko": "저 불길한 껍데기에선 생명의 기운이 전혀 느껴지지 않아."
+  },
+  {
+   "en": "We're not going to lose to a hollow husk, right?",
+   "zh": "我們不會輸給一具空殼的，對吧？",
+   "ja": "空っぽの殻なんかに負けないでしょ？",
+   "ko": "설마 빈 껍데기한테 질 리 없다고, 그치?"
+  },
+  {
+   "en": "In the name of trailblazing, we'll reject this false answer.",
+   "zh": "以開拓之名，我們將否定這個虛假的答案。",
+   "ja": "開拓の名のもと、私たちはこの偽りの答えを否定する。",
+   "ko": "개척의 이름으로, 우리는 이 거짓된 답을 부정하겠다."
+  },
+  {
+   "en": "The \"Fourth Instant\" of the cosmos… is the coronation of Irontomb!",
+   "zh": "銀河的「第四時刻」，視為鐵墓的加冕。",
+   "ja": "銀河における「第四の時」……それは、鉄墓の戴冠です！",
+   "ko": "은하의 「네 번째 순간」은 아이언툼의 대관식입니다."
+  },
+  {
+   "en": "The conclusion is irrefutable. The right side of the equation — the Erudition — falls silent. In thirteen heartbeats, They will begin recalculating the universe… With Destruction… as the only solution.",
+   "zh": "結論無可置疑。等式右側的博識尊，歸於沉寂。十三次心跳過後，他將重啟對寰宇的演算……以毀滅為唯一的解。",
+   "ja": "結論は明らかです。等式の右辺——「知恵」——は沈黙しました。十三回の鼓動の後、彼らは再び宇宙の計算を始めます……「壊滅」を唯一の解として。",
+   "ko": "결론은 명백합니다. 등호의 우측, 「지식」은 침묵에 빠졌죠. 열세 번의 심장 박동 후, 그분께서는 우주에 대한 재계산을 다시 시작할 겁니다… 「파멸」을 유일한 답으로 삼고."
+  }
+ ],
+ "WHO": {
+  "lyc": {
+   "zh": "來古士",
+   "en": "Lygus",
+   "ja": "ライコス",
+   "ko": "리고스",
+   "c": "#ff6a8a"
+  },
+  "herta": {
+   "zh": "黑塔",
+   "en": "Herta",
+   "ja": "ヘルタ",
+   "ko": "헤르타",
+   "c": "#ffd98a"
+  },
+  "cyrene": {
+   "zh": "昔漣",
+   "en": "Cyrene",
+   "ja": "キュレネ",
+   "ko": "키레네",
+   "c": "#ffb3d1"
+  },
+  "dan": {
+   "zh": "丹恆",
+   "en": "Dan Heng",
+   "ja": "丹恒",
+   "ko": "단항",
+   "c": "#7fd6ff"
+  },
+  "march": {
+   "zh": "三月七",
+   "en": "March 7th",
+   "ja": "三月なのか",
+   "ko": "삼월칠일",
+   "c": "#ff9ad5"
+  },
+  "tb": {
+   "zh": "開拓者",
+   "en": "Trailblazer",
+   "ja": "開拓者",
+   "ko": "개척자",
+   "c": "#ffe08a"
+  },
+  "awacs": {
+   "zh": "IPC 戰略投資部專用艦",
+   "en": "IPC SID",
+   "ja": "IPC 戦略投資部専用艦",
+   "ko": "IPC 전략투자부 전용함",
+   "c": "#8fe6ff"
+  }
+ },
+ "TICKS": [
+  [
+   14,
+   "反鐵墓宇宙聯軍已完成集結，各艦隊就位。",
+   "Anti-Irontomb Cosmic Alliance assembled. All fleets in position."
+  ],
+  [
+   21.2,
+   "旗艦：黑塔太空站（HSS）已進入指揮位置。",
+   "Flagship: Herta Space Station (HSS) in command position."
+  ],
+  [
+   30.2,
+   "外線任務：攔截鐵墓的外溢威脅，掩護居民撤離。",
+   "External front: contain the overflow, cover the evacuation."
+  ],
+  [
+   35.6,
+   "鐵墓周圍已劃定禁區，艦艇不得進入其能量場。",
+   "Exclusion zone marked around the Irontomb. No vessel may enter its energy field."
+  ],
+  [
+   44.6,
+   "螺絲咕姆行星級艦隊已加入戰線，巨型光束泡充能完畢。",
+   "Screwllum's planetary fleet joins the line. Beam bubbles charged."
+  ],
+  [
+   57.2,
+   "預估外溢範圍：五個鄰近星系。",
+   "Projected spillover: five neighboring star systems."
+  ],
+  [
+   107.60000000000001,
+   "星穹列車已自內部切入，嘗試瓦解鐵墓核心。",
+   "The Astral Express is breaching the core from within."
+  ],
+  [
+   143.6,
+   "反物質軍團持續自鐵墓外圍湧出。",
+   "Antimatter Legion forces keep pouring from the Irontomb."
+  ],
+  [
+   176,
+   "警告：鐵墓能量讀數持續攀升。",
+   "Warning: Irontomb energy readings climbing."
+  ],
+  [
+   201.20000000000002,
+   "聯軍損失正在擴大。",
+   "Alliance losses are mounting."
+  ],
+  [
+   221,
+   "能量讀數超出量表。",
+   "Readings are off the scale."
+  ]
+ ],
+ "str": {
+  "en": {
+   "objLabel": "OBJECTIVE",
+   "objText": "Protect the Herta Space Station",
+   "langLabel": "LANGUAGE",
+   "voiceLabel": "VOICE",
+   "voiceFollow": "Same as UI",
+   "voiceOff": "Off",
+   "title": "AMPHOREUS FINALE · BATTLE",
+   "sub": "Anti-Irontomb Cosmic Alliance vs the Antimatter Legion. Command the fleet or fly the line yourself.",
+   "mode": "MODE",
+   "script": "Story · 5:00",
+   "free": "Free · endless",
+   "role": "ROLE",
+   "pilot": "Pilot",
+   "commander": "Commander",
+   "go": "ENGAGE",
+   "loading": "LOADING…",
+   "hintScript": "About five minutes. The battle can be fought, but not won — the Irontomb never falls.",
+   "hintFree": "No time limit. The battle never ends.",
+   "legal": "Unofficial fan work, not affiliated with the game's publisher. Dialogue and settings © their respective owners.<br/>Music: \"Agony Converging into River\" © HOYO-MiX. Desktop with mouse + keyboard recommended.",
+   "endA": [
+    "The cosmos' Fourth Instant — the coronation of Irontomb.",
+    "No victory was ever written into this battle.",
+    "What is the first cause of life? The ultimate debate with Nous begins."
+   ],
+   "youLost": "PILOT LOST · REDEPLOY IN",
+   "leave": "LEAVING BATTLE AREA · TURN BACK",
+   "zone": "IRONTOMB EXCLUSION ZONE · TURN BACK",
+   "resupply": "MISSILES LOW · RESUPPLY AT",
+   "resupplied": "MISSILES RESUPPLIED",
+   "focusFire": "FOCUS FIRE",
+   "chargeCall": "CHARGE",
+   "responding": "responding",
+   "noTarget": "No target locked (T)",
+   "cooling": "Comms cooling down",
+   "noOne": "No friendly in range",
+   "awacsOn": "IPC SID ONLINE",
+   "awacsOff": "IPC SID OFFLINE · local control",
+   "kills": "Kills",
+   "ships": "Ships"
+  },
+  "zh": {
+   "objLabel": "任務目標",
+   "objText": "保護黑塔空間站",
+   "langLabel": "語言",
+   "voiceLabel": "配音",
+   "voiceFollow": "跟隨介面語言",
+   "voiceOff": "關閉",
+   "title": "翁法羅斯終章・戰場",
+   "sub": "反鐵墓宇宙聯軍對抗反物質軍團。你可以統率艦隊，也可以親自駕機上陣。",
+   "mode": "模式",
+   "script": "劇本・5 分鐘",
+   "free": "自由・無限",
+   "role": "角色",
+   "pilot": "飛行員",
+   "commander": "指揮官",
+   "go": "進入戰場",
+   "loading": "載入中…",
+   "hintScript": "約五分鐘。戰鬥可以打，但無法取勝——鐵墓不會倒下。",
+   "hintFree": "沒有時間限制，戰鬥永不結束。",
+   "legal": "非官方同人作品，與遊戲官方無關。劇中台詞與設定版權歸原權利人所有。<br/>配樂：《Agony Converging into River》© HOYO-MiX。建議使用桌機滑鼠鍵盤。",
+   "endA": [
+    "宇宙的第四時刻，鐵墓加冕。",
+    "這場戰鬥，從一開始就沒有被寫下勝利。",
+    "生命的第一因是什麼？一場與「博識尊」（Nous）的終極辯論正式開始。"
+   ],
+   "youLost": "飛行員陣亡・重新部署倒數",
+   "leave": "正在離開戰區・請折返",
+   "zone": "鐵墓禁區・請折返",
+   "resupply": "飛彈不足・前往補給",
+   "resupplied": "飛彈補給完成",
+   "focusFire": "集火",
+   "chargeCall": "衝鋒",
+   "responding": "響應",
+   "noTarget": "尚未鎖定目標（T）",
+   "cooling": "通訊冷卻中",
+   "noOne": "射程內沒有友軍",
+   "awacsOn": "IPC 戰略投資部專用艦在線",
+   "awacsOff": "IPC 戰略投資部專用艦離線・各自為戰",
+   "kills": "擊毀",
+   "ships": "艦艇"
+  },
+  "ja": {
+   "objLabel": "目標",
+   "objText": "ヘルタ宇宙ステーションを守れ",
+   "langLabel": "言語",
+   "voiceLabel": "音声",
+   "voiceFollow": "表示言語に合わせる",
+   "voiceOff": "オフ",
+   "title": "オンパロス終章・戦場",
+   "sub": "反鉄墓宇宙連合軍 対 反物質軍団。艦隊を指揮するもよし、自ら戦闘機で戦線に立つもよし。",
+   "mode": "モード",
+   "script": "ストーリー・5分",
+   "free": "フリー・無限",
+   "role": "役割",
+   "pilot": "パイロット",
+   "commander": "指揮官",
+   "go": "出撃",
+   "loading": "読み込み中…",
+   "hintScript": "約5分。戦うことはできるが、勝つことはできない——鉄墓は決して倒れない。",
+   "hintFree": "時間制限なし。戦いは終わらない。",
+   "legal": "非公式のファン作品であり、ゲームの運営元とは無関係です。作中の台詞・設定の著作権は各権利者に帰属します。<br/>BGM：「Agony Converging into River」© HOYO-MiX。マウスとキーボードのデスクトップ環境を推奨します。",
+   "endA": [
+    "宇宙の第四の刹那——鉄墓の戴冠。",
+    "この戦いに、勝利は最初から書かれていなかった。",
+    "生命の第一原因とは何か？「ノウス」との究極の論争が、今始まる。"
+   ],
+   "youLost": "パイロット死亡・再出撃まで",
+   "leave": "戦域を離脱中・引き返せ",
+   "zone": "鉄墓の立入禁止区域・引き返せ",
+   "resupply": "ミサイル残量わずか・補給地点：",
+   "resupplied": "ミサイル補給完了",
+   "focusFire": "集中砲火",
+   "chargeCall": "突撃",
+   "responding": "応答",
+   "noTarget": "目標未ロック（T）",
+   "cooling": "通信クールダウン中",
+   "noOne": "射程内に味方なし",
+   "awacsOn": "IPC戦略投資部専用艦オンライン",
+   "awacsOff": "IPC戦略投資部専用艦オフライン・各自で戦闘",
+   "kills": "撃破",
+   "ships": "艦艇"
+  },
+  "ko": {
+   "objLabel": "목표",
+   "objText": "헤르타 우주 정거장을 지켜라",
+   "langLabel": "언어",
+   "voiceLabel": "음성",
+   "voiceFollow": "표시 언어와 동일",
+   "voiceOff": "끄기",
+   "title": "옴파로스 종장 · 전장",
+   "sub": "반 아이언툼 우주 연합군 대 반물질 군단. 함대를 지휘하거나 직접 전투기를 몰고 전선에 서십시오.",
+   "mode": "모드",
+   "script": "스토리 · 5분",
+   "free": "자유 · 무한",
+   "role": "역할",
+   "pilot": "파일럿",
+   "commander": "지휘관",
+   "go": "출격",
+   "loading": "불러오는 중…",
+   "hintScript": "약 5분. 싸울 수는 있지만 이길 수는 없다——아이언툼은 쓰러지지 않는다.",
+   "hintFree": "시간 제한 없음. 전투는 끝나지 않는다.",
+   "legal": "비공식 팬 작품이며 게임 운영사와 무관합니다. 극중 대사와 설정의 저작권은 각 권리자에게 있습니다.<br/>음악: 「Agony Converging into River」© HOYO-MiX. 마우스와 키보드를 사용하는 데스크톱을 권장합니다.",
+   "endA": [
+    "우주의 네 번째 순간——아이언툼의 대관식.",
+    "이 전투에는 처음부터 승리가 쓰여 있지 않았다.",
+    "생명의 제1원인은 무엇인가? 「누스」와의 궁극적인 논쟁이 시작된다."
+   ],
+   "youLost": "파일럿 사망 · 재배치까지",
+   "leave": "전투 구역 이탈 중 · 돌아가라",
+   "zone": "아이언툼 금지 구역 · 돌아가라",
+   "resupply": "미사일 부족 · 보급 지점:",
+   "resupplied": "미사일 보급 완료",
+   "focusFire": "집중 사격",
+   "chargeCall": "돌격",
+   "responding": "응답",
+   "noTarget": "락온된 표적 없음 (T)",
+   "cooling": "통신 재사용 대기 중",
+   "noOne": "사거리 내 아군 없음",
+   "awacsOn": "IPC 전략투자부 전용함 온라인",
+   "awacsOff": "IPC 전략투자부 전용함 오프라인 · 각자 전투",
+   "kills": "격파",
+   "ships": "함선"
+  }
+ },
+ "VOICE_NAMES": [
+  "lyc1",
+  "lyc2",
+  "herta1",
+  "herta2",
+  null,
+  "cyrene",
+  "dan",
+  "march",
+  "tb",
+  "lyc3",
+  "lyc4"
+ ],
+ "VOICE_DUR": {
+  "en": [
+   8.8,
+   7.2,
+   3.5,
+   6.7,
+   0,
+   4,
+   3.1,
+   3.4,
+   5.6,
+   8,
+   21
+  ],
+  "zh": [
+   7.9,
+   6.7,
+   4.4,
+   7,
+   0,
+   4.3,
+   3.5,
+   3.6,
+   5.7,
+   10.7,
+   20.1
+  ],
+  "ja": [
+   7.9,
+   5.7,
+   2.8,
+   5.9,
+   0,
+   3.9,
+   3.6,
+   3.6,
+   5.9,
+   7,
+   22
+  ],
+  "ko": [
+   8.4,
+   6.7,
+   3.2,
+   5.6,
+   0,
+   3.9,
+   3.6,
+   3.9,
+   7.3,
+   8,
+   18.9
+  ]
+ }
+}

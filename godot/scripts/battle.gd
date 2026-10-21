@@ -145,6 +145,37 @@ var mouse_dx := 0.0
 var mouse_dy := 0.0
 var pl := {}                # 玩家狀態
 var autoplay := false
+# 劇本／介面狀態
+var data: Dictionary = {}
+var game_mode := "free"      # "script"（5 分鐘劇本）／"free"（無限）
+var lang := "en"
+var voice_sel := "follow"
+var started := false
+var ui: Control
+var control := true          # 玩家可操控（白閃之後關閉）
+var hud_on := true
+var revealed := false
+var flashed := false
+var doom := 0
+var impacted := false
+var whiteout_done := false
+var ended := false
+var wave_r := 0.0
+var tick_idx := 0
+var obj_on := false
+var enemy_hp := 1.0
+var enemy_dmg := 1.0
+var cue_cur := {"center": -1, "sub": -1}
+var voice_player: AudioStreamPlayer
+var sword: Node3D
+var doom_light: OmniLight3D
+var wave_shell: MeshInstance3D
+var wave_ring: MeshInstance3D
+var sky_mat: ShaderMaterial
+var menu_t := 0.0
+var sky_doom := 0.0
+const SWORD_END_Y := 1500.0 - 55.0 * 34.0
+const WAVE_Z := -15500.0 + 1800.0
 var sfx := {}              # 名稱 → [AudioStream]
 var sfx_pool: Array = []
 var sfx_last := {}
@@ -172,16 +203,155 @@ func _ready() -> void:
 	tomb_t.rad = 700.0
 	tomb_t.hp = 1e9
 	tomb_t.hp_max = 1e9
-	_init_world()
+	_load_data()
+	_make_doom()
+	_find_sky()
+	voice_player = AudioStreamPlayer.new()
+	add_child(voice_player)
+	ui = load("res://scripts/battle_ui.gd").new()
+	ui.battle = self
+	(bhud.get_parent() as CanvasLayer).add_child(ui)
 	for a_ in OS.get_cmdline_user_args():
 		if a_.begins_with("--timescale="): Engine.time_scale = float(a_.substr(12))
-	if "--demo-cam" in OS.get_cmdline_user_args():   # 測試用：不鎖滑鼠
-		pass
-	else:
-		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	# 測試用：--auto-start=script|free 跳過選單；--lang=xx；--t0=秒 從劇本時間 t0 開始
+	var args := OS.get_cmdline_user_args()
+	for a_ in args:
+		if a_.begins_with("--auto-start="):
+			ui.menu.visible = false
+			var l_ := "en"
+			for b_ in args:
+				if b_.begins_with("--lang="): l_ = b_.substr(7)
+			start_game(a_.substr(13), l_, "follow")
+	menu_cam(0.0)
 	autoplay = "--autoplay" in OS.get_cmdline_user_args()
 	big_step = "--bigstep" in OS.get_cmdline_user_args()
 	print("[battle] ready allies=", allies.size(), " enemies=", enemies.size())
+
+
+# ───────────── 資料與開局 ─────────────
+func _load_data() -> void:
+	var f := FileAccess.open("res://data/battle_data.json", FileAccess.READ)
+	data = JSON.parse_string(f.get_as_text())
+	f.close()
+
+func tr_(key: String) -> String:
+	var d: Dictionary = data["str"].get(lang, data["str"]["en"])
+	return str(d.get(key, data["str"]["en"].get(key, key)))
+
+func start_game(mode_: String, lang_: String, voice_: String) -> void:
+	game_mode = mode_
+	lang = lang_
+	voice_sel = voice_
+	ui.sel_lang = lang_
+	started = true
+	enemy_hp = 0.8 if game_mode == "script" else 1.0
+	enemy_dmg = 0.75 if game_mode == "script" else 1.0
+	_init_world()
+	if game_mode == "script":
+		next_wave = data["T"]["REVEAL"] + 14.0
+		hud_on = false
+		ui.set_veil(Color.BLACK, 1.0, 0.001)
+	else:
+		hud_on = true
+		obj_on = true
+		revealed = true
+	for a_ in OS.get_cmdline_user_args():
+		if a_.begins_with("--t0="):
+			gt = float(a_.substr(5))
+	if not ("--demo-cam" in OS.get_cmdline_user_args()):
+		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+
+func menu_cam(dt: float) -> void:   # 選單背景：鏡頭在聯軍艦隊後方緩慢環繞，望向鐵墓
+	menu_t += dt
+	var a := menu_t * 0.05
+	cam.global_position = Vector3(sin(a) * 3000.0, 2600.0, 2500.0 + cos(a) * 1200.0)
+	cam.look_at(TOMB_POS + Vector3(0, 800, 0), Vector3.UP)
+
+func _find_sky() -> void:
+	for c in get_children():
+		if c is WorldEnvironment:
+			var e: Environment = (c as WorldEnvironment).environment
+			if e != null and e.sky != null:
+				sky_mat = e.sky.sky_material as ShaderMaterial
+
+func _make_doom() -> void:
+	sword = Node3D.new()
+	sword.visible = false
+	add_child(sword)
+	var hot := Color(5.0, 1.3, 1.8)
+	var core := Color(9.0, 8.0, 8.0)
+	var mk := func(mesh: Mesh, col: Color, op: float, pos: Vector3, rot: Vector3):
+		var mi := MeshInstance3D.new()
+		mi.mesh = mesh
+		var m := StandardMaterial3D.new()
+		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+		m.albedo_color = Color(col.r, col.g, col.b, op)
+		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		m.cull_mode = BaseMaterial3D.CULL_DISABLED
+		mi.material_override = m
+		mi.position = pos
+		mi.rotation = rot
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		sword.add_child(mi)
+	var blade := CylinderMesh.new()   # 四面錐：劍尖朝下（原點在劍尖，+Y 為劍身方向）
+	blade.top_radius = 190.0
+	blade.bottom_radius = 0.0
+	blade.height = 9000.0
+	blade.radial_segments = 4
+	blade.rings = 1
+	mk.call(blade, hot, 0.8, Vector3(0, 4500, 0), Vector3(0, PI / 4, 0))
+	var bcore := CylinderMesh.new()
+	bcore.top_radius = 60.0
+	bcore.bottom_radius = 0.0
+	bcore.height = 9000.0
+	bcore.radial_segments = 4
+	bcore.rings = 1
+	mk.call(bcore, core, 0.95, Vector3(0, 4500, 0), Vector3(0, PI / 4, 0))
+	var guard := BoxMesh.new()
+	guard.size = Vector3(2600, 150, 260)
+	mk.call(guard, hot, 0.85, Vector3(0, 9100, 0), Vector3.ZERO)
+	var grip := CylinderMesh.new()
+	grip.top_radius = 70.0
+	grip.bottom_radius = 70.0
+	grip.height = 2400.0
+	grip.radial_segments = 8
+	mk.call(grip, hot, 0.8, Vector3(0, 10400, 0), Vector3.ZERO)
+	doom_light = OmniLight3D.new()
+	doom_light.light_color = Color(1.0, 0.25, 0.38)
+	doom_light.omni_range = 16000.0
+	doom_light.omni_attenuation = 1.1
+	doom_light.light_energy = 0.0
+	add_child(doom_light)
+	var shell_mat := ShaderMaterial.new()
+	shell_mat.shader = load("res://shaders/wave.gdshader")
+	wave_shell = MeshInstance3D.new()
+	var sm := SphereMesh.new()
+	sm.radius = 1.0
+	sm.height = 2.0
+	sm.radial_segments = 64
+	sm.rings = 32
+	wave_shell.mesh = sm
+	wave_shell.material_override = shell_mat
+	wave_shell.visible = false
+	wave_shell.custom_aabb = AABB(Vector3(-1, -1, -1), Vector3(2, 2, 2))
+	wave_shell.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(wave_shell)
+	wave_ring = MeshInstance3D.new()
+	var tm := TorusMesh.new()
+	tm.inner_radius = 0.985
+	tm.outer_radius = 1.0
+	tm.rings = 96
+	tm.ring_segments = 6
+	wave_ring.mesh = tm
+	var rm := StandardMaterial3D.new()
+	rm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	rm.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	rm.albedo_color = Color(6.0, 1.4, 2.0)
+	wave_ring.material_override = rm
+	wave_ring.visible = false
+	wave_ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(wave_ring)
 
 func _make_tomb_b() -> void:
 	var ps := load("res://assets/models/irontomb.glb") as PackedScene
@@ -444,7 +614,7 @@ func mk_fighter(kind: String, pos: Vector3, h: float = 0.0) -> BShip:
 	var s := mk_ship(kind, pos, h)
 	s.spd = float(s.d["spd"]) * rr(0.85, 1.1)
 	if kind == "fly":
-		s.hp = s.d["hp"] * 0.8
+		s.hp = s.d["hp"] * enemy_hp
 		s.hp_max = s.hp
 	s.vel = fwd_of(s) * s.spd
 	return s
@@ -489,7 +659,8 @@ func _init_world() -> void:
 	for i in range(2):
 		_spawn_wave()
 	next_wave = gt + 28.0
-	say("Welcome aboard. The fleet is engaging the Antimatter Legion.", "歡迎上艦。艦隊正與反物質軍團交火。")
+	if game_mode == "free":
+		say("Welcome aboard. The fleet is engaging the Antimatter Legion.", "歡迎上艦。艦隊正與反物質軍團交火。")
 
 func _seize(s: BShip) -> void:
 	pl = {"ship": s, "orig": s, "pos": s.pos, "vel": fwd_of(s) * 60.0, "w": Vector3.ZERO, "thr": 0.45, "boost": false, "energy": 100.0, "heat": 100.0,
@@ -545,14 +716,15 @@ func _spawn_wave() -> void:
 		var q := _spot(rr(3300, 4000), 0.9, az)
 		var k := rr(0.8, 1.5)
 		var s := mk_ship("whale", q[0], q[1], k)
-		s.hp = s.d["hp"] * k * 0.8
+		s.hp = s.d["hp"] * k * enemy_hp
 		s.hp_max = s.hp
 	for i in range(n_f):
 		if live_f + i >= 140:
 			break
 		var q2 := _spot(rr(3000, 4200), 1.1, az)
 		mk_fighter("fly", q2[0], q2[1])
-	say("Antimatter Legion wave %d emerging from the Irontomb" % w, "反物質軍團第 %d 波自鐵墓外圍湧出" % w, true)
+	if revealed or game_mode == "free":
+		say("Antimatter Legion wave %d emerging from the Irontomb" % w, "反物質軍團第 %d 波自鐵墓外圍湧出" % w, true)
 
 func _spot(r: float, spread: float, az: float) -> Array:
 	var a := az + rr(-spread, spread)
@@ -678,7 +850,7 @@ func fire_shot(src: BShip, o: Vector3, dir: Vector3, spd: float, dmg: float, w: 
 	b.vel = dir * spd
 	b.fwd = dir
 	b.life = life
-	b.dmg = dmg * (0.75 if src.side == 1 else 1.0)
+	b.dmg = dmg * (enemy_dmg if src.side == 1 else 1.0)
 	b.side = src.side
 	b.w = w
 	b.len = len
@@ -1376,7 +1548,7 @@ func _fire_ship_missiles(s: BShip, tg: BShip, spec: Dictionary) -> void:
 			m.life = 16.0
 			m.big = true
 			m.homing = true
-			m.dmg = float(spec["dmg"]) * (0.75 if s.side == 1 else 1.0)
+			m.dmg = float(spec["dmg"]) * (enemy_dmg if s.side == 1 else 1.0)
 			m.side = s.side
 			m.src = s
 			m.tgt = tg
@@ -1517,6 +1689,12 @@ func _allocate_targets() -> void:
 	pl["suggest"] = best2
 
 # ───────────── 玩家 ─────────────
+func _k(key: int) -> bool:
+	return control and Input.is_key_pressed(key)
+
+func _mb(btn: int) -> bool:
+	return control and Input.is_mouse_button_pressed(btn)
+
 func _step_player(dt: float) -> void:
 	if pl.is_empty():
 		return
@@ -1538,15 +1716,15 @@ func _step_player(dt: float) -> void:
 			P["thr"] = 0.5
 	var sens := 0.0016
 	var inv := -1.0 if P["invert"] else 1.0
-	var tx := clampf(mouse_dy * sens / dt * inv, -1.7, 1.7)
-	var ty := clampf(-mouse_dx * sens / dt, -1.5, 1.5)
+	var tx := clampf(mouse_dy * sens / dt * inv, -1.7, 1.7) if control else 0.0
+	var ty := clampf(-mouse_dx * sens / dt, -1.5, 1.5) if control else 0.0
 	mouse_dx = 0.0
 	mouse_dy = 0.0
-	if Input.is_key_pressed(KEY_UP): tx += -1.2 * inv
-	if Input.is_key_pressed(KEY_DOWN): tx += 1.2 * inv
-	if Input.is_key_pressed(KEY_LEFT): ty += 1.1
-	if Input.is_key_pressed(KEY_RIGHT): ty -= 1.1
-	var tz := ((1.0 if Input.is_key_pressed(KEY_E) else 0.0) - (1.0 if Input.is_key_pressed(KEY_Q) else 0.0)) * 2.0
+	if _k(KEY_UP): tx += -1.2 * inv
+	if _k(KEY_DOWN): tx += 1.2 * inv
+	if _k(KEY_LEFT): ty += 1.1
+	if _k(KEY_RIGHT): ty -= 1.1
+	var tz := ((1.0 if _k(KEY_E) else 0.0) - (1.0 if _k(KEY_Q) else 0.0)) * 2.0
 	var kk := 1.0 - exp(-dt * 7.0)
 	var w: Vector3 = P["w"]
 	w.x += (tx - w.x) * kk
@@ -1559,21 +1737,21 @@ func _step_player(dt: float) -> void:
 	q = q * Quaternion(Vector3.BACK, w.z * dt)
 	s.q = q.normalized()
 	var bas := Basis(s.q)
-	if Input.is_key_pressed(KEY_W): P["thr"] = minf(1.0, P["thr"] + dt * 0.5)
-	if Input.is_key_pressed(KEY_S): P["thr"] = maxf(0.0, P["thr"] - dt * 0.5)
-	if Input.is_key_pressed(KEY_X): P["thr"] = maxf(0.0, P["thr"] - dt * 2.5)
+	if _k(KEY_W): P["thr"] = minf(1.0, P["thr"] + dt * 0.5)
+	if _k(KEY_S): P["thr"] = maxf(0.0, P["thr"] - dt * 0.5)
+	if _k(KEY_X): P["thr"] = maxf(0.0, P["thr"] - dt * 2.5)
 	var was_boost: bool = P["boost"]
-	P["boost"] = Input.is_key_pressed(KEY_SHIFT) and P["energy"] > 4.0 and P["thr"] > 0.05
+	P["boost"] = _k(KEY_SHIFT) and P["energy"] > 4.0 and P["thr"] > 0.05
 	if P["boost"] and not was_boost:
 		sfx_play("afterburner", null, -4.0)
 	P["energy"] = clampf(P["energy"] + (-26.0 if P["boost"] else 11.0) * dt, 0.0, 100.0)
 	var vt: float = P["thr"] * 170.0 * (2.4 if P["boost"] else 1.0)
-	var sx := ((1.0 if Input.is_key_pressed(KEY_A) else 0.0) - (1.0 if Input.is_key_pressed(KEY_D) else 0.0)) * 55.0
-	var sy := ((1.0 if Input.is_key_pressed(KEY_R) else 0.0) - (1.0 if Input.is_key_pressed(KEY_F) else 0.0)) * 55.0
+	var sx := ((1.0 if _k(KEY_A) else 0.0) - (1.0 if _k(KEY_D) else 0.0)) * 55.0
+	var sy := ((1.0 if _k(KEY_R) else 0.0) - (1.0 if _k(KEY_F) else 0.0)) * 55.0
 	var want: Vector3 = bas * Vector3(sx, sy, vt)
 	var vel: Vector3 = P["vel"]
 	if P["assist"]:
-		vel = vel.lerp(want, 1.0 - exp(-dt * (2.4 if Input.is_key_pressed(KEY_X) else 1.1)))
+		vel = vel.lerp(want, 1.0 - exp(-dt * (2.4 if _k(KEY_X) else 1.1)))
 	else:
 		vel += (bas * Vector3(sx * 0.6, sy * 0.6, P["thr"] * 90.0 * (2.4 if P["boost"] else 1.0))) * dt
 		if vel.length() > 420.0:
@@ -1600,10 +1778,10 @@ func _step_player(dt: float) -> void:
 	P["msl_cd"] -= dt
 	P["sup_cd"] -= dt
 	_step_resupply(dt)
-	var firing := Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT) or Input.is_key_pressed(KEY_SPACE) or autoplay
+	var firing := _mb(MOUSE_BUTTON_LEFT) or _k(KEY_SPACE) or autoplay
 	if firing and P["fire_cd"] <= 0.0 and P["heat"] > 8.0:
 		_player_fire()
-	if (Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT) or Input.is_key_pressed(KEY_CTRL)) and P["msl_cd"] <= 0.0:
+	if (_mb(MOUSE_BUTTON_RIGHT) or _k(KEY_CTRL)) and P["msl_cd"] <= 0.0:
 		_player_missile()
 	cam_shake *= exp(-dt * 5.0)
 
@@ -1773,13 +1951,29 @@ func _step_damage_fx(dt: float) -> void:
 
 # ───────────── 主迴圈 ─────────────
 func _process(delta: float) -> void:
+	if not started:
+		menu_cam(delta)
+		bhud.queue_redraw()
+		return
 	if bpaused:
 		_update_cam(delta)
 		bhud.queue_redraw()
 		return
 	var dt := minf(delta, 0.2 if big_step else 0.05)
 	gt += dt
-	if gt >= next_wave:
+	if game_mode == "script":
+		_script_tick(dt)
+		if gt < float(data["T"]["REVEAL"]):   # 開場黑幕：世界先不動，只有字幕與配音
+			_render_ships()
+			_update_cam(dt)
+			bhud.queue_redraw()
+			return
+	if game_mode == "script":
+		if gt >= next_wave and gt < float(data["T"]["FLASH"]) - 10.0:
+			next_wave = gt + maxf(12.0, 18.0 - wave * 0.5)
+			_spawn_wave()
+		_doom_step(dt)
+	elif gt >= next_wave:
 		next_wave = gt + maxf(13.0, 32.0 - wave * 1.8)
 		_spawn_wave()
 	if gt >= next_reinf:
@@ -1827,8 +2021,148 @@ func _process(delta: float) -> void:
 		print("[stats] t=%.0f allies=%d enemies=%d kills=%d shots=%d beams=%d wave=%d player_hull=%.0f msl=%d" % [gt, allies.size(), enemies.size(), kills, shots.size(), bbeams.size(), wave, pl["hull"], pl["missiles"]])
 	_render_ships()
 	_render_shots()
+	_update_doom_visuals(dt)
 	_update_cam(dt)
 	bhud.queue_redraw()
+
+# ───────────── 劇本：時間軸、字幕、配音、演出 ─────────────
+func cues_now() -> Array:
+	var vl := lang if voice_sel == "follow" else voice_sel
+	return data["cuesBy"][vl]
+
+func iron_frac() -> float:
+	if game_mode != "script":
+		return 1.0
+	var drip := maxf(0.0, gt - float(data["T"]["REVEAL"])) * 9000.0
+	return 0.8 + 0.2 * exp(-(iron_dmg + drip) / 1.4e6)
+
+func _script_tick(dt: float) -> void:
+	var T: Dictionary = data["T"]
+	if gt >= float(T["REVEAL"]) and not revealed:
+		revealed = true
+		ui.set_veil(Color.BLACK, 0.0, 1.6)
+		hud_on = true
+	var ticks: Array = data["TICKS"]
+	while tick_idx < ticks.size() and gt >= float(ticks[tick_idx][0]) and gt < float(T["FLASH"]):
+		say(str(ticks[tick_idx][2]), str(ticks[tick_idx][1]))
+		tick_idx += 1
+	_update_subs()
+	if not obj_on:
+		var cs := cues_now()
+		for c in cs:
+			if c["obj"] and gt >= float(c["t"]) + float(c["dur"]):
+				obj_on = true
+
+func _update_subs() -> void:
+	var cs := cues_now()
+	for box in ["center", "sub"]:
+		var cur := -1
+		for i in range(cs.size()):
+			var c: Dictionary = cs[i]
+			if c["box"] == box and gt >= float(c["t"]) and gt < float(c["t"]) + float(c["dur"]):
+				cur = i
+				break
+		if cur != int(cue_cur[box]):
+			cue_cur[box] = cur
+			if cur < 0:
+				ui.hide_cue(box)
+			else:
+				var c2: Dictionary = cs[cur]
+				if str(c2["voice"]) != "" and voice_sel != "off":
+					var st = load("res://assets/voice/" + str(c2["voice"]))
+					if st != null:
+						voice_player.stream = st
+						voice_player.play()
+				var w: Dictionary = data["WHO"][c2["who"]]
+				var nm: String = str(w["en"]) if lang == "en" else (str(w["zh"]) + " · " + str(w["en"]) if lang == "zh" else str(w[lang]) + " · " + str(w["en"]))
+				var tx: Dictionary = data["text"][cur]
+				ui.show_cue(box, nm, Color(str(w["c"])), str(tx.get(lang, tx["en"])), float(c2["type"]))
+
+func _doom_step(dt: float) -> void:
+	var T: Dictionary = data["T"]
+	if gt >= float(T["FLASH"]) and not flashed:
+		flashed = true
+		control = false
+		ui.flash_veil(Color.WHITE, 1.0, 0.35)
+		get_tree().create_timer(0.38).timeout.connect(func():
+			ui.set_veil(Color.BLACK, 1.0, 0.8)
+			hud_on = false)
+	if gt >= float(T["DOOM"]) and doom == 0:
+		doom = 1
+		hud_on = false
+		ui.set_veil(Color.BLACK, 0.0, 1.6)
+		sfx_play("lance", null, 0.0)
+		if bgm != null:
+			create_tween().tween_property(bgm, "volume_db", -11.0, 0.1)
+	if gt >= float(T["IMPACT"]) and not impacted:
+		impacted = true
+		wave_r = 0.0
+		cam_shake = 5.0
+		sfx_play("explosion_big", null, 4.0)
+		ui.flash_veil(Color(1.0, 0.82, 0.86), 0.9, 0.9)
+		hurt_k = 0.8
+	if impacted:
+		wave_r += (2300.0 + (gt - float(T["IMPACT"])) * 140.0) * dt
+		var big := 0
+		var center := Vector3(TOMB_POS.x, SWORD_END_Y, WAVE_Z)
+		for list in [allies, enemies]:
+			for s in list:
+				if s.dead:
+					continue
+				if s.pos.distance_to(center) <= wave_r:
+					if float(s.d["boom"]) >= 3.0:
+						big += 1
+						if big > 5:
+							continue
+					if s.is_player:
+						pl["dead"] = true
+						pl["respawn"] = 999.0
+					_kill(s, null)
+	if gt >= float(T["WHITE"]) and not whiteout_done:
+		whiteout_done = true
+		ui.set_veil(Color.WHITE, 1.0, 4.5)
+		ui.set_whiteout(true)
+	if gt >= float(T["END"]) and not ended:
+		ended = true
+		ui.set_veil(Color.BLACK, 1.0, 2.2)
+		if bgm != null:
+			bgm.stop()
+		ui.set_whiteout(false)
+		ui.show_end()
+
+func _smooth(t: float) -> float:
+	var x := clampf(t, 0.0, 1.0)
+	return x * x * (3.0 - 2.0 * x)
+
+func _update_doom_visuals(dt: float) -> void:
+	if game_mode != "script" or not started:
+		return
+	var T: Dictionary = data["T"]
+	if gt < float(T["DOOM"]):
+		return
+	var p := clampf((gt - float(T["DOOM"])) / (float(T["IMPACT"]) - float(T["DOOM"])), 0.0, 1.0)
+	var raise := _smooth(p / 0.35)
+	var th := pow(clampf((p - 0.4) / 0.6, 0.0, 1.0), 2.2)
+	var grow := _smooth((p - 0.15) / 0.3)
+	sword.visible = p > 0.12
+	var hands := Vector3(TOMB_POS.x, TOMB_POS.y + 6200.0 + (1.0 - th) * 1800.0, TOMB_POS.z + th * 900.0)   # 雙手位置（舉高 → 往前下方刺）
+	var sc := 0.25 + 0.75 * grow
+	sword.scale = Vector3.ONE * sc
+	sword.position = Vector3(hands.x, hands.y - 9800.0 * sc, hands.z)
+	doom_light.global_position = sword.position
+	doom_light.light_energy = (3.0 + raise * 3.0 + th * 11.0) * 4.0
+	if sky_mat != null:
+		sky_doom = minf(1.0, sky_doom + dt * 0.12)
+		sky_mat.set_shader_parameter("doom", sky_doom)
+	if impacted:
+		wave_shell.visible = true
+		wave_ring.visible = true
+		var c := Vector3(TOMB_POS.x, SWORD_END_Y, WAVE_Z)
+		wave_shell.global_position = c
+		wave_ring.global_position = c
+		wave_shell.scale = Vector3.ONE * maxf(1.0, wave_r)
+		wave_ring.scale = Vector3.ONE * maxf(1.0, wave_r)
+		(wave_shell.material_override as ShaderMaterial).set_shader_parameter("alpha", clampf(1.0 - (gt - float(T["IMPACT"])) / 20.0, 0.0, 1.0) * 0.9 + 0.1)
 
 func _render_ships() -> void:
 	var by_kind := {}
@@ -1868,6 +2202,16 @@ func _render_shots() -> void:
 	shot_mm.visible_instance_count = n
 
 func _update_cam(dt: float) -> void:
+	if not started:
+		return
+	if doom > 0:   # 過場：從艦隊後上方望向鐵墓；巨劍降下時鏡頭下移，衝擊後拉開看衝擊波掃來
+		var T: Dictionary = data["T"]
+		var pd := clampf((gt - float(T["DOOM"])) / (float(T["IMPACT"]) - float(T["DOOM"])), 0.0, 1.0)
+		var pa := clampf((gt - float(T["IMPACT"])) / (float(T["WHITE"]) - float(T["IMPACT"])), 0.0, 1.0)
+		cam.global_position = Vector3(2600.0 - pa * 500.0, 3800.0 - pd * 1200.0 + pa * 500.0, TOMB_POS.z + 10800.0 + pa * 600.0)
+		cam.look_at(Vector3(0, lerpf(7800.0, 3800.0, _smooth(pd)) - pa * 800.0, TOMB_POS.z + 800.0), Vector3.UP)
+		cam.fov = 64.0
+		return
 	if pl.is_empty():
 		return
 	var s: BShip = pl["ship"]
