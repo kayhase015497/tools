@@ -1,5 +1,5 @@
 """艦艇斷裂方案生成：把完整艦沿長軸切成 2~4 塊（乾脆的大塊），斷口補蓋並做出凹凸不平的斷面。
-用法：python -I fracture_ships.py <ship> [<ship>...]      （ship：cruiser、ipc）
+用法：python -I fracture_ships.py <ship> [<ship>...]      （ship：cruiser、ipc、whale、hss、ipc_sid、frigate）
 輸出：godot/assets/models/frag/<ship>_frag_<方案>.glb（無貼圖；材質依名稱對應回完整艦：原艦體材質＋ break_face 斷面材質）
 每個方案是一份 GLB，內含 Mesh 物件 FRAG<i>_<原物件名> 與 Empty FRAG<i>（塊的質心）。座標與完整艦相同。
 方案：同一艘船 3 套（A：2 塊、B：3 塊、C：4 塊），切面帶亂數傾斜與雜訊起伏。"""
@@ -21,7 +21,7 @@ def break_material():
     m.use_nodes = True
     return m
 
-def make_chunk(src_obj, planes, lo, hi, tag, seed):
+def make_chunk(src_obj, planes, lo, hi, tag, seed, k=1.0):
     """從 src_obj 複製出「平面 lo 與 hi 之間」的一塊（lo/hi 為 None 表示艦首／艦尾端）。"""
     rnd = random.Random(seed)
     me = src_obj.data.copy()
@@ -92,13 +92,13 @@ def make_chunk(src_obj, planes, lo, hi, tag, seed):
             # 只位移沒有被鄰接「外表面」共用的內部頂點，避免外殼被撕開：邊界頂點保持不動
             if any(ff.material_index != break_idx for ff in v.link_faces):
                 continue
-            nz = noise.noise(v.co * 0.9 + Vector((seed, 0, 0)))
-            v.co += n * (nz * 0.55 + rnd.uniform(-0.05, 0.05)) * (1 if 'hi' in tag else -1)
+            nz = noise.noise(v.co * (0.9 / k) + Vector((seed, 0, 0)))
+            v.co += n * (nz * 0.55 * k + rnd.uniform(-0.05, 0.05) * k) * (1 if 'hi' in tag else -1)
     # 斷面 UV：投影到切面（供 Godot 的斷面高度圖／餘燼用）
     for f in bm.faces:
         if f.material_index == break_idx:
             for l in f.loops:
-                l[uv].uv = (l.vert.co.x * 0.12 + 0.5, l.vert.co.z * 0.12 + 0.5)
+                l[uv].uv = (l.vert.co.x * 0.12 / k + 0.5, l.vert.co.z * 0.12 / k + 0.5)
     bm.normal_update()
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
     bm.to_mesh(me); bm.free()
@@ -112,6 +112,7 @@ def build(ship, plan, n):
     srcs = load(ship)
     ys = [v.co.y for o in srcs for v in o.data.vertices]
     y0, y1 = min(ys), max(ys)
+    k = (y1 - y0) / 21.9   # 以仙舟巡洋艦（長 21.9 單位）為基準，斷面雜訊與 UV 隨艦體大小縮放
     # n-1 個切面，沿 Y（長軸）等分後加亂數偏移；法線帶亂數傾斜
     planes = []
     for i in range(1, n):
@@ -123,7 +124,7 @@ def build(ship, plan, n):
         lo = planes[ci - 1] if ci > 0 else None
         hi = planes[ci] if ci < n - 1 else None
         for o in srcs:
-            obj = make_chunk(o, planes, lo, hi, f'FRAG{ci}', seed + ci)
+            obj = make_chunk(o, planes, lo, hi, f'FRAG{ci}', seed + ci, k)
             if len(obj.data.polygons) == 0:
                 bpy.data.objects.remove(obj, do_unlink=True); continue
             chunks.append((ci, obj))

@@ -198,3 +198,8 @@
 - **黑塔空間站**：`hss_build.py` 程序式重建（尾端白環＋輻條＋輪轂＋三具藍光引擎、長白陶瓷艦體、橘飾板、深灰分段、艦橋、天線＋紅色航行燈、太陽能板臂、艦首黑方塊＋藍色甲板導引光條）；材質以 `hss_` 前綴對應，共用 `make_hss_panels.py` 產生的面板貼圖（高度／粗糙度）＋ POM；白色＝陶瓷清漆。
 - `sync_models.sh` 不再覆蓋 cruiser／ipc／hss。尚未做：DX12 後製（SSAO/SSIL/SSR/景深/顆粒）、受損與血量串接、其他艦種斷裂。
 - **還原（同日）**：使用者看縮圖認為 cruiser／ipc／hss 的改造模型不對，三艘已換回原版（與網頁版相同），斷裂碎片也還原；hss 之後由使用者請 TRIPO 重拉。改造腳本（`cruiser_temple.py`、`ipc_boxify.py`、`hss_build.py`）保留備查，`sync_models.sh` 恢復同步三艘。
+
+**第十一版（2026-10-22）— 後製、燈光、血量→斷裂**
+- 後製（T 開關）：SSAO／SSIL／SSR、近景景深、顆粒＋暗角（`shaders/post_grain.gdshader`）；曝光 0.82、主光 0.95 緩解艦體過曝。尚未實機驗證效能與亮度。
+- 戰鬥（H）：光束傷害 → 每艦血量 → 低血量冒煙爆 → 歸零 → 斷裂／爆炸；陣營決定餘燼顏色。`fracture_ships.py` 新增 whale／hss／ipc_sid／frigate 斷片，斷面雜訊與 UV 依艦體大小縮放；xzd 尚未切。
+- 已知：後製與斷裂都只在軟體渲染下驗證過畫面與無腳本錯誤，未量測實機幀數。
