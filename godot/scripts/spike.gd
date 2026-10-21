@@ -51,14 +51,14 @@ func _ready() -> void:
 	_make_beams()
 	_make_camera_and_hud()
 	auto_bench = "--benchmark" in OS.get_cmdline_user_args()
-	demo_explode = "--explode-demo" in OS.get_cmdline_user_args() or "--explode-demo-purple" in OS.get_cmdline_user_args()
+	demo_explode = "--explode-demo" in OS.get_cmdline_user_args() or "--explode-demo-purple" in OS.get_cmdline_user_args() or "--explode-demo-shift" in OS.get_cmdline_user_args()
 	if demo_explode:   # 腳本化示範：鏡頭貼近一艘巡洋艦，在它旁邊引爆（檢查爆炸光對艦體金屬的照明）
 		var P: Vector3 = (kinds_data["cruiser"]["xf"][0] as Transform3D).origin
 		cam.position = P + Vector3(650.0, 160.0, -120.0)
 		var dv := (P - cam.position).normalized()
 		yaw = atan2(-dv.x, -dv.z)
 		pitch = asin(dv.y)
-		get_tree().create_timer(0.3).timeout.connect(func(): Explosion.spawn(self, P + Vector3(120.0, 140.0, -80.0), 120.0, 1 if "--explode-demo-purple" in OS.get_cmdline_user_args() else 0))
+		get_tree().create_timer(0.3).timeout.connect(func(): Explosion.spawn(self, P + Vector3(120.0, 140.0, -80.0), 120.0, (1 if "--explode-demo-purple" in OS.get_cmdline_user_args() else (2 if "--explode-demo-shift" in OS.get_cmdline_user_args() else 0))))
 	if auto_bench:
 		fleet_mult = bench_steps[0]
 		_apply_mult()
@@ -351,6 +351,8 @@ func _input(e: InputEvent) -> void:
 				Explosion.spawn(self, cam.global_position - cam.global_transform.basis.z * 900.0, 120.0, 1)   # 紫色焰（反物質軍團）小
 			KEY_B:
 				Explosion.spawn(self, cam.global_position - cam.global_transform.basis.z * 1600.0, 260.0, 1)   # 紫色焰 大
+			KEY_N:
+				Explosion.spawn(self, cam.global_position - cam.global_transform.basis.z * 700.0, 70.0, 2)   # 聯軍飛彈命中反物質軍團艦艇：先橘後紫
 			KEY_Z:
 				auto_boom = not auto_boom
 			KEY_F2:
@@ -379,14 +381,14 @@ func _process(dt: float) -> void:
 			boom_t = rng.randf_range(0.5, 1.4)
 			var f := -cam.global_transform.basis.z
 			var off := cam.global_transform.basis.x * rng.randf_range(-700, 700) + cam.global_transform.basis.y * rng.randf_range(-300, 300)
-			Explosion.spawn(self, cam.global_position + f * rng.randf_range(900, 2200) + off, rng.randf_range(80, 260), 1 if rng.randf() < 0.4 else 0)
+			Explosion.spawn(self, cam.global_position + f * rng.randf_range(900, 2200) + off, rng.randf_range(80, 260), [0, 1, 1, 2][rng.randi() % 4])
 	if animate:
 		_animate_ships(dt)
 	hud_t += dt
 	if hud_t > 0.25:
 		hud_t = 0.0
 		var fps := Engine.get_frames_per_second()
-		hud.text = "%s\nFPS %d · %.1f ms · ships %d (x%d)%s\n[PgUp/PgDn] fleet x2 / x0.5   [M] move ships   [F3] 3D scale   [F2] save bench\n[X/C] fire boom  [V/B] purple boom  [Z] auto   [RMB+mouse] look   WASD/QE fly   Shift fast" % [
+		hud.text = "%s\nFPS %d · %.1f ms · ships %d (x%d)%s\n[PgUp/PgDn] fleet x2 / x0.5   [M] move ships   [F3] 3D scale   [F2] save bench\n[X/C] ally destroyed (orange)  [V/B] Legion destroyed (purple)  [N] missile hit (orange->purple)  [Z] auto   [RMB+mouse] look   WASD/QE fly   Shift fast" % [
 			RenderingServer.get_video_adapter_name(), fps, 1000.0 / maxf(fps, 1.0), _total_ships(), fleet_mult, "  · MOVING" if animate else ""]
 	bench_t += dt
 	if bench_t >= 2.0:

@@ -5,6 +5,11 @@ uniform float intensity = 2.1;
 uniform vec3 cool_color : source_color = vec3(0.55, 0.1, 0.04);
 uniform vec3 mid_color : source_color = vec3(1.0, 0.42, 0.08);
 uniform vec3 hot_color : source_color = vec3(2.2, 2.0, 1.55);
+// 先橘後紫：shift=1 時，壽命 0.12~0.5 之間顏色由上面的橘色組漸變為下面的紫色組（聯軍飛彈打中反物質軍團艦艇）
+uniform vec3 cool_color2 : source_color = vec3(0.22, 0.04, 0.45);
+uniform vec3 mid_color2 : source_color = vec3(0.62, 0.22, 1.0);
+uniform vec3 hot_color2 : source_color = vec3(2.0, 1.55, 2.4);
+uniform float shift = 0.0;
 varying float age;
 varying float seed;
 
@@ -32,7 +37,8 @@ void fragment() {
 	float dens = smoothstep(0.0, 0.45, bubbles * 0.9 + core * 1.25 - 0.55 - age * 0.75);
 	if (dens < 0.01) discard;
 	float heat = clamp(core * 1.2 + n * 0.6 - age * 1.25, 0.0, 1.0);
-	vec3 cool = cool_color, mid = mid_color, hot = hot_color;
+	float sh = shift * smoothstep(0.12, 0.5, age);
+	vec3 cool = mix(cool_color, cool_color2, sh), mid = mix(mid_color, mid_color2, sh), hot = mix(hot_color, hot_color2, sh);
 	vec3 col = mix(cool, mid, smoothstep(0.1, 0.55, heat));
 	col = mix(col, hot, smoothstep(0.62, 1.0, heat));
 	float fade = pow(clamp(1.0 - age, 0.0, 1.0), 1.4);
