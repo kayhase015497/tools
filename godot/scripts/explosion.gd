@@ -63,10 +63,11 @@ static func _quad_particles(mat: Material, amount: int, life: float, size: float
 	p.draw_pass_1 = qm
 	return p
 
-## style 0＝橘色火焰（聯軍）、1＝紫色焰（反物質軍團，網頁版的招牌紫色爆炸）
+## style 0＝橘色火焰（聯軍艦艇被擊毀）、1＝紫色焰（反物質軍團艦艇被擊毀）、2＝先橘後紫（聯軍飛彈命中反物質軍團艦艇）
 static func spawn(parent: Node, pos: Vector3, size: float, style: int = 0) -> Node3D:
 	_prep()
 	var purple := style == 1
+	var shift := 1.0 if style == 2 else 0.0
 	var root := Node3D.new()
 	root.position = pos
 	parent.add_child(root)
@@ -76,7 +77,8 @@ static func spawn(parent: Node, pos: Vector3, size: float, style: int = 0) -> No
 		fire_mat.set_shader_parameter("cool_color", Vector3(0.22, 0.04, 0.45))
 		fire_mat.set_shader_parameter("mid_color", Vector3(0.62, 0.22, 1.0))
 		fire_mat.set_shader_parameter("hot_color", Vector3(2.0, 1.55, 2.4))
-	var fire := _quad_particles(fire_mat, 14, 1.7, size * 1.7, size * 0.7, 0.0, size * 0.25, [Vector2(0, 0.35), Vector2(0.25, 1.0), Vector2(1, 1.25)])
+	fire_mat.set_shader_parameter("shift", shift)
+	var fire := _quad_particles(fire_mat, 12, 1.1, size * 1.5, size * 0.6, 0.0, size * 0.25, [Vector2(0, 0.35), Vector2(0.2, 1.0), Vector2(1, 0.7)])
 	root.add_child(fire)
 	fire.emitting = true
 	# 2) 濃煙：大、慢、壽命長
@@ -86,7 +88,9 @@ static func spawn(parent: Node, pos: Vector3, size: float, style: int = 0) -> No
 	if purple:
 		sm_mat.set_shader_parameter("fire_color", Vector3(0.62, 0.25, 1.0))
 		sm_mat.set_shader_parameter("smoke_color", Vector3(0.03, 0.02, 0.05))
-	var smoke := _quad_particles(sm_mat, 30, 9.0, size * 1.9, size * 0.7, 0.0, size * 0.2, [Vector2(0, 0.3), Vector2(0.3, 0.9), Vector2(1, 1.5)])
+	sm_mat.set_shader_parameter("shift", shift)
+	var smoke := _quad_particles(sm_mat, 40, 11.0, size * 2.0, size * 0.7, 0.0, size * 0.55, [Vector2(0, 0.25), Vector2(0.25, 0.85), Vector2(1, 1.6)])
+	smoke.explosiveness = 0.55
 	root.add_child(smoke)
 	smoke.emitting = true
 	# 3) 火花雨：速度差很大的細長亮點（橘黃＋粉紫兩種色系）
@@ -110,7 +114,8 @@ static func spawn(parent: Node, pos: Vector3, size: float, style: int = 0) -> No
 		pm.scale_min = 0.6
 		pm.scale_max = 1.5
 		var g := Gradient.new()
-		if purple:   # 紫色焰：粉紫白 + 洋紅紫
+		var sp_purple := purple or (style == 2 and k == 1)
+		if sp_purple:   # 紫色焰：粉紫白 + 洋紅紫
 			if k == 0:
 				g.set_color(0, Color(0.95, 0.8, 1.0, 1.0)); g.set_color(1, Color(0.7, 0.2, 1.0, 0.0))
 			else:
@@ -128,7 +133,10 @@ static func spawn(parent: Node, pos: Vector3, size: float, style: int = 0) -> No
 		qm.material = _spark_mat
 		sp.draw_pass_1 = qm
 		root.add_child(sp)
-		sp.emitting = true
+		if style == 2 and k == 1:   # 先橘後紫：紫色火花晚 0.35 秒才噴出
+			get_tree_delay(root, 0.35, func(): sp.emitting = true)
+		else:
+			sp.emitting = true
 	# 3b) 餘燼：慢速、飄很久的小亮點（太空中不會立刻熄滅）
 	var em := GPUParticles3D.new()
 	em.amount = 160
@@ -192,6 +200,10 @@ static func spawn(parent: Node, pos: Vector3, size: float, style: int = 0) -> No
 	l.omni_attenuation = 1.2
 	l.light_energy = 0.0
 	root.add_child(l)
+	if style == 2:   # 光色也由橘轉紫
+		var ct := root.create_tween()
+		ct.tween_interval(0.25)
+		ct.tween_property(l, "light_color", Color(0.7, 0.32, 1.0), 0.6)
 	var tw := root.create_tween()
 	# 光源強度單位：Godot 點光源是線性衰減、數值要很大才打得亮數百單位外的金屬（實測 300 在 190 單位外才開始明顯）
 	tw.tween_property(l, "light_energy", size * 14.0, 0.06)
@@ -201,3 +213,6 @@ static func spawn(parent: Node, pos: Vector3, size: float, style: int = 0) -> No
 	var t := root.get_tree().create_timer(14.0)
 	t.timeout.connect(root.queue_free)
 	return root
+
+static func get_tree_delay(node: Node, sec: float, fn: Callable) -> void:
+	node.get_tree().create_timer(sec).timeout.connect(fn)
