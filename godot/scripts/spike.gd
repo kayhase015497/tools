@@ -242,7 +242,22 @@ func _tex_sibling(tex: Texture2D, suffix: String) -> Texture2D:
 	var path := tex.resource_path.get_basename() + suffix
 	return load(path) as Texture2D if ResourceLoader.exists(path) else null
 
+var use_pom := true   # 戰場（battle.gd）設為 false：沿用 GLB 內建的 PBR 材質（底色＋法線貼圖），武器與爆炸的光照直接打在法線上
+
 func _convert_materials(mesh: Mesh, kind: String = "") -> void:
+	if not use_pom:
+		for si in range(mesh.get_surface_count()):
+			var bm := mesh.surface_get_material(si) as BaseMaterial3D
+			if bm == null:
+				continue
+			if kind == "hss":   # 黑塔：耐高溫陶瓷——非金屬、釉面清漆
+				bm.metallic = 0.0
+				bm.roughness = 0.5
+				bm.clearcoat_enabled = true
+				bm.clearcoat = 0.6
+				bm.clearcoat_roughness = 0.2
+			_hull_by_name[bm.resource_name] = bm
+		return
 	if _hull_shader == null:
 		_hull_shader = load("res://shaders/ship_hull.gdshader")
 	for si in range(mesh.get_surface_count()):

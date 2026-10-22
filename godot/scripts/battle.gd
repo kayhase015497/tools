@@ -204,6 +204,7 @@ var stats_t := 0.0
 
 # ───────────── 啟動 ─────────────
 func _ready() -> void:
+	use_pom = false   # 不用 POM：改回 GLB 的法線貼圖材質
 	rng.seed = Time.get_ticks_msec()
 	randomize()
 	_make_environment()
@@ -252,7 +253,7 @@ func _ready() -> void:
 # ───────────── 畫質與動態解析度 ─────────────
 func apply_quality(q: int) -> void:
 	quality = q
-	var pom_dist: float = [3200.0, 1400.0, 0.0][q]
+	var pom_dist := 0.0
 	for m in _hull_mats:
 		m.set_shader_parameter("lod_distance", pom_dist)
 		m.set_shader_parameter("bump_strength", ([1.2, 0.8, 0.0] as Array)[q])
