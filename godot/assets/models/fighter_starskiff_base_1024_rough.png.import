@@ -3,19 +3,20 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://n7xu85exj1lh"
-path="res://.godot/imported/fighter_starskiff_base_1024_rough.png-84d47b08c15bac311f440a85b33e7c6a.ctex"
+path.s3tc="res://.godot/imported/fighter_starskiff_base_1024_rough.png-84d47b08c15bac311f440a85b33e7c6a.s3tc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/models/fighter_starskiff_base_1024_rough.png"
-dest_files=["res://.godot/imported/fighter_starskiff_base_1024_rough.png-84d47b08c15bac311f440a85b33e7c6a.ctex"]
+dest_files=["res://.godot/imported/fighter_starskiff_base_1024_rough.png-84d47b08c15bac311f440a85b33e7c6a.s3tc.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0

@@ -117,7 +117,7 @@
     const fx = { time: 0 };
 
     /* ── 光束 ── */
-    const NB = 10000;
+    const NB = 6000;
     const base = new THREE.PlaneBufferGeometry(1, 1);
     const bg = new THREE.InstancedBufferGeometry();
     bg.index = base.index; bg.setAttribute('position', base.attributes.position); bg.setAttribute('uv', base.attributes.uv);
@@ -165,7 +165,7 @@
     }
 
     /* ── 碎片（實體，會翻滾） ── */
-    const DN = 600;
+    const DN = 400;
     const dPos = new Float32Array(DN * 3), dVel = new Float32Array(DN * 3), dRot = new Float32Array(DN * 3), dSpin = new Float32Array(DN * 3);
     const dLife = new Float32Array(DN), dMax = new Float32Array(DN), dScale = new Float32Array(DN);
     let debrisMeshes = [], debrisAttr = null, di = 0;
@@ -318,6 +318,8 @@
       { fire_n: 10, fire_life: 1.0, fire_size: 1.2, fire_r: 0.35, fire_v: 0.6, spark_n: 160, spark_sp: 1.3, spark_len: 1.3, smoke_n: 36, smoke_size: 1.55, smoke_life: 5.2, smoke_v: 0.6, ember_n: 120, deb_n: 80, light: 1.0, jets: 5 },
       { fire_n: 14, fire_life: 1.1, fire_size: 1.8, fire_r: 0.6, fire_v: 0.35, spark_n: 520, spark_sp: 1.3, spark_len: 1.1, smoke_n: 44, smoke_size: 1.8, smoke_life: 5.5, smoke_v: 0.55, ember_n: 180, deb_n: 100, light: 1.4, delay: 0.4 }
     ];
+    const recent = [];   // 最近幾秒的爆炸時間：同時爆炸越多，單顆越輕量（煙／餘燼／碎片依序省掉），避免大混戰時填充率爆表
+    function crowd() { const now = fx.time; while (recent.length && now - recent[0] > 4) recent.shift(); recent.push(now); return recent.length; }
     const SPARK_BUDGET = 0.42;   // Godot 的火花是 GPU 粒子（幾百顆很便宜）；網頁版用光束池畫短曳光，數量打折
     function lodFor(x, y, z, size) {
       if (typeof camera === 'undefined') return 1;
@@ -327,7 +329,7 @@
     fx.explode3 = function (x, y, z, size, style, variant, o) {
       o = o || {};
       const V = VARIANTS[variant != null && variant >= 0 ? variant : (Math.random() * VARIANTS.length) | 0];
-      const lite = !!(window.G && window.G.lite), lod = lodFor(x, y, z, size) * (lite ? 0.5 : 1);
+      const nCrowd = crowd(), lite = !!(window.G && window.G.lite), lod = lodFor(x, y, z, size) * (lite ? 0.5 : 1) * (nCrowd > 10 ? 0.6 : 1) * (nCrowd > 20 ? 0.6 : 1);
       const purple = style === 1, shift = style === 2 ? 1 : 0;
       size *= rnd(0.88, 1.15);
       const cnt = (n, k) => Math.max(2, Math.floor(n * (k == null ? lod : k)));
@@ -339,7 +341,7 @@
       const smokeFire = purple ? [0.62, 0.25, 1.0] : [1.0, 0.38, 0.09];
       const exF = (d) => ({ delay: d, shift, purple: purple ? 1 : 0 });
       // 1) 火團：多團，錯時冒出
-      const nf = cnt(V.fire_n, Math.max(lod, 0.5)), fr = size * V.fire_size * 0.5;
+      const nf = Math.max(5, Math.round(V.fire_n * (nCrowd > 30 ? 0.75 : 1))), fr = size * V.fire_size * 0.5;   // 火球永遠接近滿配：擁擠時只省煙／火花／餘燼／碎片（使用者：不要縮成一小坨）
       for (let i = 0; i < nf; i++) {
         const p = randDir(), off = size * V.fire_r * Math.cbrt(Math.random()), sp = size * V.fire_v * Math.random();
         const dir = V.jet ? coneDir(jd, 28) : p, born = delay + rnd(0, V.fire_life * 0.35);
@@ -357,8 +359,8 @@
       if (delay > 0) fx.fire(x, y, z, 0, 0, 0, size * 0.1, size * 0.28, 0.5, fireCol, 0, 1, exF(0));   // 先出現一小團悶光
       fx.fire(x, y, z, 0, 0, 0, size * 0.2, size * 0.7, 0.35, [1, 0.85, 0.55], 0, 1.3, exF(delay));    // 中心的高亮核心
       // 2) 濃煙：近黑、厚、5~6 秒
-      const lite2 = lite || (window.G && window.G.fxLow);
-      const ns = lite2 ? Math.floor(V.smoke_n * 0.4 * lod) : cnt(V.smoke_n), sr = size * V.smoke_size * 0.5;
+      const lite2 = lite || nCrowd > 18 || (window.G && window.G.fxLow);   // 太擁擠：不放煙／餘燼／碎片
+      const ns = lite2 ? Math.floor(V.smoke_n * 0.3 * lod) : Math.floor(cnt(V.smoke_n) * 0.55), sr = size * V.smoke_size * 0.5;   // 煙是填充率大戶：數量打 55 折
       for (let i = 0; i < ns; i++) {
         const p = randDir(), off = size * 0.65 * Math.cbrt(Math.random()), sp = size * V.smoke_v * Math.random();
         const dir = V.jet ? coneDir(jd, 40) : p, born = delay + rnd(0, V.smoke_life * 0.28);

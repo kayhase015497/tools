@@ -3,19 +3,20 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://novirw63uct1"
-path="res://.godot/imported/whale_legion_basecolor_2048_height.png-0822027ea921d693d03dabb494c2a18d.ctex"
+path.s3tc="res://.godot/imported/whale_legion_basecolor_2048_height.png-0822027ea921d693d03dabb494c2a18d.s3tc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/models/whale_legion_basecolor_2048_height.png"
-dest_files=["res://.godot/imported/whale_legion_basecolor_2048_height.png-0822027ea921d693d03dabb494c2a18d.ctex"]
+dest_files=["res://.godot/imported/whale_legion_basecolor_2048_height.png-0822027ea921d693d03dabb494c2a18d.s3tc.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0

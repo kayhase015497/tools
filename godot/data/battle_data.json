@@ -977,5 +977,125 @@
    8,
    18.9
   ]
- }
+ },
+ "RADIO": {
+  "lock": [
+   [
+    "Tally ho — target locked.",
+    "發現目標，已鎖定。"
+   ],
+   [
+    "Radar lock, engaging.",
+    "雷達鎖定，開始攻擊。"
+   ],
+   [
+    "I've got him in my sights.",
+    "他在我的準星裡了。"
+   ],
+   [
+    "Locked on — fox two!",
+    "鎖定完成，飛彈發射！"
+   ]
+  ],
+  "pursue": [
+   [
+    "On his tail, pushing in.",
+    "咬住他的尾巴了，持續追擊。"
+   ],
+   [
+    "Chasing — don't let him break away!",
+    "正在追擊，別讓他脫離！"
+   ],
+   [
+    "Breaking left, following the bandit.",
+    "左轉機動，緊跟敵機。"
+   ],
+   [
+    "Closing in, almost in range.",
+    "正在逼近，快進入射程了。"
+   ]
+  ],
+  "hit": [
+   [
+    "I'm hit! Systems failing!",
+    "我中彈了！系統失靈！"
+   ],
+   [
+    "Taking fire — shields down!",
+    "遭到攻擊，護盾已破！"
+   ],
+   [
+    "Hull breach, I need cover!",
+    "艙體破損，需要掩護！"
+   ],
+   [
+    "They're all over me — somebody help!",
+    "他們咬上我了，誰來幫忙！"
+   ]
+  ],
+  "final": [
+   [
+    "Going down… tell them we held the line.",
+    "我要墜毀了……告訴他們，我們守住了防線。"
+   ],
+   [
+    "Can't hold it… it's been an honor.",
+    "撐不住了……能與你們並肩作戰是我的榮幸。"
+   ],
+   [
+    "Mayday, mayday — I've lost control!",
+    "求救求救，我失去控制了！"
+   ],
+   [
+    "Engines are gone… so long, everyone.",
+    "引擎沒了……各位，再見。"
+   ],
+   [
+    "Tell my wingmate… I kept my promise.",
+    "告訴我的僚機……我守住了約定。"
+   ]
+  ],
+  "kill": [
+   [
+    "Splash one!",
+    "擊落一架！"
+   ],
+   [
+    "Target destroyed, moving on.",
+    "目標摧毀，轉往下一個。"
+   ],
+   [
+    "Got him! Who's next?",
+    "打中了！下一個是誰？"
+   ]
+  ]
+ },
+ "CS_FIGHTER": [
+  "Viper",
+  "Falcon",
+  "Halo",
+  "Raven",
+  "Comet",
+  "Lancer",
+  "Ember",
+  "Nova",
+  "Vector",
+  "Saber",
+  "Phantom",
+  "Wraith",
+  "Talon",
+  "Orion"
+ ],
+ "CS_SHIP": [
+  "Aegis",
+  "Bastion",
+  "Longbow",
+  "Halberd",
+  "Tempest",
+  "Resolute",
+  "Vanguard",
+  "Stormwall",
+  "Ironside",
+  "Meridian"
+ ]
 }

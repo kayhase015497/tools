@@ -40,8 +40,8 @@ void fragment() {
 	if (r > 1.0) discard;
 	vec2 q = uv * 1.5 + vec2(seed, seed * 0.61) + vec2(0.0, -age * 0.4);
 	float h = height(q, r);
-	float e = 0.06;
-	vec2 g = vec2(height(q + vec2(e, 0.0), r) - height(q - vec2(e, 0.0), r), height(q + vec2(0.0, e), r) - height(q - vec2(0.0, e), r)) / (2.0 * e);
+	float e = 0.08;
+	vec2 g = vec2(height(q + vec2(e, 0.0), r) - h, height(q + vec2(0.0, e), r) - h) / e;   // 前向差分：3 次取樣（原本 5 次）
 	vec3 n = normalize(vec3(-g * 0.9, 1.0));
 	float r2 = r + (fbm(q * 1.9 + 5.0) - 0.5) * 0.7;               // 用噪聲侵蝕輪廓：不再是規則圓盤，而是凹凸的積雲邊緣
 	float edge = smoothstep(1.0, 0.45, r2);

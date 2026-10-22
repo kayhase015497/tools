@@ -27,6 +27,11 @@ func _project(p: Vector3) -> Variant:
 	return cam.unproject_position(p)
 
 func _draw() -> void:
+	var _t0 := Time.get_ticks_usec()
+	_draw_all()
+	battle._pf("hud", _t0) if battle != null else null
+
+func _draw_all() -> void:
 	if battle == null or not battle.started:
 		return
 	if battle.bpaused:
@@ -162,6 +167,18 @@ func _draw() -> void:
 		var a3 := clampf((12.0 - age) / 2.0, 0.0, 1.0)
 		_txt(Vector2(24, y), l["text"], 14, Color(1.0, 0.55, 0.45, a3) if l["warn"] else Color(0.75, 0.95, 1.0, a3))
 		y += 20.0
+	# 無線電（右側，在鐵墓血條下方）
+	var now := Time.get_ticks_msec() / 1000.0
+	var ry := 86.0
+	for rl in battle.radio_lines:
+		var age: float = now - float(rl["t"])
+		if age > float(rl["life"]):
+			continue
+		var a4 := clampf((float(rl["life"]) - age) / 1.4, 0.0, 1.0)
+		var col := Color(1.0, 0.5, 0.45, a4) if rl["cat"] == "final" or rl["cat"] == "hit" else Color(0.6, 0.95, 1.0, a4)
+		_txt(Vector2(vp.x - 440, ry), str(rl["cs"]), 12, Color(col, a4 * 0.85), HORIZONTAL_ALIGNMENT_RIGHT, 430.0)
+		_txt(Vector2(vp.x - 440, ry + 16), str(rl["text"]), 14, col, HORIZONTAL_ALIGNMENT_RIGHT, 430.0)
+		ry += 38.0
 	# 按鍵提示
 	_txt(Vector2(24, vp.y - 14), "Mouse steer  W/S throttle  Q/E roll  A/D/R/F strafe  Shift boost  X stop  LMB fire  RMB missile  T lock  Y next  U AWACS tgt  C focus  G charge  V cam  Z assist  N radar  Esc pause", 12, Color(0.6, 0.8, 0.8, 0.7))
 
@@ -184,7 +201,7 @@ func _draw_radar(ctr: Vector2, r: float, ship) -> void:
 			var pt := ctr + Vector2(d2.x, d2.y) / range_ * r
 			var big: bool = e.d["hp"] > 1000.0
 			var col := COL_A if e.side == 0 else COL_E
-			draw_circle(pt, 3.0 if big else 1.6, Color(col, 0.9 if up else 0.55))
+			draw_rect(Rect2(pt - Vector2(1.5, 1.5) * (2.0 if big else 1.0), Vector2(3, 3) * (2.0 if big else 1.0)), Color(col, 0.9 if up else 0.55))
 	var tg = battle.pl["target"]
 	if tg != null and not tg.dead:
 		var rel2: Vector3 = inv * (tg.pos - ship.pos)

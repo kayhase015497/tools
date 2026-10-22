@@ -13,7 +13,7 @@ static var _debris_mat: StandardMaterial3D
 # 2) 同時爆炸上限：超過上限時新爆炸降級成輕量版（火球＋少量火花，不放煙／碎片／光源）
 # 3) 動態光源上限：同時最多 MAX_LIGHTS 盞爆炸光源，且只有靠近鏡頭的爆炸才配光源
 # 4) 連爆的子爆炸不再連鎖，且在預算吃緊時被取消
-const MAX_ACTIVE := 14
+static var MAX_ACTIVE_PUB := 14
 const MAX_LIGHTS := 6
 const LOD_NEAR := 6000.0
 const LOD_FAR := 24000.0
@@ -108,7 +108,7 @@ static func spawn(parent: Node, pos: Vector3, size: float, style: int = 0, varia
 	var purple := style == 1
 	var shift := 1.0 if style == 2 else 0.0
 	var lod := _lod_for(parent, pos, size)
-	var lite := budget_enabled and active_count >= MAX_ACTIVE
+	var lite := budget_enabled and active_count >= MAX_ACTIVE_PUB
 	if lite:
 		lod = minf(lod, 0.3)
 	var vi := variant if variant >= 0 else randi() % VARIANTS.size()

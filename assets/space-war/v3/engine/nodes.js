@@ -109,14 +109,14 @@ export function puffMaterial(kind) {
     const cool = mid.mul(mix(vec3(0.55, 0.24, 0.5), vec3(0.35, 0.18, 0.45), purple)), hot = mix(vec3(2.2, 2.0, 1.55), vec3(2.0, 1.55, 2.4), purple);
     const col = mix(mix(cool, mid, smoothstep(0.1, 0.55, heat)), hot, smoothstep(0.62, 1.0, heat));
     const fade = pow(clamp(oneMinus(age), 0.0, 1.0), 1.4);
-    return vec4(col.mul(dens).mul(fade).mul(2.1).mul(vD.w), 1.0);
+    return vec4(col.mul(dens).mul(fade).mul(1.05).mul(vD.w), 1.0);
   })() : Fn(() => {
     /* 濃煙：移植自 Godot 的 smoke.gdshader（近黑的花椰菜雲：高度場假法線、暗心亮邊、火光只染朝向爆炸中心的一側） */
     const r = length(vUv); If(r.greaterThan(1.0), () => { Discard(); });
     const age = vD.x, q = vUv.mul(1.5).add(vec2(vD.z, vD.z.mul(0.61))).add(vec2(0.0, age.mul(-0.4)));
-    const hgt = Fn(([qq]) => smoothstep(0.18, 0.7, fbm2(qq).mul(1.15).add(oneMinus(r).mul(0.6))));
-    const h = hgt(q), ee = 0.06;
-    const gx = hgt(q.add(vec2(ee, 0.0))).sub(hgt(q.sub(vec2(ee, 0.0)))).div(2.0 * ee), gy = hgt(q.add(vec2(0.0, ee))).sub(hgt(q.sub(vec2(0.0, ee)))).div(2.0 * ee);
+    const base = oneMinus(r).mul(0.6), hgt = (qq) => smoothstep(0.18, 0.7, fbm2(qq).mul(1.15).add(base)), ee = 0.08;   // 純 JS 展開（不用巢狀 Fn）：WGSL 的子函式不能抓外層片段變數
+    const h = hgt(q), hx = hgt(q.add(vec2(ee, 0.0))), hy = hgt(q.add(vec2(0.0, ee)));   // 前向差分：3 次取樣（原本 5 次）
+    const gx = hx.sub(h).div(ee), gy = hy.sub(h).div(ee);
     const nrm = normalize(vec3(gx.negate().mul(0.9), gy.negate().mul(0.9), 1.0));
     const r2 = r.add(fbm2(q.mul(1.9).add(5.0)).sub(0.5).mul(0.7));
     const edge = smoothstep(1.0, 0.45, r2);

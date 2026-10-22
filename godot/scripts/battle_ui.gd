@@ -77,6 +77,7 @@ func _build_menu() -> void:
 	_group(vb, "role", [["pilot", ""], ["commander", ""]], sel_role)
 	_group(vb, "lang", LANGS, sel_lang)
 	_group(vb, "voice", VOICES, sel_voice)
+	_group(vb, "gfx", [["0", "High"], ["1", "Balanced"], ["2", "Low"]], "1")
 	lbl["hint"] = _label("", 14, Color(0.75, 0.85, 0.9))
 	vb.add_child(lbl["hint"])
 	var go := Button.new()
@@ -128,6 +129,7 @@ func _pick(key: String, id: String) -> void:
 			sel_role = id
 		"lang": sel_lang = id
 		"voice": sel_voice = id
+		"gfx": battle.apply_quality(int(id))
 	_refresh_text()
 
 func _refresh_text() -> void:
@@ -142,6 +144,7 @@ func _refresh_text() -> void:
 	g["role"]["title"].text = S("role")
 	g["lang"]["title"].text = S("langLabel")
 	g["voice"]["title"].text = S("voiceLabel")
+	g["gfx"]["title"].text = "GRAPHICS"
 	g["mode"]["btns"]["script"].text = S("script")
 	g["mode"]["btns"]["free"].text = S("free")
 	g["role"]["btns"]["pilot"].text = S("pilot")

@@ -3,19 +3,20 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://bc7oqcc2ju1ag"
-path="res://.godot/imported/ipc_fighter_fighter_basecolor_1024_height.png-9a7bc4e265ab0ba5ba3ebc2a1f1119ec.ctex"
+path.s3tc="res://.godot/imported/ipc_fighter_fighter_basecolor_1024_height.png-9a7bc4e265ab0ba5ba3ebc2a1f1119ec.s3tc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/models/ipc_fighter_fighter_basecolor_1024_height.png"
-dest_files=["res://.godot/imported/ipc_fighter_fighter_basecolor_1024_height.png-9a7bc4e265ab0ba5ba3ebc2a1f1119ec.ctex"]
+dest_files=["res://.godot/imported/ipc_fighter_fighter_basecolor_1024_height.png-9a7bc4e265ab0ba5ba3ebc2a1f1119ec.s3tc.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0
