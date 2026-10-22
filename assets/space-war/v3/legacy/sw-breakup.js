@@ -2,9 +2,9 @@
  *
  * 艦艇被擊毀時，以 Blender 預先切好的斷片 GLB（assets/space-war/models/frag/<艦>_frag_<A|B|C>.glb，由 tools-src/blender/space-war/fracture_ships.py 產生）
  * 取代完整艦：2~4 塊大塊，每塊以簡單積分運動（初速＝艦速＋由艦心向外的分離速度、亂數角速度），
- * 斷面（break_face 材質）燃燒熔融：餘燼熱點＋自發光，由 1 降到 0（21 秒）；沿斷面放火焰（13 秒）、餘燼與細黑煙尾。
+ * 斷面（break_face 材質）燃燒熔融：餘燼熱點＋自發光，由 1 降到 0（7 秒）；沿斷面放火焰（4.5 秒）、餘燼與細黑煙尾。
  * 外表沿用完整艦的材質（與艦隊一致），並帶一點燒焦（aDmg）。
- * 效能保護：同時最多 14 組、存活 60 秒（最後 6 秒縮小淡出）、遠離鏡頭（>16 km）不放特效、>40 km 直接略過。
+ * 效能保護：同時最多 7 組、存活 20 秒（最後 4 秒縮小淡出）、遠離鏡頭（>7 km）不放特效、>22 km 直接略過（Godot 最早布建的設置）。
  * 斷片檔第一次用到時才載入（約 0.5~1.8 MB），載入完成前先只有爆炸；每種艦隨機從 A／B／C 三個方案挑一個。
  * 全域介面：SWBreakup.spawn(ship, style)  style 0＝聯軍（橘色餘燼）、1＝軍團（紫色餘燼）
  */
@@ -13,7 +13,7 @@
   const FRAG = { frig: 'frigate', cruis: 'cruiser', ipc: 'ipc', whale: 'whale', hss: 'hss', awacs: 'ipc_sid' };   // 艦種 → 斷片檔前綴
   const ASSET_KEY = { frig: 'frigate', cruis: 'cruiser', ipc: 'ipc', whale: 'whale', hss: 'hss', awacs: 'ipcsid' };   // 艦種 → sw-assets 的鍵
   const PLANS = { hss: ['A', 'B'] };            // hss 的 C 方案檔太大（6 MB），網頁版不用
-  const MAX_ACTIVE = 14, LIFETIME = 60, BURN_TIME = 21, FLAME_TIME = 13, FAR_NO_FX = 16000, FAR_REMOVE = 40000;
+  const MAX_ACTIVE = 7, LIFETIME = 20, BURN_TIME = 7, FLAME_TIME = 4.5, FAR_NO_FX = 7000, FAR_REMOVE = 22000;   // Godot 最早布建的設置（同時 7 組、存活 20 秒、熔融 7 秒、火焰 4.5 秒）
   const BASE = '../assets/space-war/models/frag/';
   const cache = {};        // 'cruiser_A' → Promise<{ chunks:[{ center, meshes:[{ geo, partIdx, isBreak }] }], s }>
   const active = [];
@@ -129,15 +129,15 @@
   function stepGroup(g, dt) {
     g.age += dt;
     let k = 1;
-    if (g.killed >= 0) k = Math.max(0, 1 - (g.age - g.killed) / 1.2); else if (g.age > LIFETIME - 6) k = Math.max(0, (LIFETIME - g.age) / 6);
+    if (g.killed >= 0) k = Math.max(0, 1 - (g.age - g.killed) / 1.2); else if (g.age > LIFETIME - 4) k = Math.max(0, (LIFETIME - g.age) / 4);
     if (k <= 0) return false;
-    // 斷面熔融：1 → 0（SINE 緩動，21 秒）
+    // 斷面熔融：1 → 0（SINE 緩動，7 秒）
     const t = Math.min(1, g.age / BURN_TIME); if (g.bmat.uniforms && g.bmat.uniforms.uBurn) g.bmat.uniforms.uBurn.value = 0.5 + 0.5 * Math.cos(Math.PI * t);
     const c0 = g.chunks[0]; if (!c0) return false;
     camera.getWorldPosition(_cp);
     const d = _cp.distanceTo(c0.holder.position);
     if (d > FAR_REMOVE) return false;
-    const fxOn = d < FAR_NO_FX && g.age < BURN_TIME + 3 && !(global.G && global.G.lite);
+    const fxOn = d < FAR_NO_FX && g.age < BURN_TIME + 1 && !(global.G && global.G.lite);
     const flame = g.age < FLAME_TIME, lodK = Math.max(0.35, Math.min(1, 1 - (d - 4000) / 12000));
     for (const c of g.chunks) {
       c.holder.position.addScaledVector(c.vel, dt);

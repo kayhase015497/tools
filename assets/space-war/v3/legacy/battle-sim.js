@@ -218,11 +218,12 @@ function killShip(s, src) {
   const U = big ? clamp(s.scale * 0.55, 3, 22) : 0.8;
   /* v3：爆炸大小≈船長×0.35（25~300 m）；橘＝聯軍、紫＝軍團；有斷片的艦種同時斷裂成數塊（sw-breakup.js） */
   const lenM = ((fleet.kinds[s.kind] && fleet.kinds[s.kind].length) || 14) * (s.scale || 1), boomSize = clamp(lenM * 0.35, 25, 300), style = s.side === 'e' ? 1 : 0;
-  fx.explode3(s.x, s.y, s.z, boomSize, style, -1);
+  fx.explode(s.x, s.y, s.z, d.boom, s.side === 'e', U);   // 艦艇爆炸：v2 原版
+  boomLight(s.x, s.y, s.z, d.boom, s.side === 'e' ? [1, 0.55, 0.3] : [0.55, 0.8, 1]);
   if (big && window.SWBreakup) SWBreakup.spawn(s, style);
   if (big) {
     const n = Math.min(14, 3 + Math.floor(d.boom / 2));
-    for (let i = 0; i < n; i++) { const dx = rnd(-1, 1) * s.rad, dy = rnd(-0.5, 0.5) * s.rad, dz = rnd(-1, 1) * s.rad; fx.later(0.2 + i * rnd(0.15, 0.4), () => fx.explode3(s.x + dx, s.y + dy, s.z + dz, boomSize * rnd(0.4, 0.75), style, [0, 3, 4][(Math.random() * 3) | 0], { noChain: true })); }
+    for (let i = 0; i < n; i++) { const dx = rnd(-1, 1) * s.rad, dy = rnd(-0.5, 0.5) * s.rad, dz = rnd(-1, 1) * s.rad; fx.later(0.2 + i * rnd(0.15, 0.4), () => fx.explode(s.x + dx, s.y + dy, s.z + dz, d.boom * rnd(0.3, 0.8), s.side === 'e', U * 0.7)); }
     if (G.doom === 0) say(d.name + ' destroyed' + (s.side === 'a' ? ' · ' + s.cs : ''), d.name + ' 被擊毀' + (s.side === 'a' ? ' · ' + s.cs : ''), s.side === 'a');
   }
   FPVAudio.explode(d.boom, s);
@@ -337,13 +338,15 @@ function stepShots(dt) {
 }
 function missileLost(m, dt) {   // 目標已被摧毀（或沒有目標）：延遲 3~5 秒（每顆不同）自毀，不留遊蕩飛彈；這段時間繼續直飛，戰場上保持熱鬧
   if (m.sd == null) m.sd = rnd(3, 5); m.sd -= dt; if (m.sd > 0) return false;
-  fx.explode3(m.x, m.y, m.z, m.big ? 70 : 42, m.side === 'e' ? 1 : 0, -1); return true;   // v3：飛彈自毀也用 8 種爆焰變體（隨機）
+  fx.explode(m.x, m.y, m.z, 0.8, m.side === 'e', 1); fx.emit(m.x, m.y, m.z, 0, 0, 0, 1, 0.8, 0.5, 40, 0.18, 0, 1);   // v2 原版火光／煙
+  fx.explode3(m.x, m.y, m.z, m.big ? 70 : 42, m.side === 'e' ? 1 : 0, -1, { noChain: true, flameOnly: true }); return true;   // ＋v3 的 8 種爆焰（隨機）
 }
 function missileHit(m, tg, dist) {   // 飛彈是否已碰到目標（大艦用艦體橢球，其餘用球）；碰到就引爆並結算傷害
   const inH = tg.d && tg.d.hp > 1000 ? inHull(tg, m.x, m.y, m.z, 14) : null;
   if (!(inH === null ? dist < tg.rad + 14 : inH)) return false;
-  impact(m.x, m.y, m.z, 8, [1, 0.8, 0.4]); fx.explode3(m.x, m.y, m.z, m.big ? 85 : 55, tg.side === 'e' ? 2 : 0, -1);   // v3：飛彈命中＝8 種爆焰變體隨機（含連爆），命中軍團艦為先橘後紫；
-   boomLight(m.x, m.y, m.z, 1.4, [1, 0.7, 0.4]); FPVAudio.explode(1.4, m); damage(tg, m.dmg, m.x, m.y, m.z, m.src); return true;
+  impact(m.x, m.y, m.z, 8, [1, 0.8, 0.4]); fx.explode(m.x, m.y, m.z, 1.4, m.side === 'e', 1); smokeCloud(m.x, m.y, m.z, 48, 22); boomLight(m.x, m.y, m.z, 1.4, [1, 0.7, 0.4]);   // v2 原版：火光＋濃煙＋體積雲
+  fx.explode3(m.x, m.y, m.z, m.big ? 85 : 55, tg.side === 'e' ? 2 : 0, -1, { noChain: true, flameOnly: true });   // ＋v3 的 8 種爆焰火團／火花（隨機；命中軍團艦為先橘後紫）
+  FPVAudio.explode(1.4, m); damage(tg, m.dmg, m.x, m.y, m.z, m.src); return true;
 }
 /* 艦載飛彈（垂直發射、兩段點火）：
  *  第一段「冷發射」：彈體被燃氣沿艦背「向上」彈出（約 0.6~0.85 秒，減速、白色燃氣團、沒有火焰）；
