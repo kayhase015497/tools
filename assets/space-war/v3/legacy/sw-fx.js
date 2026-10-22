@@ -207,17 +207,17 @@
 
     /* ── 體積火球／煙霧粒子池 ── */
     /* 現在整套運動／縮放／淡出都在 GPU 頂點著色器裡以「出生時間」解析計算（和粒子一樣），CPU 只在發射時寫入一次、每幀上傳新增的那一段 */
-    function makePuffSystem(N, fs, blending, order) {
+    function makePuffSystem(N, fs, blending, order, v3) {
       const mk = (n) => new THREE.InstancedBufferAttribute(new Float32Array(N * n), n).setUsage(THREE.DynamicDrawUsage);
       const A = { aPos: mk(3), aVel: mk(3), aC: mk(3), aT: mk(4), aS: mk(2), aX: mk(2), aCen: mk(3) };   // aT = (出生時間, 壽命, 阻力, 強度)；aS = (起始大小, 終點大小)；種子藏在 aVel 之外的 aC 不夠用，改放 aS 的小數運算
       A.aSeed = mk(1);
       for (let i = 0; i < N; i++) A.aT.array[i * 4] = 1e9;
       const g = window.SW2.nodes.quadGeometry(N, A);
-      const m = window.SW2.nodes.puffMaterial(fs === FIRE_FS ? 'fire' : 'smoke');
+      const m = v3 ? window.SW2.nodes.puffMaterial3('fire') : window.SW2.nodes.puffMaterial(fs === FIRE_FS ? 'fire' : 'smoke');
       const mesh = new THREE.Mesh(g, m); mesh.frustumCulled = false; mesh.renderOrder = order; scene.add(mesh);
       return { N, i: 0, A, m, lo: 1e9, hi: -1, wrapped: false, isFire: fs === FIRE_FS };
     }
-    const fireSys = pro ? makePuffSystem(3000, FIRE_FS, THREE.AdditiveBlending, 7) : null, smokeSys = pro ? makePuffSystem(2500, SMOKE_FS, THREE.NormalBlending, 3) : null;
+    const fireSys = pro ? makePuffSystem(3000, FIRE_FS, THREE.AdditiveBlending, 7) : null, fire3Sys = pro ? makePuffSystem(2200, FIRE_FS, THREE.AdditiveBlending, 8, true) : null, smokeSys = pro ? makePuffSystem(2500, SMOKE_FS, THREE.NormalBlending, 3) : null;
     function puff(sys, x, y, z, vx, vy, vz, s0, s1, life, col, drag, amp, ex) {
       // ex（v3）：{ delay, shift, purple, radius, cx, cy, cz }——延遲出生、先橘後紫旗標、純紫旗標、煙的火光半徑與爆炸中心
       const i = sys.i++ % sys.N, A = sys.A; if (i === 0 && sys.i > 1) sys.wrapped = true;
@@ -235,6 +235,7 @@
       sys.lo = 1e9; sys.hi = -1; sys.wrapped = false;
     }
     fx.fire = (x, y, z, vx, vy, vz, s0, s1, life, col, drag, amp, ex) => { if (fireSys) puff(fireSys, x, y, z, vx, vy, vz, s0, s1, life, col, drag, amp, ex); };
+    fx.fire3 = (x, y, z, vx, vy, vz, s0, s1, life, col, drag, amp, ex) => { if (fire3Sys) puff(fire3Sys, x, y, z, vx, vy, vz, s0, s1, life, col, drag, amp, ex); };   // v3 火團（8 種爆焰用）
     fx.smoke = (x, y, z, vx, vy, vz, s0, s1, life, col, drag, amp, ex) => { if (smokeSys) puff(smokeSys, x, y, z, vx, vy, vz, s0, s1, life, col || [0.3, 0.12, 0.05], drag, amp, ex); };
 
     /* ── 延遲事件 ── */
@@ -245,7 +246,7 @@
     fx.explode = function (x, y, z, k, enemy, U) {
       U = U || 1;   // 單位倍率：FPV 以公尺計，爆炸的尺寸與速度整體放大
       const kk = Math.max(0.3, k);
-      if (pro) return fx.explode3(x, y, z, Math.max(20, Math.min(300, kk * U * 20)), enemy ? 1 : 0, -1);
+      if (pro) return proExplode(x, y, z, kk, enemy, U);
       // 十字星芒與核心閃光
       fx.emit(x, y, z, 0, 0, 0, 1, 0.95, 0.8, (26 * kk + 8) * U, 0.26, 0, 1);
       fx.emit(x, y, z, 0, 0, 0, 1, 1, 1, (10 * kk + 4) * U, 0.18, 0, 0, 1.2);
@@ -334,7 +335,7 @@
       size *= rnd(0.88, 1.15);
       const cnt = (n, k) => Math.max(2, Math.floor(n * (k == null ? lod : k)));
       const ja = rnd(0, Math.PI * 2), ju = rnd(-0.6, 1), jc = Math.sqrt(1 - ju * ju), jd = [Math.cos(ja) * jc, ju, Math.sin(ja) * jc];   // 噴流方向
-      const delay = V.delay || 0, ring = !!V.ring;
+      const delay = V.delay || 0, ring = !!V.ring, flameOnly = !!o.flameOnly;   // flameOnly：只放 8 種爆焰的火團＋火花（飛彈用；煙／體積雲／餘燼／碎片／光源走 v2 原版）
       const randDir = () => { const a = rnd(0, 6.283), u = rnd(-1, 1), c = Math.sqrt(1 - u * u); return [Math.cos(a) * c, u, Math.sin(a) * c]; };
       const coneDir = (axis, deg) => { const t = Math.tan(deg * Math.PI / 180), r = randDir(); let d = [axis[0] + r[0] * t, axis[1] + r[1] * t, axis[2] + r[2] * t]; const l = Math.hypot(d[0], d[1], d[2]) || 1; return [d[0] / l, d[1] / l, d[2] / l]; };
       const fireCol = purple ? [rnd(0.5, 0.75), rnd(0.15, 0.3), rnd(0.9, 1.0)] : [1.0, rnd(0.28, 0.55), rnd(0.04, 0.12)];
@@ -345,7 +346,7 @@
       for (let i = 0; i < nf; i++) {
         const p = randDir(), off = size * V.fire_r * Math.cbrt(Math.random()), sp = size * V.fire_v * Math.random();
         const dir = V.jet ? coneDir(jd, 28) : p, born = delay + rnd(0, V.fire_life * 0.35);
-        fx.fire(x + p[0] * off, y + p[1] * off, z + p[2] * off, dir[0] * sp, dir[1] * sp, dir[2] * sp, fr * 0.33, fr * rnd(0.85, 1.05), V.fire_life * rnd(0.8, 1.1), fireCol, 2.2, 1, exF(born));
+        fx.fire3(x + p[0] * off, y + p[1] * off, z + p[2] * off, dir[0] * sp, dir[1] * sp, dir[2] * sp, fr * 0.33, fr * rnd(0.85, 1.05), V.fire_life * rnd(0.8, 1.1), fireCol, 2.2, 1, exF(born));
       }
       if (ring) {   // 環形：一圈向外擴張的火團
         const ax = jd, u0 = Math.abs(ax[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0];
@@ -353,14 +354,14 @@
         const e2 = [ax[1] * e1[2] - ax[2] * e1[1], ax[2] * e1[0] - ax[0] * e1[2], ax[0] * e1[1] - ax[1] * e1[0]];
         for (let i = 0; i < 10; i++) {
           const a = i / 10 * 6.283 + rnd(-0.2, 0.2), d = [Math.cos(a) * e1[0] + Math.sin(a) * e2[0], Math.cos(a) * e1[1] + Math.sin(a) * e2[1], Math.cos(a) * e1[2] + Math.sin(a) * e2[2]], sp = size * rnd(0.8, 1.2);
-          fx.fire(x + d[0] * size * 0.25, y + d[1] * size * 0.25, z + d[2] * size * 0.25, d[0] * sp, d[1] * sp, d[2] * sp, size * 0.12, size * 0.4, 0.9, fireCol, 2.0, 1, exF(delay));
+          fx.fire3(x + d[0] * size * 0.25, y + d[1] * size * 0.25, z + d[2] * size * 0.25, d[0] * sp, d[1] * sp, d[2] * sp, size * 0.12, size * 0.4, 0.9, fireCol, 2.0, 1, exF(delay));
         }
       }
-      if (delay > 0) fx.fire(x, y, z, 0, 0, 0, size * 0.1, size * 0.28, 0.5, fireCol, 0, 1, exF(0));   // 先出現一小團悶光
-      fx.fire(x, y, z, 0, 0, 0, size * 0.2, size * 0.7, 0.35, [1, 0.85, 0.55], 0, 1.3, exF(delay));    // 中心的高亮核心
+      if (delay > 0) fx.fire3(x, y, z, 0, 0, 0, size * 0.1, size * 0.28, 0.5, fireCol, 0, 1, exF(0));   // 先出現一小團悶光
+      fx.fire3(x, y, z, 0, 0, 0, size * 0.2, size * 0.7, 0.35, [1, 0.85, 0.55], 0, 1.3, exF(delay));    // 中心的高亮核心
       // 2) 濃煙：近黑、厚、5~6 秒
-      const lite2 = lite || nCrowd > 18 || (window.G && window.G.fxLow);   // 太擁擠：不放煙／餘燼／碎片
-      const ns = lite2 ? Math.floor(V.smoke_n * 0.3 * lod) : Math.floor(cnt(V.smoke_n) * 0.55), sr = size * V.smoke_size * 0.5;   // 煙是填充率大戶：數量打 55 折
+      const lite2 = flameOnly || lite || nCrowd > 18 || (window.G && window.G.fxLow);   // 太擁擠：不放煙／餘燼／碎片
+      const ns = flameOnly ? 0 : (lite2 ? Math.floor(V.smoke_n * 0.3 * lod) : Math.floor(cnt(V.smoke_n) * 0.55)), sr = size * V.smoke_size * 0.5;   // 煙是填充率大戶：數量打 55 折
       for (let i = 0; i < ns; i++) {
         const p = randDir(), off = size * 0.65 * Math.cbrt(Math.random()), sp = size * V.smoke_v * Math.random();
         const dir = V.jet ? coneDir(jd, 40) : p, born = delay + rnd(0, V.smoke_life * 0.28);
@@ -389,7 +390,7 @@
       // 4) 碎片：黑色薄片，慢速翻滾
       if (!lite2) fx.debris(x, y, z, Math.min(24, cnt(V.deb_n * 0.2)), size * 0.5, size * 0.035);
       // 5) 光源
-      if (typeof boomLight === 'function') boomLight(x, y, z, Math.max(0.8, Math.min(24, size / 12)) * V.light, purple ? [0.7, 0.32, 1.0] : [1.0, 0.55, 0.2]);
+      if (!flameOnly && typeof boomLight === 'function') boomLight(x, y, z, Math.max(0.8, Math.min(24, size / 12)) * V.light, purple ? [0.7, 0.32, 1.0] : [1.0, 0.55, 0.2]);
       // 連爆：接連 N 次小爆（只對距離近的爆炸）
       if (V.chain && !o.noChain && lod > 0.5) {
         for (let i = 0; i < V.chain; i++) fx.later(0.16 * (i + 1) + rnd(0, 0.18), () => fx.explode3(x + rnd(-1, 1) * size * 0.9, y + rnd(-1, 1) * size * 0.9, z + rnd(-1, 1) * size * 0.9, size * 0.55, style, Math.random() < 0.5 ? 0 : 3, { noChain: true }));
@@ -401,7 +402,7 @@
       fx.time += dt;
       beamMat.uniforms.uTime.value = fx.time;
       if (beamDirty) { aA.needsUpdate = aB.needsUpdate = aC.needsUpdate = aP.needsUpdate = true; beamDirty = false; }
-      updateParticles(); updateDebris(dt); updatePuffs(fireSys); updatePuffs(smokeSys);
+      updateParticles(); updateDebris(dt); updatePuffs(fireSys); updatePuffs(fire3Sys); updatePuffs(smokeSys);
       if (fx.onUpdate) fx.onUpdate(dt);
       for (let i = queue.length - 1; i >= 0; i--) if (queue[i].t <= fx.time) { const f = queue[i].fn; queue.splice(i, 1); f(); }
     };

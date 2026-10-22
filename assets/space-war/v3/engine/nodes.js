@@ -75,7 +75,48 @@ export function particleMaterial() {
 }
 
 /* ───────── 體積火球／煙霧（對應 v1 的 VOL_VS / FIRE_FS / SMOKE_FS） ───────── */
+/* v2 原版體積火球／煙霧（艦艇爆炸、飛彈火光／煙霧／體積雲都用這個） */
 export function puffMaterial(kind) {
+  const aPos = attribute('aPos', 'vec3'), aVel = attribute('aVel', 'vec3'), aC = attribute('aC', 'vec3'), aT = attribute('aT', 'vec4'), aS = attribute('aS', 'vec2'), aSeed = attribute('aSeed', 'float');
+  const uTime = uniform(0);
+  const age = uTime.sub(aT.x), a = clamp(age.div(aT.y), 0.0, 1.0), dr = aT.z;
+  const travel = select(dr.greaterThan(0.001), oneMinus(exp(dr.negate().mul(age))).div(max(dr, 1e-4)), age);
+  const e = oneMinus(pow(oneMinus(a), 2.2)), size = aS.x.add(aS.y.sub(aS.x).mul(e));
+  const dead = age.lessThan(0.0).or(age.greaterThan(aT.y));
+  const clipPos = Fn(() => {
+    const mv = cameraViewMatrix.mul(vec4(aPos.add(aVel.mul(travel)), 1.0)).toVar(), s = min(size, float(2.2).mul(max(1.0, mv.z.negate())).div(cameraProjectionMatrix.element(1).y));
+    mv.xy.addAssign(positionLocal.xy.mul(s).mul(2.0));
+    return cameraProjectionMatrix.mul(vec4(mv.xyz, 1.0));
+  })();
+  const isFire = kind === 'fire';
+  const m = fxMaterial({ blending: isFire ? ADD : W.NormalBlending });
+  m.vertexNode = select(dead, vec4(2.0, 2.0, 2.0, 1.0), clipPos);
+  const vUv = varying(positionLocal.xy.mul(2.0), 'vVU'), vD = varying(vec4(a, size, aSeed, aT.w), 'vVD'), vC = varying(aC, 'vVC');
+  m.colorNode = isFire ? Fn(() => {
+    const r = length(vUv); If(r.greaterThan(1.0), () => { Discard(); });
+    const age = vD.x, q = vUv.mul(1.5).add(vec2(vD.z.mul(13.1), vD.z.mul(7.7)));
+    const n = fbm2(q.add(vec2(0.0, age.mul(-1.4)))), n2 = fbm2(q.mul(2.1).sub(age.mul(0.9)).add(4.0)), core = oneMinus(r);
+    const dens = smoothstep(0.0, 0.5, n.mul(0.9).add(n2.mul(0.4)).add(core.mul(1.2)).sub(0.5).sub(age.mul(0.6)));
+    If(dens.lessThan(0.01), () => { Discard(); });
+    const heat = clamp(core.mul(1.15).add(n.mul(0.55)).sub(age.mul(1.15)), 0.0, 1.0);
+    const hot = vec3(1.0, 0.9, 0.7).mul(3.3), mid = vC.mul(1.9), cool = vC.mul(vec3(0.55, 0.14, 0.08)).mul(0.8);
+    const col = mix(mix(cool, mid, smoothstep(0.1, 0.55, heat)), hot, smoothstep(0.62, 1.0, heat));
+    return vec4(col.mul(dens).mul(pow(oneMinus(age), 1.3)).mul(vD.w), 1.0);
+  })() : Fn(() => {
+    const r = length(vUv); If(r.greaterThan(1.0), () => { Discard(); });
+    const age = vD.x, q = vUv.mul(1.3).add(vec2(vD.z.mul(5.3), vD.z.mul(11.9)));
+    const n = fbm2(q.sub(age.mul(0.4))), n2 = fbm2(q.mul(2.3).add(3.0));
+    const dens = smoothstep(0.05, 0.6, n.mul(0.9).add(n2.mul(0.35)).add(oneMinus(r).mul(0.9)).sub(0.62));
+    If(dens.lessThan(0.01), () => { Discard(); });
+    const lit = n2.mul(0.8).add(0.6), col = mix(vec3(0.075, 0.07, 0.068).mul(lit), vC.mul(0.42), pow(oneMinus(age), 2.2).mul(oneMinus(r.mul(0.6))));
+    return vec4(col, dens.mul(0.78).mul(pow(oneMinus(age), 0.7)).mul(vD.w));
+  })();
+  m.uniforms = { uTime };
+  return m;
+}
+
+/* ───────── 引擎光暈 / 星點 / 太空塵（原本是 Points；改成實例化方形精靈） ───────── */
+export function puffMaterial3(kind) {
   const aPos = attribute('aPos', 'vec3'), aVel = attribute('aVel', 'vec3'), aC = attribute('aC', 'vec3'), aT = attribute('aT', 'vec4'), aS = attribute('aS', 'vec2'), aSeed = attribute('aSeed', 'float');
   const aX = attribute('aX', 'vec2'), aCen = attribute('aCen', 'vec3');   // aX：火＝(先橘後紫旗標, 純紫旗標)，煙＝(先橘後紫旗標, 火光影響半徑)；aCen：爆炸中心（煙的受光方向）
   const uTime = uniform(0);
