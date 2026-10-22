@@ -141,11 +141,13 @@ func _make_environment() -> void:
 	key.light_energy = 0.95
 	key.rotation_degrees = Vector3(-35, 140, 0)
 	key.shadow_enabled = false
+	key.name = "KeyLight"
 	add_child(key)
 	var rim := DirectionalLight3D.new()   # 側後方粉紅補光（弱）
 	rim.light_color = Color(1.0, 0.45, 0.6)
 	rim.light_energy = 0.3
 	rim.rotation_degrees = Vector3(25, -40, 0)
+	rim.name = "RimLight"
 	add_child(rim)
 
 func _make_tomb() -> void:

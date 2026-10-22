@@ -1,0 +1,20 @@
+{
+ "_doc": "V1 光照參數（docs/space-war/GODOT-VISUAL-PLAN.md 階段 V1）。顏色為 0~1 的 RGB；rot 為光源的旋轉角（度）。改這裡不用改程式；遊戲中 F5 切換新舊光照做 A/B 比較。",
+ "key": {"color": [1.0, 0.95, 0.88], "energy": 1.15, "rot": [-35, 140, 0]},
+ "rim": {"color": [1.0, 0.45, 0.6], "energy": 0.3, "rot": [25, -40, 0]},
+ "fill": {"color": [0.45, 0.55, 0.8], "energy": 0.12, "rot": [40, -40, 0]},
+ "ambient": {"color": [0.32, 0.38, 0.5], "energy": 0.5, "sky_contribution": 0.4},
+ "sky_reflection": {"lobe": 1.6, "lobe_power": 5.0, "floor": [0.06, 0.07, 0.1], "radiance_size": 256},
+ "shadow": {
+  "bias": 0.03,
+  "normal_bias": 1.5,
+  "blur": 1.0,
+  "pancake": 2000,
+  "fade_start": 0.85,
+  "quality": [
+   {"on": true, "max_distance": 9000, "splits": [0.015, 0.06, 0.25], "atlas": 8192, "explosion_lights": 2},
+   {"on": true, "max_distance": 6000, "splits": [0.02, 0.08, 0.3], "atlas": 4096, "explosion_lights": 1},
+   {"on": false, "max_distance": 0, "splits": [0.1, 0.2, 0.5], "atlas": 2048, "explosion_lights": 0}
+  ]
+ }
+}

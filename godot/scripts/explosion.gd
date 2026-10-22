@@ -2,6 +2,7 @@ class_name Explosion
 extends Node3D
 ## 艦艇爆炸（Squadron 42 風）：多團花椰菜火球（錯時冒出）＋短命暖光源＋火花雨＋逆光碎片剪影＋濃煙＋餘燼。
 ## 用法：Explosion.spawn(parent, 世界座標, 尺寸)   尺寸≈船長的一半（巡洋艦約 200、護衛艦約 45）。
+const Lighting = preload("res://scripts/lighting.gd")
 
 static var _fire_mat: ShaderMaterial
 static var _smoke_mat: ShaderMaterial
@@ -20,6 +21,8 @@ const LOD_FAR := 24000.0
 static var active_count := 0
 static var budget_enabled := false   # 預設關閉（想要大混戰更混亂）；按 P 切換。展示牆也會暫時關閉
 static var light_count := 0
+static var shadow_max := 0     # 由 Lighting 依畫質設定：最近的幾盞爆炸光源投出艦體陰影（貴，所以限量）
+static var shadow_count := 0
 
 static func _lod_for(parent: Node, pos: Vector3, size: float) -> float:
 	var cam := parent.get_viewport().get_camera_3d() if parent.get_viewport() else null
@@ -309,6 +312,12 @@ static func spawn(parent: Node, pos: Vector3, size: float, style: int = 0, varia
 	l.omni_range = size * 7.0
 	l.omni_attenuation = 1.2
 	l.light_energy = 0.0
+	if want_light and shadow_count < shadow_max and lod > 0.85:
+		shadow_count += 1
+		l.shadow_enabled = true
+		l.shadow_caster_mask = Lighting.SHADOW_MASK
+		l.shadow_normal_bias = 1.5
+		get_tree_delay(parent, 2.2 + delay, func(): shadow_count = maxi(shadow_count - 1, 0))
 	if want_light:
 		root.add_child(l)
 	if style == 2 and want_light:   # 光色也由橘轉紫
