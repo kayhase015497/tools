@@ -3,19 +3,20 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://mdh2aswct4kd"
-path="res://.godot/imported/cruiser_xz_basecolor_graded_rough.png-6c853f6fa2fb584088979816b555e917.ctex"
+path.s3tc="res://.godot/imported/cruiser_xz_basecolor_graded_rough.png-6c853f6fa2fb584088979816b555e917.s3tc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/models/cruiser_xz_basecolor_graded_rough.png"
-dest_files=["res://.godot/imported/cruiser_xz_basecolor_graded_rough.png-6c853f6fa2fb584088979816b555e917.ctex"]
+dest_files=["res://.godot/imported/cruiser_xz_basecolor_graded_rough.png-6c853f6fa2fb584088979816b555e917.s3tc.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0

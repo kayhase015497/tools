@@ -222,7 +222,7 @@ function killShip(s, src) {
   if (big && window.SWBreakup) SWBreakup.spawn(s, style);
   if (big) {
     const n = Math.min(14, 3 + Math.floor(d.boom / 2));
-    for (let i = 0; i < n; i++) { const dx = rnd(-1, 1) * s.rad, dy = rnd(-0.5, 0.5) * s.rad, dz = rnd(-1, 1) * s.rad; fx.later(0.2 + i * rnd(0.15, 0.4), () => fx.explode3(s.x + dx, s.y + dy, s.z + dz, boomSize * rnd(0.25, 0.5), style, [0, 3, 4][(Math.random() * 3) | 0], { noChain: true })); }
+    for (let i = 0; i < n; i++) { const dx = rnd(-1, 1) * s.rad, dy = rnd(-0.5, 0.5) * s.rad, dz = rnd(-1, 1) * s.rad; fx.later(0.2 + i * rnd(0.15, 0.4), () => fx.explode3(s.x + dx, s.y + dy, s.z + dz, boomSize * rnd(0.4, 0.75), style, [0, 3, 4][(Math.random() * 3) | 0], { noChain: true })); }
     if (G.doom === 0) say(d.name + ' destroyed' + (s.side === 'a' ? ' · ' + s.cs : ''), d.name + ' 被擊毀' + (s.side === 'a' ? ' · ' + s.cs : ''), s.side === 'a');
   }
   FPVAudio.explode(d.boom, s);

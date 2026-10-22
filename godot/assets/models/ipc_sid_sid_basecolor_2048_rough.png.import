@@ -3,19 +3,20 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://diqht2g35xriy"
-path="res://.godot/imported/ipc_sid_sid_basecolor_2048_rough.png-72432e52491d78c21f6b2129f55c901b.ctex"
+path.s3tc="res://.godot/imported/ipc_sid_sid_basecolor_2048_rough.png-72432e52491d78c21f6b2129f55c901b.s3tc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/models/ipc_sid_sid_basecolor_2048_rough.png"
-dest_files=["res://.godot/imported/ipc_sid_sid_basecolor_2048_rough.png-72432e52491d78c21f6b2129f55c901b.ctex"]
+dest_files=["res://.godot/imported/ipc_sid_sid_basecolor_2048_rough.png-72432e52491d78c21f6b2129f55c901b.s3tc.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0

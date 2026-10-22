@@ -145,6 +145,19 @@ var mouse_dx := 0.0
 var mouse_dy := 0.0
 var pl := {}                # 玩家狀態
 var autoplay := false
+# 畫質：0 高、1 平衡（預設）、2 低。影響 POM、爆炸預算、殘骸數量、3D 解析度、泛光；另有動態解析度（幀時間過長自動降 3D 縮放）
+var quality := 1
+var gov_on := true
+var gov_t := 0.0
+var gov_acc := 0.0
+var gov_n := 0
+var gov_up_t := 0.0
+var scale3d := 1.0
+var hud_tick := 0.0
+var prof := {}
+var prof_on := false
+var prof_t := 0.0
+var prof_n := 0
 # 劇本／介面狀態
 var data: Dictionary = {}
 var game_mode := "free"      # "script"（5 分鐘劇本）／"free"（無限）
@@ -174,6 +187,10 @@ var wave_ring: MeshInstance3D
 var sky_mat: ShaderMaterial
 var menu_t := 0.0
 var sky_doom := 0.0
+var cockpit: Node3D
+var radio_lines: Array = []
+var radio_gate := 0.0
+var radio_last := {}
 const SWORD_END_Y := 1500.0 - 55.0 * 34.0
 const WAVE_Z := -15500.0 + 1800.0
 var sfx := {}              # 名稱 → [AudioStream]
@@ -195,6 +212,7 @@ func _ready() -> void:
 	_make_shot_render()
 	_make_pools()
 	_make_cam_hud()
+	_make_cockpit()
 	_make_audio()
 	tomb_t = BShip.new()
 	tomb_t.is_tomb = true
@@ -204,6 +222,7 @@ func _ready() -> void:
 	tomb_t.hp = 1e9
 	tomb_t.hp_max = 1e9
 	_load_data()
+	apply_quality(quality)
 	_make_doom()
 	_find_sky()
 	voice_player = AudioStreamPlayer.new()
@@ -223,10 +242,61 @@ func _ready() -> void:
 				if b_.begins_with("--lang="): l_ = b_.substr(7)
 			start_game(a_.substr(13), l_, "follow")
 	menu_cam(0.0)
+	prof_on = "--prof" in OS.get_cmdline_user_args()
 	autoplay = "--autoplay" in OS.get_cmdline_user_args()
 	big_step = "--bigstep" in OS.get_cmdline_user_args()
 	print("[battle] ready allies=", allies.size(), " enemies=", enemies.size())
 
+
+
+# ───────────── 畫質與動態解析度 ─────────────
+func apply_quality(q: int) -> void:
+	quality = q
+	var pom_dist: float = [3200.0, 1400.0, 0.0][q]
+	for m in _hull_mats:
+		m.set_shader_parameter("lod_distance", pom_dist)
+		m.set_shader_parameter("bump_strength", ([1.2, 0.8, 0.0] as Array)[q])
+		m.set_shader_parameter("wear", ([0.55, 0.4, 0.0] as Array)[q])
+	pom_on = q < 2
+	Explosion.budget_enabled = q >= 1
+	Explosion.MAX_ACTIVE_PUB = ([14, 8, 5] as Array)[q]
+	Breakup.MAX_ACTIVE = ([14, 8, 4] as Array)[q]
+	for c in get_children():
+		if c is WorldEnvironment:
+			var e: Environment = (c as WorldEnvironment).environment
+			if e != null:
+				e.glow_enabled = q < 2
+	if q == 2:
+		scale3d = minf(scale3d, 0.8)
+	_set_scale(scale3d)
+	note("GRAPHICS: " + (["HIGH", "BALANCED", "LOW"] as Array)[q])
+
+func _set_scale(v: float) -> void:
+	scale3d = clampf(v, 0.55, 1.0)
+	get_viewport().scaling_3d_scale = scale3d
+
+func _governor(dt_real: float) -> void:
+	if not gov_on or not started:
+		return
+	gov_acc += dt_real
+	gov_n += 1
+	gov_t += dt_real
+	if gov_t < 2.0:
+		return
+	var avg := gov_acc / maxf(gov_n, 1)
+	gov_acc = 0.0
+	gov_n = 0
+	gov_t = 0.0
+	if avg > 0.030 and scale3d > 0.56:   # 平均 > 30 ms：降 3D 解析度
+		_set_scale(scale3d - 0.1)
+		gov_up_t = 0.0
+	elif avg < 0.0165:
+		gov_up_t += 2.0
+		if gov_up_t >= 10.0 and scale3d < 1.0:   # 連續 10 秒 < 16.5 ms：升回去
+			_set_scale(scale3d + 0.1)
+			gov_up_t = 0.0
+	else:
+		gov_up_t = 0.0
 
 # ───────────── 資料與開局 ─────────────
 func _load_data() -> void:
@@ -258,6 +328,8 @@ func start_game(mode_: String, lang_: String, voice_: String) -> void:
 	for a_ in OS.get_cmdline_user_args():
 		if a_.begins_with("--t0="):
 			gt = float(a_.substr(5))
+	if "--cockpit" in OS.get_cmdline_user_args():
+		cam_mode = 1
 	if not ("--demo-cam" in OS.get_cmdline_user_args()):
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
@@ -385,6 +457,8 @@ func _load_fleets() -> void:
 		var aabb := _merged_aabb(root)
 		var sc := float(spec[1]) / maxf(aabb.size.z, 0.001)
 		var center := aabb.get_center()
+		var cp_node := root.find_child("HP_COCKPIT", true, false)
+		var cp_pos := (cp_node as Node3D).global_position if cp_node != null else Vector3(0, 0, 0)
 		root.queue_free()
 		var cap: int = int(spec[3])
 		var parts: Array = []
@@ -402,7 +476,7 @@ func _load_fleets() -> void:
 			mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			add_child(mmi)
 			parts.append({"mm": mm, "local": p["local"]})
-		fleets[kind] = {"parts": parts, "sc": sc, "center": center, "cap": cap}
+		fleets[kind] = {"parts": parts, "sc": sc, "center": center, "cap": cap, "cockpit": cp_pos}
 
 func _make_shot_render() -> void:
 	shot_mm = MultiMesh.new()
@@ -465,6 +539,17 @@ func _make_pools() -> void:
 		add_child(sp)
 		node.visible = false
 		beam_pool.append({"node": node, "mats": quads, "sparks": sp, "used": false})
+
+func _make_cockpit() -> void:
+	var ps := load("res://assets/models/cockpit.glb") as PackedScene
+	if ps == null:
+		return
+	cockpit = ps.instantiate() as Node3D
+	cockpit.rotation.y = PI   # 駕駛艙模型的前方是 +Z，相機看向 -Z
+	cockpit.visible = false
+	cam.add_child(cockpit)
+	for m in cockpit.find_children("*", "MeshInstance3D", true, false):
+		(m as MeshInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
 func _make_cam_hud() -> void:
 	cam = Camera3D.new()
@@ -577,6 +662,42 @@ func basis_of(s: BShip) -> Basis:
 		c0 = a
 	return Basis(c0, c1, c2)
 
+func _callsign(kind: String, id: int) -> String:
+	if kind == "fgt":
+		var cs: Array = data["CS_FIGHTER"]
+		return "%s %d-%d" % [cs[randi() % cs.size()], 1 + randi() % 9, 1 + randi() % 6]
+	if kind == "hss":
+		return "HSS Command"
+	if kind == "moon":
+		return "Screwllum-%d" % (1 + randi() % 3)
+	if kind == "awacs":
+		return "IPC SID-%d" % (1 + id % 9)
+	var sh: Array = data["CS_SHIP"]
+	return "%s-%02d" % [sh[randi() % sh.size()], 1 + randi() % 98]
+
+# 無線電：友軍的鎖定／追擊／中彈／最後通訊／擊落台詞（只在玩家附近、有冷卻；ja／ko 沒有翻譯，顯示英文）
+func radio_say(u: BShip, cat: String, force: bool = false) -> void:
+	if not started or doom > 0 or pl.is_empty() or pl["dead"] or not data.has("RADIO"):
+		return
+	var dist: float = u.pos.distance_to((pl["ship"] as BShip).pos)
+	if not force and dist > (7000.0 if u.d["cls"] == "fgt" else 9000.0):
+		return
+	var now := Time.get_ticks_msec() / 1000.0
+	if not force:
+		if now < radio_gate:
+			return
+		if radio_last.has(u.id) and now - float(radio_last[u.id]) < 6.0:
+			return
+		if (cat == "lock" or cat == "pursue" or cat == "kill") and randf() > 0.35:
+			return
+	radio_gate = now + 0.9
+	radio_last[u.id] = now
+	var arr: Array = data["RADIO"][cat]
+	var line: Array = arr[randi() % arr.size()]
+	radio_lines.append({"t": now, "cs": ("✕ " if cat == "final" else "") + u.cs, "text": str(line[1]) if lang == "zh" else str(line[0]), "cat": cat, "life": 11.0 if cat == "final" else 8.0})
+	while radio_lines.size() > 6:
+		radio_lines.pop_front()
+
 func mk_ship(kind: String, pos: Vector3, h: float = 0.0, k: float = 1.0) -> BShip:
 	var d: Dictionary = DEF[kind]
 	var s := BShip.new()
@@ -595,7 +716,7 @@ func mk_ship(kind: String, pos: Vector3, h: float = 0.0, k: float = 1.0) -> BShi
 	s.sh_max = s.sh
 	ship_n += 1
 	s.id = ship_n
-	s.cs = "%s-%02d" % [kind.to_upper(), s.id % 100]
+	s.cs = _callsign(kind, s.id)
 	if s.side == 0:
 		allies.append(s)
 	else:
@@ -900,6 +1021,9 @@ func damage(s: BShip, dmg: float, pos: Vector3, src: BShip) -> void:
 		if dmg <= 0.0:
 			return
 	s.hp -= dmg
+	if s.side == 0 and s.hp > 0.0 and s.hp < s.hp_max * 0.5 and not s.hit_called:
+		s.hit_called = true
+		radio_say(s, "hit")
 	if s.hp <= 0.0:
 		_kill(s, src)
 
@@ -912,6 +1036,8 @@ func _kill(s: BShip, src: BShip) -> void:
 		kills += 1
 		if src.is_player:
 			pl["kills"] += 1
+		elif src.kind == "fgt" and randf() < 0.4:
+			radio_say(src, "kill")
 	var style := 1 if s.side == 1 else 0
 	var size := clampf(length * 0.35, 25.0, 300.0)
 	var frag: String = KMODEL[s.kind][2] if KMODEL.has(s.kind) else ""
@@ -930,6 +1056,8 @@ func _kill(s: BShip, src: BShip) -> void:
 		for u in allies:
 			u.aw_tgt = null
 		pl["suggest"] = null
+	if s.side == 0 and not s.is_player:
+		radio_say(s, "final")
 	if s.is_player:
 		return
 	if pl.has("target") and pl["target"] == s:
@@ -1204,6 +1332,7 @@ func ai_fighter(s: BShip, dt: float) -> void:
 	var o: Dictionary = active_order(s) if s.side == 0 else {}
 	s.mt -= dt
 	var tg := s.tgt
+	var old_tg := s.tgt
 	var spd := s.spd if s.spd > 0.0 else float(d["spd"])
 	if not o.is_empty() and (o["type"] == "focus" or o["type"] == "tomb"):
 		tg = (_tomb_target(s.pos) if o["type"] == "tomb" else o["tgt"])
@@ -1235,6 +1364,8 @@ func ai_fighter(s: BShip, dt: float) -> void:
 				tg = nearest(s.pos, allies, 9000.0, func(e): return e.d["hp"] > 1000.0)
 			if tg == null:
 				tg = nearest(s.pos, allies, 12000.0)
+		if s.side == 0 and tg != null and tg != old_tg:
+			radio_say(s, "lock")
 		s.tgt = tg
 		s.mt = rr(4, 9)
 	if tg == null:
@@ -1260,6 +1391,10 @@ func ai_fighter(s: BShip, dt: float) -> void:
 		exclude(s, TOMB_AURA - 300.0)
 	if err < 0.1 and dist < (1100.0 if big else 900.0):
 		fighter_fire(s, tg, dt)
+		if gt - s.pursued > 14.0:
+			s.pursued = gt
+			if s.side == 0:
+				radio_say(s, "pursue")
 	else:
 		s.cd -= dt
 	if dist < (tg.rad * 0.7 + 90.0 if big else 120.0):
@@ -1959,6 +2094,7 @@ func _process(delta: float) -> void:
 		_update_cam(delta)
 		bhud.queue_redraw()
 		return
+	_governor(delta)
 	var dt := minf(delta, 0.2 if big_step else 0.05)
 	gt += dt
 	if game_mode == "script":
@@ -1985,7 +2121,10 @@ func _process(delta: float) -> void:
 	if gt - last_alloc > 2.0:
 		last_alloc = gt
 		_allocate_targets()
+	var t0 := Time.get_ticks_usec()
 	_build_grid()
+	_pf("grid", t0)
+	t0 = Time.get_ticks_usec()
 	for s in allies:
 		if s.dead or s.is_player:
 			continue
@@ -2002,14 +2141,21 @@ func _process(delta: float) -> void:
 			ai_fighter(s, dt)
 		else:
 			ai_capital(s, dt)
+	_pf("ai", t0)
+	t0 = Time.get_ticks_usec()
 	_separate_caps()
 	_step_player(dt)
+	_pf("caps+player", t0)
+	t0 = Time.get_ticks_usec()
 	_step_shots(dt)
+	_pf("shots", t0)
+	t0 = Time.get_ticks_usec()
 	_step_bubbles(dt)
 	_step_beams(dt)
 	_step_shields(dt)
 	_step_flashes(dt)
 	_step_damage_fx(dt)
+	_pf("beams+fx", t0)
 	allies = allies.filter(func(s): return not s.dead)
 	enemies = enemies.filter(func(s): return not s.dead)
 	if not pl.is_empty() and pl["target"] != null and (pl["target"] as BShip).dead:
@@ -2019,11 +2165,31 @@ func _process(delta: float) -> void:
 	if stats_t >= 10.0 and "--stats" in OS.get_cmdline_user_args():
 		stats_t = 0.0
 		print("[stats] t=%.0f allies=%d enemies=%d kills=%d shots=%d beams=%d wave=%d player_hull=%.0f msl=%d" % [gt, allies.size(), enemies.size(), kills, shots.size(), bbeams.size(), wave, pl["hull"], pl["missiles"]])
+	t0 = Time.get_ticks_usec()
 	_render_ships()
 	_render_shots()
+	_pf("render", t0)
 	_update_doom_visuals(dt)
 	_update_cam(dt)
-	bhud.queue_redraw()
+	hud_tick += delta
+	if hud_tick >= 0.033:   # HUD 以約 30 Hz 重繪（文字排版很耗 CPU），畫面保留上一幀內容
+		hud_tick = 0.0
+		bhud.queue_redraw()
+	if prof_on:
+		prof_n += 1
+		prof_t += dt
+		if prof_t >= 5.0:
+			var line := "[prof] frames=%d shots=%d ships=%d fps=%d |" % [prof_n, shots.size(), allies.size() + enemies.size(), Engine.get_frames_per_second()]
+			for k in prof.keys():
+				line += " %s=%.2fms" % [k, float(prof[k]) / 1000.0 / maxf(prof_n, 1)]
+			print(line)
+			prof = {}
+			prof_t = 0.0
+			prof_n = 0
+
+func _pf(key: String, t0: int) -> void:
+	if prof_on:
+		prof[key] = float(prof.get(key, 0.0)) + float(Time.get_ticks_usec() - t0)
 
 # ───────────── 劇本：時間軸、字幕、配音、演出 ─────────────
 func cues_now() -> Array:
@@ -2218,13 +2384,18 @@ func _update_cam(dt: float) -> void:
 	var bas := Basis(s.q)
 	var target_pos: Vector3
 	if cam_mode == 1:
-		target_pos = s.pos + bas.z * 4.0 + bas.y * 1.2
+		var fk: Dictionary = fleets["fgt"]
+		target_pos = s.pos + bas * (((fk["cockpit"] as Vector3) - (fk["center"] as Vector3)) * float(fk["sc"]))
 	else:
 		target_pos = s.pos - bas.z * 34.0 + bas.y * 9.0
 	cam_pos_s = cam_pos_s.lerp(target_pos, 1.0 - exp(-dt * 12.0)) if cam_mode == 0 else target_pos
 	var sh := Vector3(randf_range(-1, 1), randf_range(-1, 1), randf_range(-1, 1)) * cam_shake * 0.4
 	cam.global_transform = Transform3D(bas * Basis(Vector3.UP, PI), cam_pos_s + sh)
 	cam.fov = 70.0 + (6.0 if pl["boost"] else 0.0)
+	var in_cp: bool = cam_mode == 1 and not pl["dead"] and doom == 0
+	cam.near = 0.05 if in_cp else 1.0
+	if cockpit != null:
+		cockpit.visible = in_cp
 
 # ───────────── 輸入 ─────────────
 func _input(e: InputEvent) -> void:
@@ -2261,6 +2432,10 @@ func _input(e: InputEvent) -> void:
 					bgm.stream_paused = not music_on
 			KEY_P:
 				Explosion.budget_enabled = not Explosion.budget_enabled
+			KEY_K:
+				_toggle_pom()
 			KEY_F3:
-				var sc := get_viewport().scaling_3d_scale
-				get_viewport().scaling_3d_scale = 1.0 if sc < 1.0 else 0.75
+				gov_on = not gov_on
+				note("DYNAMIC RESOLUTION: " + ("ON" if gov_on else "OFF"))
+			KEY_F4:
+				apply_quality((quality + 1) % 3)
