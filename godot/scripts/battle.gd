@@ -202,6 +202,7 @@ var bgm: AudioStreamPlayer
 var music_on := true
 var big_step := false
 var stats_t := 0.0
+var sky_style := 0           # 0＝粉紫／藍星雲（原本）、1＝參考圖風格（深灰黑＋褐色塵帶）；F6 切換、--sky=1
 var lookdev: Node = null      # V0 固定鏡頭組（--lookdev）：鏡頭由 lookdev.gd 控制
 
 # ───────────── 啟動 ─────────────
@@ -235,6 +236,9 @@ func _ready() -> void:
 	apply_quality(quality)
 	_make_doom()
 	_find_sky()
+	for a_ in OS.get_cmdline_user_args():
+		if a_.begins_with("--sky="):
+			_set_sky(int(a_.substr(6)))
 	voice_player = AudioStreamPlayer.new()
 	add_child(voice_player)
 	ui = load("res://scripts/battle_ui.gd").new()
@@ -289,6 +293,11 @@ func apply_quality(q: int) -> void:
 		scale3d = minf(scale3d, 0.8)
 	_set_scale(scale3d)
 	note("GRAPHICS: " + (["HIGH", "BALANCED", "LOW"] as Array)[q])
+
+func _set_sky(style: int) -> void:
+	sky_style = style
+	if sky_mat != null:
+		sky_mat.set_shader_parameter("sky_style", style)
 
 func _set_scale(v: float) -> void:
 	scale3d = clampf(v, 0.55, 1.0)
@@ -2461,3 +2470,6 @@ func _input(e: InputEvent) -> void:
 			KEY_F5:
 				Lighting.apply(self, not Lighting.enabled, quality)
 				note("LIGHTING: " + ("V1" if Lighting.enabled else "OLD"))
+			KEY_F6:
+				_set_sky(1 - sky_style)
+				note("SKY: " + ("DUST (reference)" if sky_style == 1 else "NEBULA (classic)"))

@@ -19,10 +19,10 @@ var rows: Array = []
 # 鏡頭：kind／side＝挑哪一種艦；off／look＝以「艦長」為單位、艦艇本地座標（x 右、y 上、z 艦首）的鏡頭位置與注視點
 const SHOTS := [
 	{"id": "01", "name": "hss_hero", "kind": "hss", "side": 0, "off": [0.55, 0.16, 0.2], "look": [0.0, 0.0, -0.05], "fov": 50.0},
-	{"id": "02", "name": "cruiser_close", "kind": "cruis", "side": 0, "off": [0.85, 0.28, 0.55], "look": [0.0, 0.0, 0.0], "fov": 50.0},
+	{"id": "02", "name": "cruiser_close", "kind": "cruis", "side": 0, "off": [0.5, 0.17, 0.32], "look": [0.0, 0.0, 0.0], "fov": 45.0},
 	{"id": "03", "name": "enemy_carrier", "kind": "whale", "side": 1, "off": [-0.9, 0.35, 0.6], "look": [0.0, 0.0, 0.0], "fov": 50.0},
 	{"id": "04", "name": "fleet_wide", "fixed": true, "fov": 60.0},
-	{"id": "05", "name": "explosion_near_ship", "kind": "cruis", "side": 0, "off": [1.6, 0.4, 0.9], "look": [0.2, 0.0, 0.0], "fov": 50.0, "boom": true},
+	{"id": "05", "name": "explosion_near_ship", "kind": "cruis", "side": 0, "off": [0.9, 0.3, 0.55], "look": [0.1, 0.1, -0.05], "fov": 50.0, "boom": true},
 	{"id": "06", "name": "irontomb", "tomb": true, "fov": 55.0},
 	{"id": "07", "name": "combat_chase", "combat": 25.0},
 	{"id": "08", "name": "cockpit", "cockpit": true},
@@ -103,10 +103,11 @@ func _place(shot: Dictionary) -> bool:
 func _capture(shot: Dictionary, lit_on: bool) -> Array:
 	Lighting.apply(battle, lit_on, battle.quality)
 	await _frames(SETTLE_FRAMES)
-	if shot.get("boom", false) and shot.has("_ship"):   # 爆炸：在艦側 0.35 艦長處引爆，0.6 秒後拍
+	if shot.get("boom", false) and shot.has("_ship"):   # 爆炸：在艦體上方偏艦尾（不擋住艦體、火光照在朝鏡頭的那面），0.6 秒後拍
 		var s = shot["_ship"]
 		var b: Basis = battle.basis_of(s)
-		Explosion.spawn(battle, s.pos + b * (Vector3(0.45, 0.1, 0.1) * float(shot["_L"])), 70.0, 0, 0)
+		seed(SEED)   # A／B 兩次爆炸長得一樣，才能比較
+		Explosion.spawn(battle, s.pos + b * (Vector3(0.18, 0.3, -0.2) * float(shot["_L"])), 40.0, 0, 0)
 		await get_tree().create_timer(0.6).timeout
 	var img := get_viewport().get_texture().get_image()
 	var m: Array = await _measure()
@@ -144,7 +145,7 @@ func _run() -> void:
 		_save_pair(shot, a, bb)
 	var f := FileAccess.open(out_dir.path_join("report.csv"), FileAccess.WRITE)
 	f.store_line("shot,lighting,gpu_ms,cpu_ms")
-	var txt := "Space War lookdev  %s\nGPU: %s (%s)\nresolution: %s  3D scale: %.2f  quality: %d\n\n" % [Time.get_datetime_string_from_system(), RenderingServer.get_video_adapter_name(), RenderingServer.get_video_adapter_api_version(), str(get_viewport().get_visible_rect().size), get_viewport().scaling_3d_scale, battle.quality]
+	var txt := "Space War lookdev  %s\nGPU: %s (%s)\nresolution: %s  3D scale: %.2f  quality: %d  sky: %d\n\n" % [Time.get_datetime_string_from_system(), RenderingServer.get_video_adapter_name(), RenderingServer.get_video_adapter_api_version(), str(get_viewport().get_visible_rect().size), get_viewport().scaling_3d_scale, battle.quality, battle.sky_style]
 	txt += "%-22s %10s %10s %10s\n" % ["shot", "A old GPU", "B V1 GPU", "diff"]
 	for r in rows:
 		f.store_line("%s,old,%.2f,%.2f" % [r["name"], r["a"][0], r["a"][1]])
