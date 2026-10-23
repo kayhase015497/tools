@@ -60,3 +60,8 @@ tools/
 ### 常用外部資源（CDN）
 - D3.js v7：`https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js`
 - Google Fonts：Noto Sans TC / Space Mono
+
+## 太空戰專案目標（使用者 2026-10-24 指定，務必記住）
+- **以網頁 v2 版（`gadget/space-war-battle-v2.html`）為基礎，大幅提升畫面品質。** Godot 版（`godot/`）是這個目標的載體：玩法、劇本、UI 以 v2 為準，畫面要明顯超越 v2。
+- 分工：Claude 全權推進 Godot 畫質提升版（自行實作、驗證、合併），使用者只負責試玩並回饋；每批更新 Godot `BUILD` 版號（HUD 右上／標題選單可見），網頁 v3 則看 F3 面板的 `v3 build N`。
+- 規劃與進度：`docs/space-war/GODOT-VISUAL-PLAN.md`；網頁 v2 凍結為基準，不改動。
