@@ -34,9 +34,6 @@ func _draw() -> void:
 func _draw_all() -> void:
 	if battle == null or not battle.started:
 		return
-	if battle.bpaused:
-		draw_rect(Rect2(Vector2.ZERO, size), Color(0, 0, 0, 0.55))
-		draw_string(_font(), Vector2(0, size.y * 0.5), "PAUSED  ·  Esc to resume", HORIZONTAL_ALIGNMENT_CENTER, size.x, 36, Color.WHITE)
 	if battle.pl.is_empty() or not battle.hud_on:
 		return
 	var vp := size
@@ -152,7 +149,7 @@ func _draw_all() -> void:
 		draw_rect(Rect2(vp.x - 330, 58, 320, 8), Color(0, 0, 0, 0.5))
 		draw_rect(Rect2(vp.x - 330, 58, 320.0 * bf, 8), Color(1.0, 0.3, 0.4))
 	var fps := Engine.get_frames_per_second()
-	_txt(Vector2(vp.x - 330, 22), "FPS %d   ALLIES %d   LEGION %d   KILLS %d   WAVE %d" % [fps, battle.allies.size(), battle.enemies.size(), battle.kills, battle.wave], 14, Color(0.7, 0.95, 0.9, 0.9), HORIZONTAL_ALIGNMENT_RIGHT, 320.0)
+	_txt(Vector2(vp.x - 520, 22), "GODOT build %d   FPS %d   ALLIES %d   LEGION %d   KILLS %d   WAVE %d" % [battle.BUILD, fps, battle.allies.size(), battle.enemies.size(), battle.kills, battle.wave], 14, Color(0.7, 0.95, 0.9, 0.9), HORIZONTAL_ALIGNMENT_RIGHT, 510.0)
 	if not P.is_empty() and P.get("msg", "") != "":
 		draw_string(_font(), Vector2(0, c.y - 150), P["msg"], HORIZONTAL_ALIGNMENT_CENTER, vp.x, 22, Color(1, 0.4, 0.3))
 	if battle.gt - battle.hud_note_t < 3.0:

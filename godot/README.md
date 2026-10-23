@@ -1,5 +1,11 @@
 # Space War Native（Godot 4.7）
 
+## Build 17：ESC 設定選單、引擎光暈、版號
+- **ESC 選單**（3A 遊戲式）：GRAPHICS（預設檔、渲染比例、動態解析度、抗鋸齒 Off／FXAA／TAA／MSAA、垂直同步、FPS 上限、陰影 Off／Medium／High、天空反射＋補光、泛光與強度）、EFFECTS（爆炸預算與同時上限、粒子密度、引擎光暈、殘骸組數與存活秒數）、AUDIO（音樂／音效／配音音量）、CONTROLS（滑鼠靈敏度、反轉俯仰、雷達）、GAME（語言、配音語言、繼續／回標題／離開）。調任何單項會變成 Custom 檔；設定自動存到 `user://settings.cfg`（Windows：`%APPDATA%\Godot\app_userdata\Space War Native (Spike)\settings.cfg`）。
+- 引擎光暈（全艦隊共用一個 MultiMesh，依油門變大小）。HUD 右上與標題選單顯示 **GODOT build N**（回報問題請附版號）。
+- 光照：Balanced 預設不開陰影（陰影改在選單自選），天空反射與冷色補光保留。
+
+
 ## 第十六版：畫面升級 V0（固定鏡頭組）＋ V1（光照）
 規劃見 `docs/space-war/GODOT-VISUAL-PLAN.md`。
 - **V0 固定鏡頭組**：雙擊 `godot/tools/lookdev.bat`（第一次會請你把 `Godot_v4.7-stable_win64.exe` 拖進視窗）。它會用固定亂數種子開局，依序拍 8 個固定畫面（黑塔近景、巡洋艦近景、敵方母艦、艦隊遠景、艦旁爆炸、鐵墓、戰鬥追尾、駕駛艙），每張**左＝舊光照、右＝新光照**，並量 GPU 毫秒數。完成後自動開啟 `godot/lookdev_out/`，把整個資料夾拖回給 Claude 即可。命令列：`-- --lookdev [--out=資料夾] [--only=01,05] [--q=0|1|2]`。

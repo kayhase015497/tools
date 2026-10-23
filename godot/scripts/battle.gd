@@ -5,6 +5,7 @@ extends "res://scripts/spike.gd"
 ## 艦艇資料表 DEF、AI（戰機／主力艦）、武器（機炮、光束砲、飛彈、光束泡）、護盾、傷害、增援、預警機資料鏈皆依網頁版移植。
 const Lighting = preload("res://scripts/lighting.gd")
 
+const BUILD := 17   # 畫面上顯示的版號（HUD 右上、標題選單）；每一批更新 +1，回報問題時請附上
 const TOMB_POS := Vector3(0, 1500, -15500)
 const TOMB_SCALE_W := 34.0
 const TOMB_AURA := 4200.0
@@ -134,6 +135,8 @@ var cam_pos_s := Vector3.ZERO
 var radar_on := true
 var bhud: Control
 var shot_mm: MultiMesh
+var glow_mm: MultiMesh
+const ENGINE_GLOW := {"frig": Color(0.55, 0.85, 1.0), "cruis": Color(0.55, 0.85, 1.0), "cap": Color(0.6, 0.88, 1.0), "hss": Color(0.55, 0.8, 1.0), "xzd": Color(0.7, 0.9, 1.0), "ipc": Color(1.0, 0.55, 0.25), "moon": Color(0, 0, 0), "whale": Color(0.7, 0.4, 1.0), "fgt": Color(0.55, 0.85, 1.0), "awacs": Color(0.6, 0.88, 1.0), "fly": Color(0.55, 0.45, 1.0)}
 var shot_inst: MultiMeshInstance3D
 var flash_pool: Array = []
 var flash_i := 0
@@ -220,6 +223,7 @@ func _ready() -> void:
 	_make_tomb_b()
 	_load_fleets()
 	_make_shot_render()
+	_make_glow()
 	_make_pools()
 	_make_cam_hud()
 	_make_cockpit()
@@ -232,7 +236,7 @@ func _ready() -> void:
 	tomb_t.hp = 1e9
 	tomb_t.hp_max = 1e9
 	_load_data()
-	apply_quality(quality)
+	load_settings()
 	_make_doom()
 	_find_sky()
 	voice_player = AudioStreamPlayer.new()
@@ -268,27 +272,88 @@ func _ready() -> void:
 
 
 # ───────────── 畫質與動態解析度 ─────────────
-func apply_quality(q: int) -> void:
-	quality = q
-	var pom_dist := 0.0
-	for m in _hull_mats:
-		m.set_shader_parameter("lod_distance", pom_dist)
-		m.set_shader_parameter("bump_strength", ([1.2, 0.8, 0.0] as Array)[q])
-		m.set_shader_parameter("wear", ([0.55, 0.4, 0.0] as Array)[q])
-	pom_on = q < 2
-	Explosion.budget_enabled = q >= 1
-	Explosion.MAX_ACTIVE_PUB = ([14, 8, 5] as Array)[q]
-	Breakup.MAX_ACTIVE = ([14, 8, 4] as Array)[q]
+# ───────────── 設定（ESC 選單）：預設檔位、載入／儲存、套用 ─────────────
+var opt := {}
+var mouse_sens := 1.0
+var sfx_db := 0.0
+var glow_on := true
+const FPS_CAPS := [0, 30, 60, 120, 144, 240]
+const SETTINGS_PATH := "user://settings.cfg"
+
+func opt_defaults(preset: int) -> Dictionary:
+	var p := clampi(preset, 0, 2)
+	return {
+		"preset": p,
+		"res_scale": [1.0, 1.0, 0.8][p], "dyn_res": true, "aa": [2, 2, 1][p], "vsync": false, "fps_cap": 0,
+		"shadows": [2, 0, 0][p], "lighting_v1": true, "bloom": p < 2, "bloom_strength": 1.0,
+		"explosion_budget": p >= 1, "explosion_max": [14, 8, 5][p], "particle_density": [1.0, 0.8, 0.5][p], "engine_glow": true,
+		"wreck_max": [14, 8, 4][p], "wreck_life": [60.0, 40.0, 20.0][p],
+		"radar": true, "mouse_sens": 1.0, "invert_y": false,
+		"music": 1.0, "sfx": 1.0, "voice": 1.0,
+	}
+
+func load_settings() -> void:
+	opt = opt_defaults(1)
+	var cf := ConfigFile.new()
+	if cf.load(SETTINGS_PATH) == OK:
+		for k in opt.keys():
+			if cf.has_section_key("g", k):
+				opt[k] = cf.get_value("g", k)
+	apply_settings()
+
+func save_settings() -> void:
+	var cf := ConfigFile.new()
+	for k in opt.keys():
+		cf.set_value("g", k, opt[k])
+	cf.save(SETTINGS_PATH)
+
+func apply_quality(q: int) -> void:   # 預設檔位（標題選單 GRAPHICS、F4）
+	opt = opt_defaults(q)
+	apply_settings()
+	note("GRAPHICS: " + (["HIGH", "BALANCED", "LOW"] as Array)[q])
+
+func apply_settings() -> void:
+	var vp := get_viewport()
+	var q: int = int(opt["preset"])
+	quality = q if q < 3 else 1
+	gov_on = bool(opt["dyn_res"])
+	_set_scale(float(opt["res_scale"]))
+	var aa: int = int(opt["aa"])
+	vp.use_taa = aa == 2
+	vp.screen_space_aa = Viewport.SCREEN_SPACE_AA_FXAA if aa == 1 else Viewport.SCREEN_SPACE_AA_DISABLED
+	vp.msaa_3d = Viewport.MSAA_2X if aa == 3 else (Viewport.MSAA_4X if aa == 4 else Viewport.MSAA_DISABLED)
+	DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_ENABLED if opt["vsync"] else DisplayServer.VSYNC_DISABLED)
+	Engine.max_fps = int(FPS_CAPS[int(opt["fps_cap"])])
+	for m in _hull_mats:   # POM 材質（只有階段 1 展示場景用）
+		m.set_shader_parameter("lod_distance", 0.0)
+	Explosion.budget_enabled = bool(opt["explosion_budget"])
+	Explosion.MAX_ACTIVE_PUB = int(opt["explosion_max"])
+	Explosion.density = float(opt["particle_density"])
+	Breakup.MAX_ACTIVE = int(opt["wreck_max"])
+	Breakup.LIFETIME = float(opt["wreck_life"])
+	glow_on = bool(opt["engine_glow"])
+	radar_on = bool(opt["radar"])
+	mouse_sens = float(opt["mouse_sens"])
+	if not pl.is_empty():
+		pl["invert"] = bool(opt["invert_y"])
+	sfx_db = linear_to_db(maxf(float(opt["sfx"]), 0.0001))
+	if bgm != null:
+		bgm.volume_db = -11.0 + linear_to_db(maxf(float(opt["music"]), 0.0001))
+	if voice_player != null:
+		voice_player.volume_db = linear_to_db(maxf(float(opt["voice"]), 0.0001))
 	for c in get_children():
 		if c is WorldEnvironment:
 			var e: Environment = (c as WorldEnvironment).environment
 			if e != null:
-				e.glow_enabled = q < 2
-	Lighting.apply(self, Lighting.enabled, q)
-	if q == 2:
-		scale3d = minf(scale3d, 0.8)
-	_set_scale(scale3d)
-	note("GRAPHICS: " + (["HIGH", "BALANCED", "LOW"] as Array)[q])
+				e.glow_enabled = bool(opt["bloom"])
+				e.glow_intensity = 0.9 * float(opt["bloom_strength"])
+	Lighting.apply(self, bool(opt["lighting_v1"]), ([2, 1, 0] as Array)[int(opt["shadows"])])
+
+func resume_game() -> void:
+	bpaused = false
+	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	ui.show_pause(false)
+	save_settings()
 
 func _set_scale(v: float) -> void:
 	scale3d = clampf(v, 0.55, 1.0)
@@ -349,6 +414,9 @@ func start_game(mode_: String, lang_: String, voice_: String) -> void:
 			gt = float(a_.substr(5))
 	if "--cockpit" in OS.get_cmdline_user_args():
 		cam_mode = 1
+	if "--pause-demo" in OS.get_cmdline_user_args():   # 測試用：直接顯示 ESC 選單
+		bpaused = true
+		ui.show_pause(true)
 	if not ("--demo-cam" in OS.get_cmdline_user_args() or "--lookdev" in OS.get_cmdline_user_args()):
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
@@ -479,6 +547,11 @@ func _load_fleets() -> void:
 		var center := aabb.get_center()
 		var cp_node := root.find_child("HP_COCKPIT", true, false)
 		var cp_pos := (cp_node as Node3D).global_position if cp_node != null else Vector3(0, 0, 0)
+		var eng: Array = []
+		for n_ in root.find_children("HP_ENGINE*", "Node3D", true, false):
+			eng.append((n_ as Node3D).global_position)
+		if eng.is_empty():   # 沒有引擎錨點：放在船尾中央
+			eng.append(Vector3(center.x, center.y, aabb.position.z))
 		root.queue_free()
 		var cap: int = int(spec[3])
 		var parts: Array = []
@@ -496,7 +569,7 @@ func _load_fleets() -> void:
 			Lighting.mark_caster(mmi)
 			add_child(mmi)
 			parts.append({"mm": mm, "local": p["local"]})
-		fleets[kind] = {"parts": parts, "sc": sc, "center": center, "cap": cap, "cockpit": cp_pos}
+		fleets[kind] = {"parts": parts, "sc": sc, "center": center, "cap": cap, "cockpit": cp_pos, "engines": eng}
 
 func _make_shot_render() -> void:
 	shot_mm = MultiMesh.new()
@@ -518,6 +591,50 @@ func _make_shot_render() -> void:
 	shot_inst.custom_aabb = AABB(Vector3(-40000, -40000, -40000), Vector3(80000, 80000, 80000))
 	shot_inst.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(shot_inst)
+
+func _make_glow() -> void:   # 引擎光暈：全艦隊共用一個 MultiMesh（加法混色的公告板）
+	glow_mm = MultiMesh.new()
+	glow_mm.transform_format = MultiMesh.TRANSFORM_3D
+	glow_mm.use_colors = true
+	var q := QuadMesh.new()
+	q.size = Vector2(1, 1)
+	var m := ShaderMaterial.new()
+	m.shader = load("res://shaders/glow.gdshader")
+	q.material = m
+	glow_mm.mesh = q
+	glow_mm.instance_count = 2500
+	glow_mm.visible_instance_count = 0
+	var mi := MultiMeshInstance3D.new()
+	mi.multimesh = glow_mm
+	mi.custom_aabb = AABB(Vector3(-40000, -40000, -40000), Vector3(80000, 80000, 80000))
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(mi)
+
+func _render_glows() -> void:
+	if not glow_on:
+		glow_mm.visible_instance_count = 0
+		return
+	var n := 0
+	for list in [allies, enemies]:
+		for s in list:
+			if s.dead or (s.is_player and (pl["dead"] or cam_mode == 1)):
+				continue
+			if not ENGINE_GLOW.has(s.kind) or (ENGINE_GLOW[s.kind] as Color).v <= 0.0 or not fleets.has(s.kind):
+				continue
+			var f: Dictionary = fleets[s.kind]
+			var bs := basis_of(s)
+			var len_m: float = float(KMODEL[s.kind][1]) * s.k
+			var thr: float = clampf(s.thr + (0.5 if (s.is_player and pl["boost"]) else 0.0), 0.0, 1.5)
+			var d := maxf(len_m * 0.05, 1.6) * (0.55 + 0.8 * thr) * (0.85 + 0.3 * sin(gt * 9.0 + float(s.id)))
+			var col: Color = ENGINE_GLOW[s.kind]
+			for a in f["engines"]:
+				if n >= glow_mm.instance_count:
+					break
+				var wp: Vector3 = s.pos + bs * (((a as Vector3) - (f["center"] as Vector3)) * (float(f["sc"]) * s.k))
+				glow_mm.set_instance_transform(n, Transform3D(Basis.IDENTITY * d, wp))
+				glow_mm.set_instance_color(n, col)
+				n += 1
+	glow_mm.visible_instance_count = n
 
 func _make_pools() -> void:
 	var sm := SphereMesh.new()
@@ -625,6 +742,7 @@ func sfx_play(nm: String, pos: Variant = null, vol_db: float = 0.0, rate_gap: fl
 			return
 		sfx_last[nm] = gt
 	var st: AudioStream = (sfx[nm] as Array)[randi() % (sfx[nm] as Array).size()]
+	vol_db += sfx_db
 	if pos == null:
 		var p2 := AudioStreamPlayer.new()
 		p2.stream = st
@@ -804,7 +922,7 @@ func _init_world() -> void:
 
 func _seize(s: BShip) -> void:
 	pl = {"ship": s, "orig": s, "pos": s.pos, "vel": fwd_of(s) * 60.0, "w": Vector3.ZERO, "thr": 0.45, "boost": false, "energy": 100.0, "heat": 100.0,
-		"shield": 300.0, "shield_max": 300.0, "hull": 400.0, "hull_max": 400.0, "missiles": 8, "last_hit": -99.0, "assist": true, "invert": false,
+		"shield": 300.0, "shield_max": 300.0, "hull": 400.0, "hull_max": 400.0, "missiles": 8, "last_hit": -99.0, "assist": true, "invert": bool(opt.get("invert_y", false)),
 		"target": null, "suggest": null, "fire_cd": 0.0, "msl_cd": 0.0, "sup_cd": 0.0, "dead": false, "respawn": 0.0, "need_supply": false, "res_t": 0.0, "kills": 0}
 	var f := fwd_of_hp(s)
 	s.is_player = true
@@ -1868,7 +1986,7 @@ func _step_player(dt: float) -> void:
 			var f_ := (lead_point(s.pos, tg_, 1900.0) - s.pos).normalized()
 			s.q = s.q.slerp(Quaternion(Basis.looking_at(-f_, Vector3.UP)), minf(1.0, dt * 3.0))
 			P["thr"] = 0.5
-	var sens := 0.0016
+	var sens := 0.0016 * mouse_sens
 	var inv := -1.0 if P["invert"] else 1.0
 	var tx := clampf(mouse_dy * sens / dt * inv, -1.7, 1.7) if control else 0.0
 	var ty := clampf(-mouse_dx * sens / dt, -1.5, 1.5) if control else 0.0
@@ -2187,6 +2305,7 @@ func _process(delta: float) -> void:
 	t0 = Time.get_ticks_usec()
 	_render_ships()
 	_render_shots()
+	_render_glows()
 	_pf("render", t0)
 	_update_doom_visuals(dt)
 	_update_cam(dt)
@@ -2424,8 +2543,12 @@ func _input(e: InputEvent) -> void:
 	if e is InputEventKey and (e as InputEventKey).pressed and not (e as InputEventKey).echo:
 		match (e as InputEventKey).keycode:
 			KEY_ESCAPE:
-				bpaused = not bpaused
-				Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if bpaused else Input.MOUSE_MODE_CAPTURED
+				if started and not ended:
+					bpaused = not bpaused
+					Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if bpaused else Input.MOUSE_MODE_CAPTURED
+					ui.show_pause(bpaused)
+					if not bpaused:
+						save_settings()
 			KEY_T:
 				_cycle_target("reticle")
 				sfx_play("lock_acquired" if pl["target"] != null else "lock_tick", null, -4.0)
@@ -2443,8 +2566,10 @@ func _input(e: InputEvent) -> void:
 				pl["assist"] = not pl["assist"]
 			KEY_I:
 				pl["invert"] = not pl["invert"]
+				opt["invert_y"] = pl["invert"]
 			KEY_N:
-				radar_on = not radar_on
+				opt["radar"] = not bool(opt["radar"])
+				apply_settings()
 			KEY_M:
 				music_on = not music_on
 				if bgm != null:
@@ -2454,10 +2579,14 @@ func _input(e: InputEvent) -> void:
 			KEY_K:
 				_toggle_pom()
 			KEY_F3:
-				gov_on = not gov_on
+				opt["dyn_res"] = not bool(opt["dyn_res"])
+				opt["preset"] = 3
+				apply_settings()
 				note("DYNAMIC RESOLUTION: " + ("ON" if gov_on else "OFF"))
 			KEY_F4:
 				apply_quality((quality + 1) % 3)
 			KEY_F5:
-				Lighting.apply(self, not Lighting.enabled, quality)
+				opt["lighting_v1"] = not bool(opt["lighting_v1"])
+				opt["preset"] = 3
+				apply_settings()
 				note("LIGHTING: " + ("V1" if Lighting.enabled else "OLD"))
