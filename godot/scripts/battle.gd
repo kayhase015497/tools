@@ -5,7 +5,7 @@ extends "res://scripts/spike.gd"
 ## 艦艇資料表 DEF、AI（戰機／主力艦）、武器（機炮、光束砲、飛彈、光束泡）、護盾、傷害、增援、預警機資料鏈皆依網頁版移植。
 const Lighting = preload("res://scripts/lighting.gd")
 
-const BUILD := 17   # 畫面上顯示的版號（HUD 右上、標題選單）；每一批更新 +1，回報問題時請附上
+const BUILD := 18   # 畫面上顯示的版號（HUD 右上、標題選單）；每一批更新 +1，回報問題時請附上
 const TOMB_POS := Vector3(0, 1500, -15500)
 const TOMB_SCALE_W := 34.0
 const TOMB_AURA := 4200.0
@@ -136,6 +136,7 @@ var radar_on := true
 var bhud: Control
 var shot_mm: MultiMesh
 var glow_mm: MultiMesh
+var fxe: Node3D
 const ENGINE_GLOW := {"frig": Color(0.55, 0.85, 1.0), "cruis": Color(0.55, 0.85, 1.0), "cap": Color(0.6, 0.88, 1.0), "hss": Color(0.55, 0.8, 1.0), "xzd": Color(0.7, 0.9, 1.0), "ipc": Color(1.0, 0.55, 0.25), "moon": Color(0, 0, 0), "whale": Color(0.7, 0.4, 1.0), "fgt": Color(0.55, 0.85, 1.0), "awacs": Color(0.6, 0.88, 1.0), "fly": Color(0.55, 0.45, 1.0)}
 var shot_inst: MultiMeshInstance3D
 var flash_pool: Array = []
@@ -224,6 +225,9 @@ func _ready() -> void:
 	_load_fleets()
 	_make_shot_render()
 	_make_glow()
+	fxe = load("res://scripts/fx_extra.gd").new()
+	fxe.battle = self
+	add_child(fxe)
 	_make_pools()
 	_make_cam_hud()
 	_make_cockpit()
@@ -613,6 +617,7 @@ func _make_glow() -> void:   # 引擎光暈：全艦隊共用一個 MultiMesh（
 func _render_glows() -> void:
 	if not glow_on:
 		glow_mm.visible_instance_count = 0
+		fxe.end_trails()
 		return
 	var n := 0
 	for list in [allies, enemies]:
@@ -634,7 +639,9 @@ func _render_glows() -> void:
 				glow_mm.set_instance_transform(n, Transform3D(Basis.IDENTITY * d, wp))
 				glow_mm.set_instance_color(n, col)
 				n += 1
+				fxe.add_trail(wp, bs.z, d * (2.5 + 7.0 * thr), d * 0.28, Color(col, 1.0) * 0.9)
 	glow_mm.visible_instance_count = n
+	fxe.end_trails()
 
 func _make_pools() -> void:
 	var sm := SphereMesh.new()
@@ -1128,11 +1135,11 @@ func _shield_absorb(s: BShip, dmg: float, pos: Vector3) -> float:
 	s.sh_t = gt
 	if gt - s.shield_fx_t > 0.25 and s.rad > 30.0:
 		s.shield_fx_t = gt
-		_flash(pos, clampf(s.rad * 0.35, 8.0, 240.0), 0.3, Color(0.45, 0.7, 1.0) if s.side == 0 else Color(0.7, 0.4, 1.0))
+		fxe.shield_hit(s, pos)
 	if s.sh <= 0.5:
 		s.sh = 0.0
 		s.sh_down = gt + 7.0
-		_flash(s.pos, s.rad * 3.0, 0.5, Color(0.7, 0.85, 1.0))
+		fxe.shield_break(s)
 		if s.side == 0 and s.d["hp"] >= 8000.0:
 			say(str(s.d["name"]) + " shields down", str(s.d["name"]) + " 護盾失效", true)
 	return dmg - take
@@ -1184,6 +1191,8 @@ func _kill(s: BShip, src: BShip) -> void:
 		var xf := Transform3D(bs, s.pos - bs * (f["center"] as Vector3))
 		Breakup.spawn(self, frag, xf, s.vel, style, _hull_by_name)
 	Explosion.spawn(self, s.pos, size, style, -1, s.d["boom"] >= 3.0)
+	if size >= 60.0:
+		fxe.heat_ring(s.pos, size)
 	var bm_: float = s.d["boom"]
 	sfx_play("explosion_big" if bm_ >= 9.0 else ("explosion_med" if bm_ >= 3.0 else "explosion_small"), s.pos, 2.0 if bm_ >= 9.0 else 0.0, 0.05, 700.0 if bm_ >= 3.0 else 200.0)
 	if float(s.d["boom"]) >= 3.0:
@@ -1355,6 +1364,7 @@ func _step_missile(m: BShot, dt: float) -> bool:
 		m.fwd = v
 		if dist < tg.rad + 14.0:
 			Explosion.spawn(self, m.pos, 40.0 if m.big else 28.0, m.side, 0, false)
+			fxe.heat_ring(m.pos, 30.0)
 			damage(tg, m.dmg, m.pos, m.src)
 			return false
 	else:
@@ -2303,9 +2313,11 @@ func _process(delta: float) -> void:
 		stats_t = 0.0
 		print("[stats] t=%.0f allies=%d enemies=%d kills=%d shots=%d beams=%d wave=%d player_hull=%.0f msl=%d" % [gt, allies.size(), enemies.size(), kills, shots.size(), bbeams.size(), wave, pl["hull"], pl["missiles"]])
 	t0 = Time.get_ticks_usec()
+	fxe.begin_trails()
 	_render_ships()
 	_render_shots()
 	_render_glows()
+	fxe.update(dt)
 	_pf("render", t0)
 	_update_doom_visuals(dt)
 	_update_cam(dt)
@@ -2503,6 +2515,8 @@ func _render_shots() -> void:
 		var bw := Basis(bs.x * b.w, bs.y * b.w, bs.z * b.len)
 		shot_mm.set_instance_transform(i, Transform3D(bw, b.pos - dir * b.len * 0.5))
 		shot_mm.set_instance_color(i, b.col)
+		if b.homing:
+			fxe.add_trail(b.pos, dir, 50.0 + b.spd * 0.35, 1.6 if not b.big else 4.0, Color(1.0, 0.65, 0.3))
 	shot_mm.visible_instance_count = n
 
 func _update_cam(dt: float) -> void:
