@@ -21,7 +21,7 @@ class Chunk:
 # 存活 20 秒後最後 4 秒縮小淡出，大戰後不會到處飄著殘骸。
 static var MAX_ACTIVE := 14
 static var active: Array = []
-const LIFETIME := 60.0
+static var LIFETIME := 60.0
 const FAR_NO_FX := 16000.0
 const FAR_REMOVE := 40000.0
 
