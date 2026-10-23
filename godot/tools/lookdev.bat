@@ -20,6 +20,8 @@ if not exist "%GODOT%" (
 )
 > "%CFG%" echo %GODOT%
 :run
+echo  Importing project (first run takes a few minutes; needed so class names like Explosion are registered)...
+start "" /wait "%GODOT%" --headless --path "%PROJ%" --import
 if exist "%OUT%" rmdir /s /q "%OUT%"
 mkdir "%OUT%"
 echo  Rendering shots... (about 1-2 minutes, do not touch the window)
