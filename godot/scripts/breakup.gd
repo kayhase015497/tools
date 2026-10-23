@@ -5,6 +5,7 @@ extends Node3D
 ## 沿斷面放餘燼粒子；餘燼顏色依陣營（聯軍橘、軍團紫）。
 ## 用法：Breakup.spawn(parent, ship_kind, ship_xform_without_center_offset, ship_velocity, style, hull_materials)
 ##   hull_materials：{材質名: ShaderMaterial}（艦隊已轉成 POM 的材質），斷片外表沿用，與完整艦一致。
+const Lighting = preload("res://scripts/lighting.gd")
 
 const FRAG_DIR := "res://assets/models/frag/"
 static var _break_mat: ShaderMaterial
@@ -197,6 +198,7 @@ static func spawn(parent: Node, kind: String, xf: Transform3D, ship_vel: Vector3
 		trail.emitting = true
 		root.fx_nodes.append(trail)
 	root.transform = xf
+	Lighting.mark_caster(root)   # 斷片投影（粒子不受影響）
 	# 斷面燃燒餘燼：1 → 0（約 7 秒）
 	var tw := root.create_tween()
 	tw.tween_method(func(v: float): bmat.set_shader_parameter("burn_override", v), 1.0, 0.0, 21.0).set_trans(Tween.TRANS_SINE)

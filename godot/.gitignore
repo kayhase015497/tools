@@ -1,3 +1,5 @@
 .godot/
 *.translation
 export/
+lookdev_out/
+tools/godot_path.txt

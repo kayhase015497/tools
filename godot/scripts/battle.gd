@@ -3,6 +3,7 @@ extends "res://scripts/spike.gd"
 ## 繼承 spike.gd 只為了沿用艦體材質轉換（POM）、環境、鐵墓、爆炸與斷裂的呼叫；_ready／_input／_process 全部改寫。
 ## 世界單位＝公尺，座標與網頁版相同：鐵墓在 (0, 1500, -15500)，聯軍集中在鐵墓朝 +Z 的一側。
 ## 艦艇資料表 DEF、AI（戰機／主力艦）、武器（機炮、光束砲、飛彈、光束泡）、護盾、傷害、增援、預警機資料鏈皆依網頁版移植。
+const Lighting = preload("res://scripts/lighting.gd")
 
 const TOMB_POS := Vector3(0, 1500, -15500)
 const TOMB_SCALE_W := 34.0
@@ -201,12 +202,20 @@ var bgm: AudioStreamPlayer
 var music_on := true
 var big_step := false
 var stats_t := 0.0
+var lookdev: Node = null      # V0 固定鏡頭組（--lookdev）：鏡頭由 lookdev.gd 控制
 
 # ───────────── 啟動 ─────────────
 func _ready() -> void:
 	use_pom = false   # 不用 POM：改回 GLB 的法線貼圖材質
 	rng.seed = Time.get_ticks_msec()
 	randomize()
+	var ld := "--lookdev" in OS.get_cmdline_user_args()
+	if ld:   # 固定種子：每次拍的開局都一樣
+		seed(4242)
+		rng.seed = 4242
+	for a_ in OS.get_cmdline_user_args():
+		if a_.begins_with("--q="):
+			quality = clampi(int(a_.substr(4)), 0, 2)
 	_make_environment()
 	_make_tomb_b()
 	_load_fleets()
@@ -242,6 +251,14 @@ func _ready() -> void:
 			for b_ in args:
 				if b_.begins_with("--lang="): l_ = b_.substr(7)
 			start_game(a_.substr(13), l_, "follow")
+	if ld:
+		ui.menu.visible = false
+		start_game("free", "en", "follow")
+		(bhud.get_parent() as CanvasLayer).visible = false
+		gov_on = false
+		lookdev = load("res://scripts/lookdev.gd").new()
+		lookdev.battle = self
+		add_child(lookdev)
 	menu_cam(0.0)
 	prof_on = "--prof" in OS.get_cmdline_user_args()
 	autoplay = "--autoplay" in OS.get_cmdline_user_args()
@@ -267,6 +284,7 @@ func apply_quality(q: int) -> void:
 			var e: Environment = (c as WorldEnvironment).environment
 			if e != null:
 				e.glow_enabled = q < 2
+	Lighting.apply(self, Lighting.enabled, q)
 	if q == 2:
 		scale3d = minf(scale3d, 0.8)
 	_set_scale(scale3d)
@@ -331,7 +349,7 @@ func start_game(mode_: String, lang_: String, voice_: String) -> void:
 			gt = float(a_.substr(5))
 	if "--cockpit" in OS.get_cmdline_user_args():
 		cam_mode = 1
-	if not ("--demo-cam" in OS.get_cmdline_user_args()):
+	if not ("--demo-cam" in OS.get_cmdline_user_args() or "--lookdev" in OS.get_cmdline_user_args()):
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
 func menu_cam(dt: float) -> void:   # 選單背景：鏡頭在聯軍艦隊後方緩慢環繞，望向鐵墓
@@ -434,6 +452,7 @@ func _make_tomb_b() -> void:
 	var s := (248.0 * TOMB_SCALE_W) / maxf(aabb.size.y, 0.001)
 	root.scale = Vector3.ONE * s
 	root.position = TOMB_POS
+	Lighting.mark_caster(root)
 	var l := OmniLight3D.new()
 	l.light_color = Color(1.0, 0.16, 0.27)
 	l.light_energy = 4.0
@@ -474,7 +493,7 @@ func _load_fleets() -> void:
 			var mmi := MultiMeshInstance3D.new()
 			mmi.multimesh = mm
 			mmi.custom_aabb = AABB(Vector3(-40000, -40000, -40000), Vector3(80000, 80000, 80000))
-			mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			Lighting.mark_caster(mmi)
 			add_child(mmi)
 			parts.append({"mm": mm, "local": p["local"]})
 		fleets[kind] = {"parts": parts, "sc": sc, "center": center, "cap": cap, "cockpit": cp_pos}
@@ -549,8 +568,7 @@ func _make_cockpit() -> void:
 	cockpit.rotation.y = PI   # 駕駛艙模型的前方是 +Z，相機看向 -Z
 	cockpit.visible = false
 	cam.add_child(cockpit)
-	for m in cockpit.find_children("*", "MeshInstance3D", true, false):
-		(m as MeshInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	Lighting.mark_caster(cockpit)   # 座艙骨架在儀表板上投影
 
 func _make_cam_hud() -> void:
 	cam = Camera3D.new()
@@ -2369,7 +2387,7 @@ func _render_shots() -> void:
 	shot_mm.visible_instance_count = n
 
 func _update_cam(dt: float) -> void:
-	if not started:
+	if not started or (lookdev != null and lookdev.cam_locked):
 		return
 	if doom > 0:   # 過場：從艦隊後上方望向鐵墓；巨劍降下時鏡頭下移，衝擊後拉開看衝擊波掃來
 		var T: Dictionary = data["T"]
@@ -2440,3 +2458,6 @@ func _input(e: InputEvent) -> void:
 				note("DYNAMIC RESOLUTION: " + ("ON" if gov_on else "OFF"))
 			KEY_F4:
 				apply_quality((quality + 1) % 3)
+			KEY_F5:
+				Lighting.apply(self, not Lighting.enabled, quality)
+				note("LIGHTING: " + ("V1" if Lighting.enabled else "OLD"))
