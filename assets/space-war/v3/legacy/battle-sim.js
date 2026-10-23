@@ -218,8 +218,8 @@ function killShip(s, src) {
   const U = big ? clamp(s.scale * 0.55, 3, 22) : 0.8;
   /* v3：爆炸大小≈船長×0.35（25~300 m）；橘＝聯軍、紫＝軍團；有斷片的艦種同時斷裂成數塊（sw-breakup.js） */
   const lenM = ((fleet.kinds[s.kind] && fleet.kinds[s.kind].length) || 14) * (s.scale || 1), boomSize = clamp(lenM * 0.35, 25, 300), style = s.side === 'e' ? 1 : 0;
-  fx.explode(s.x, s.y, s.z, d.boom, s.side === 'e', U);   // 艦艇爆炸：v2 原版
-  fx.explode3(s.x, s.y, s.z, boomSize, style, -1, { noChain: true, flameOnly: true });   // ＋v3 的 8 種爆焰火團／火花（隨機；橘＝聯軍、紫＝軍團）
+  if (big) fx.explode(s.x, s.y, s.z, d.boom, s.side === 'e', U);   // 艦艇爆炸：v2 原版（戰機不用 v2，改用下面的 v3 爆焰）
+  fx.explode3(s.x, s.y, s.z, big ? boomSize : Math.max(boomSize * 1.5, 38), style, -1, { noChain: true, flameOnly: true });   // ＋v3 的 8 種爆焰火團／火花（隨機；橘＝聯軍、紫＝軍團）
   boomLight(s.x, s.y, s.z, d.boom, s.side === 'e' ? [1, 0.55, 0.3] : [0.55, 0.8, 1]);
   if (big && window.SWBreakup) SWBreakup.spawn(s, style);
   if (big) {
