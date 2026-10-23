@@ -16,6 +16,7 @@ var sel_lang := "en"
 var sel_voice := "follow"
 var lbl := {}
 var groups := {}
+var cmd_bar: Control
 var pause_menu: Control
 var pause_rows := {}
 var pause_tabs: TabContainer
@@ -36,10 +37,14 @@ func _ready() -> void:
 	_build_end()
 	_build_menu()
 	_build_pause()
+	_build_cmd_bar()
 
 func _process(_dt: float) -> void:
 	position = Vector2.ZERO
 	size = get_viewport_rect().size
+	if cmd_bar != null:
+		cmd_bar.visible = battle != null and battle.started and battle.role == "commander" and battle.hud_on and not battle.bpaused
+		_layout_cmd_bar()
 
 func S(key: String) -> Variant:
 	var d: Dictionary = battle.data["str"][sel_lang]
@@ -128,9 +133,6 @@ func _pick(key: String, id: String) -> void:
 	match key:
 		"mode": sel_mode = id
 		"role":
-			if id == "commander":   # 指揮官模式尚未移植：維持飛行員
-				(groups["role"]["btns"]["pilot"] as Button).button_pressed = true
-				return
 			sel_role = id
 		"lang": sel_lang = id
 		"voice": sel_voice = id
@@ -153,8 +155,7 @@ func _refresh_text() -> void:
 	g["mode"]["btns"]["script"].text = S("script")
 	g["mode"]["btns"]["free"].text = S("free")
 	g["role"]["btns"]["pilot"].text = S("pilot")
-	g["role"]["btns"]["commander"].text = str(S("commander")) + " ✕"
-	(g["role"]["btns"]["commander"] as Button).tooltip_text = "Not ported to the Godot version yet"
+	g["role"]["btns"]["commander"].text = str(S("commander"))
 	g["voice"]["btns"]["follow"].text = S("voiceFollow")
 	g["voice"]["btns"]["off"].text = S("voiceOff")
 	for o in VOICES:
@@ -163,7 +164,8 @@ func _refresh_text() -> void:
 
 func _on_go() -> void:
 	menu.visible = false
-	battle.start_game(sel_mode, sel_lang, sel_voice)
+	battle.start_game(sel_mode, sel_lang, sel_voice, sel_role)
+	refresh_role()
 
 # ───────────── 字幕 ─────────────
 func _build_subs() -> void:
@@ -462,3 +464,40 @@ func show_pause(on: bool) -> void:
 	pause_menu.visible = on
 	if on:
 		refresh_pause()
+
+# ───────────── 指揮官命令列（畫面下方；只有指揮官模式顯示）─────────────
+func _build_cmd_bar() -> void:
+	cmd_bar = PanelContainer.new()
+	cmd_bar.visible = false
+	cmd_bar.mouse_filter = Control.MOUSE_FILTER_STOP
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.02, 0.05, 0.1, 0.78)
+	sb.border_color = Color(0.56, 0.9, 1.0, 0.35)
+	sb.set_border_width_all(1)
+	sb.content_margin_left = 10
+	sb.content_margin_right = 10
+	sb.content_margin_top = 6
+	sb.content_margin_bottom = 6
+	(cmd_bar as PanelContainer).add_theme_stylebox_override("panel", sb)
+	var hb := HBoxContainer.new()
+	hb.add_theme_constant_override("separation", 8)
+	cmd_bar.add_child(hb)
+	var specs := [["Select all [1]", func(): battle.select_group(1)], ["Fighters [2]", func(): battle.select_group(2)], ["Capital ships [3]", func(): battle.select_group(3)],
+		["Charge [C]", func(): battle.order_charge()], ["Hold [X]", func(): battle.order_hold()], ["Focus Irontomb [T]", func(): battle.order_tomb()], ["Pilot [Tab]", func(): battle.set_role("pilot"); refresh_role()]]
+	for sp in specs:
+		var b := Button.new()
+		b.text = sp[0]
+		b.focus_mode = Control.FOCUS_NONE
+		b.add_theme_font_size_override("font_size", 14)
+		b.pressed.connect(sp[1])
+		hb.add_child(b)
+	add_child(cmd_bar)
+
+func refresh_role() -> void:
+	cmd_bar.visible = battle.role == "commander" and battle.hud_on
+
+func _layout_cmd_bar() -> void:
+	var vp := get_viewport_rect().size
+	var sz := cmd_bar.get_combined_minimum_size()
+	cmd_bar.size = sz
+	cmd_bar.position = Vector2((vp.x - sz.x) * 0.5, vp.y - sz.y - 14.0)

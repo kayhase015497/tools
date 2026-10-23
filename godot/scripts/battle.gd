@@ -5,7 +5,7 @@ extends "res://scripts/spike.gd"
 ## 艦艇資料表 DEF、AI（戰機／主力艦）、武器（機炮、光束砲、飛彈、光束泡）、護盾、傷害、增援、預警機資料鏈皆依網頁版移植。
 const Lighting = preload("res://scripts/lighting.gd")
 
-const BUILD := 20   # 畫面上顯示的版號（HUD 右上、標題選單）；每一批更新 +1，回報問題時請附上
+const BUILD := 21   # 畫面上顯示的版號（HUD 右上、標題選單）；每一批更新 +1，回報問題時請附上
 const TOMB_POS := Vector3(0, 1500, -15500)
 const TOMB_SCALE_W := 34.0
 const TOMB_AURA := 4200.0
@@ -137,6 +137,18 @@ var bhud: Control
 var shot_mm: MultiMesh
 var glow_mm: MultiMesh
 var fxe: Node3D
+# ───── 指揮官模式 ─────
+var role := "pilot"          # "pilot"／"commander"
+var cc := {"az": 0.6, "pol": 1.0, "dist": 6000.0, "tx": 0.0, "ty": 1200.0, "tz": -7000.0}   # 軌道鏡頭（目前值）
+var cct := {"az": 0.6, "pol": 1.0, "dist": 6000.0, "tx": 0.0, "ty": 1200.0, "tz": -7000.0}  # 軌道鏡頭（目標值，平滑逼近）
+var selected: Array = []
+var cmd_marks: Array = []    # 命令標記 {pos, col, t}
+var drag := {"on": false, "rot": false, "moved": false, "x0": 0.0, "y0": 0.0, "x1": 0.0, "y1": 0.0}
+var mini_rect := Rect2(0, 0, 0, 0)   # 小地圖（HUD 畫、這裡處理點擊）
+const MINI_X0 := -16000.0
+const MINI_X1 := 16000.0
+const MINI_Z0 := -31500.0
+const MINI_Z1 := 500.0
 var post_mat: ShaderMaterial
 var post_rect: ColorRect
 const ENGINE_GLOW := {"frig": Color(0.55, 0.85, 1.0), "cruis": Color(0.55, 0.85, 1.0), "cap": Color(0.6, 0.88, 1.0), "hss": Color(0.55, 0.8, 1.0), "xzd": Color(0.7, 0.9, 1.0), "ipc": Color(1.0, 0.55, 0.25), "moon": Color(0, 0, 0), "whale": Color(0.7, 0.4, 1.0), "fgt": Color(0.55, 0.85, 1.0), "awacs": Color(0.6, 0.88, 1.0), "fly": Color(0.55, 0.45, 1.0)}
@@ -363,7 +375,7 @@ func apply_settings() -> void:
 
 func resume_game() -> void:
 	bpaused = false
-	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if role == "commander" else Input.MOUSE_MODE_CAPTURED
 	ui.show_pause(false)
 	save_settings()
 
@@ -394,6 +406,247 @@ func _governor(dt_real: float) -> void:
 	else:
 		gov_up_t = 0.0
 
+# ───────────── 指揮官模式 ─────────────
+func set_role(r: String) -> void:
+	if r == role and not pl.is_empty():
+		return
+	selected.clear()
+	if r == "commander":
+		var ps = pl.get("ship") if not pl.is_empty() else null
+		if ps != null and not ps.dead and ps.is_player:   # 離開座艙：戰機交給 AI 當僚機
+			var f: Vector3 = Basis(ps.q).z
+			ps.h = atan2(f.x, f.z)
+			ps.p = asin(clampf(f.y, -1.0, 1.0))
+			ps.roll = 0.0
+			ps.is_player = false
+			ps.spd = maxf(95.0, ps.vel.length())
+			ps.order = {}
+			ps.mt = 0.0
+			ps.mode = 0
+		role = "commander"
+		var o = pl.get("orig") if not pl.is_empty() else null
+		var c: Vector3 = (o as BShip).pos if (o != null and not o.dead) else ring_pos(7400.0, 0.25, 0.05)
+		cct["tx"] = c.x
+		cct["ty"] = c.y
+		cct["tz"] = c.z
+		cct["dist"] = 5500.0
+		cct["az"] = 0.6
+		cct["pol"] = 1.0
+		for k in cct.keys():
+			cc[k] = cct[k]
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+		cam_mode = 0
+		if cockpit != null:
+			cockpit.visible = false
+	else:
+		role = "pilot"
+		var o2 = pl.get("orig")
+		if o2 != null and not o2.dead:
+			_seize(o2)
+		else:
+			_spawn_player(true)
+		if not ("--demo-cam" in OS.get_cmdline_user_args()):
+			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+
+func issue_order(units: Array, order: Dictionary) -> void:
+	for u in units:
+		if not u.dead and not u.is_player:
+			u.order = order.duplicate()
+			u.mt = 0.0
+
+func orderable() -> Array:
+	var out: Array = []
+	for u in selected:
+		if not u.dead and u.kind != "awacs":
+			out.append(u)
+	selected = out.duplicate()
+	return out
+
+func cmd_mark(pos: Vector3, col: Color) -> void:
+	cmd_marks.append({"pos": pos, "col": col, "t": 0.0})
+
+func order_move(pos: Vector3) -> void:
+	var us := orderable()
+	if us.is_empty() or not control:
+		return
+	issue_order(us, {"type": "move", "pos": pos})
+	cmd_mark(pos, Color(0.55, 0.9, 1.0))
+	sfx_play("lock_acquired", null, -6.0)
+
+func order_charge() -> void:
+	var us := orderable()
+	if us.is_empty() or not control:
+		return
+	issue_order(us, {"type": "charge"})
+	note("CHARGE")
+
+func order_hold() -> void:
+	var us := orderable()
+	if us.is_empty() or not control:
+		return
+	issue_order(us, {"type": "hold"})
+	note("HOLD")
+
+func order_focus(tg: BShip) -> void:
+	var us := orderable()
+	if us.is_empty() or not control:
+		return
+	issue_order(us, {"type": "focus", "tgt": tg})
+	cmd_mark(tg.pos, Color(1.0, 0.35, 0.43))
+	sfx_play("lock_acquired", null, -6.0)
+
+func order_tomb() -> void:
+	var us := orderable()
+	if us.is_empty() or not control:
+		return
+	issue_order(us, {"type": "tomb"})
+	cmd_mark(TOMB_POS + Vector3(0, 800, 0), Color(1.0, 0.23, 0.36))
+	sfx_play("lock_acquired", null, -6.0)
+
+func select_group(n: int) -> void:   # 1 全軍、2 戰機、3 主力艦
+	selected.clear()
+	for u in allies:
+		if u.dead or u.kind == "awacs":
+			continue
+		var cls: String = u.d["cls"]
+		if n == 1 or (n == 2 and cls == "fgt") or (n == 3 and cls != "fgt"):
+			selected.append(u)
+
+func _screen_radius(s: BShip) -> float:   # 艦艇在螢幕上的大致半徑（像素），拿來點選
+	var dist := maxf(cam.global_position.distance_to(s.pos), 1.0)
+	var px_per_rad := get_viewport().get_visible_rect().size.y * 0.5 / tan(deg_to_rad(cam.fov * 0.5))
+	return clampf(s.rad / dist * px_per_rad, 12.0, 160.0)
+
+func pick_enemy(m: Vector2) -> BShip:
+	var best: BShip = null
+	var bd := 1e9
+	for e in enemies:
+		if e.dead or cam.is_position_behind(e.pos):
+			continue
+		var sp := cam.unproject_position(e.pos)
+		var d := sp.distance_to(m)
+		var rad := _screen_radius(e) * 1.25
+		if d < rad and d - rad < bd:
+			bd = d - rad
+			best = e
+	return best
+
+func tomb_under(m: Vector2) -> bool:
+	for i in range(TOMB_PARTS.size()):
+		var wp := _tomb_part_pos(i)
+		if cam.is_position_behind(wp):
+			continue
+		var r: float = float(TOMB_PARTS[i][3]) * TOMB_SCALE_W
+		var dist := maxf(cam.global_position.distance_to(wp), 1.0)
+		var px := r / dist * get_viewport().get_visible_rect().size.y * 0.5 / tan(deg_to_rad(cam.fov * 0.5))
+		if cam.unproject_position(wp).distance_to(m) < maxf(px, 14.0):
+			return true
+	return false
+
+func ground_point(m: Vector2) -> Variant:
+	var o := cam.project_ray_origin(m)
+	var d := cam.project_ray_normal(m)
+	var y0: float = cc["ty"]
+	if absf(d.y) < 0.0005:
+		return null
+	var t := (y0 - o.y) / d.y
+	if t < 0.0:
+		return null
+	var g := o + d * t
+	var from_tomb := g - TOMB_POS
+	from_tomb.y = 0.0
+	if from_tomb.length() < TOMB_AURA + 200.0:   # 不能下令進入鐵墓禁區
+		g = TOMB_POS + from_tomb.normalized() * (TOMB_AURA + 200.0) + Vector3(0, y0 - TOMB_POS.y, 0)
+	return g
+
+func box_select(r: Rect2, add: bool) -> void:
+	if not add:
+		selected.clear()
+	for u in allies:
+		if u.dead or u.kind == "awacs" or cam.is_position_behind(u.pos):
+			continue
+		if r.has_point(cam.unproject_position(u.pos)) and not selected.has(u):
+			selected.append(u)
+
+func _commander_move(dt: float) -> void:   # WASD 平移、軌道鏡頭平滑
+	var sp: float = float(cct["dist"]) * 0.8 * dt * (2.5 if Input.is_key_pressed(KEY_SHIFT) else 1.0)
+	var az: float = cct["az"]
+	var fwd := Vector2(-sin(az), -cos(az))
+	var rgt := Vector2(cos(az), -sin(az))
+	var ax := (1.0 if Input.is_key_pressed(KEY_D) else 0.0) - (1.0 if Input.is_key_pressed(KEY_A) else 0.0)
+	var az_ := (1.0 if Input.is_key_pressed(KEY_W) else 0.0) - (1.0 if Input.is_key_pressed(KEY_S) else 0.0)
+	cct["tx"] += (rgt.x * ax + fwd.x * az_) * sp
+	cct["tz"] += (rgt.y * ax + fwd.y * az_) * sp
+	var k := 1.0 - exp(-dt * 9.0)
+	for key in cc.keys():
+		cc[key] += (cct[key] - cc[key]) * k
+	for m in cmd_marks:
+		m["t"] += dt
+	cmd_marks = cmd_marks.filter(func(m): return m["t"] < 1.4)
+
+func _unhandled_input(e: InputEvent) -> void:
+	if role != "commander" or not started or bpaused or doom > 0 and false:
+		return
+	if e is InputEventMouseButton:
+		var mb := e as InputEventMouseButton
+		if mb.button_index == MOUSE_BUTTON_WHEEL_UP and mb.pressed:
+			cct["dist"] = clampf(float(cct["dist"]) / 1.15, 400.0, 45000.0)
+		elif mb.button_index == MOUSE_BUTTON_WHEEL_DOWN and mb.pressed:
+			cct["dist"] = clampf(float(cct["dist"]) * 1.15, 400.0, 45000.0)
+		elif mb.button_index == MOUSE_BUTTON_RIGHT:
+			drag["on"] = mb.pressed
+			drag["rot"] = mb.pressed
+			drag["x1"] = mb.position.x
+			drag["y1"] = mb.position.y
+		elif mb.button_index == MOUSE_BUTTON_LEFT:
+			if mb.pressed:
+				if mini_rect.has_point(mb.position):   # 小地圖：點哪裡鏡頭就移到哪
+					cct["tx"] = MINI_X0 + (mb.position.x - mini_rect.position.x) / mini_rect.size.x * (MINI_X1 - MINI_X0)
+					cct["tz"] = MINI_Z0 + (mb.position.y - mini_rect.position.y) / mini_rect.size.y * (MINI_Z1 - MINI_Z0)
+					return
+				drag["on"] = true
+				drag["rot"] = false
+				drag["moved"] = false
+				drag["x0"] = mb.position.x
+				drag["y0"] = mb.position.y
+				drag["x1"] = mb.position.x
+				drag["y1"] = mb.position.y
+			elif drag["on"] and not drag["rot"]:
+				if drag["moved"]:
+					var r := Rect2(Vector2(minf(drag["x0"], drag["x1"]), minf(drag["y0"], drag["y1"])), Vector2(absf(drag["x1"] - drag["x0"]), absf(drag["y1"] - drag["y0"])))
+					box_select(r, Input.is_key_pressed(KEY_SHIFT))
+				else:
+					_cmd_click(mb.position)
+				drag["on"] = false
+				drag["moved"] = false
+			elif not mb.pressed:
+				drag["on"] = false
+	elif e is InputEventMouseMotion:
+		var mm := e as InputEventMouseMotion
+		if drag["on"]:
+			if drag["rot"]:
+				cct["az"] = float(cct["az"]) - (mm.position.x - float(drag["x1"])) * 0.005
+				cct["pol"] = clampf(float(cct["pol"]) - (mm.position.y - float(drag["y1"])) * 0.004, 0.12, 1.52)
+			else:
+				if absf(mm.position.x - float(drag["x0"])) + absf(mm.position.y - float(drag["y0"])) > 6.0:
+					drag["moved"] = true
+			drag["x1"] = mm.position.x
+			drag["y1"] = mm.position.y
+
+func _cmd_click(m: Vector2) -> void:
+	if not control:
+		return
+	var e := pick_enemy(m)
+	if e != null:
+		order_focus(e)
+		return
+	if tomb_under(m):
+		order_tomb()
+		return
+	var g = ground_point(m)
+	if g != null:
+		order_move(g as Vector3)
+
 # ───────────── 資料與開局 ─────────────
 func _load_data() -> void:
 	var f := FileAccess.open("res://data/battle_data.json", FileAccess.READ)
@@ -404,7 +657,7 @@ func tr_(key: String) -> String:
 	var d: Dictionary = data["str"].get(lang, data["str"]["en"])
 	return str(d.get(key, data["str"]["en"].get(key, key)))
 
-func start_game(mode_: String, lang_: String, voice_: String) -> void:
+func start_game(mode_: String, lang_: String, voice_: String, role_: String = "pilot") -> void:
 	game_mode = mode_
 	lang = lang_
 	voice_sel = voice_
@@ -424,6 +677,8 @@ func start_game(mode_: String, lang_: String, voice_: String) -> void:
 	for a_ in OS.get_cmdline_user_args():
 		if a_.begins_with("--t0="):
 			gt = float(a_.substr(5))
+	if role_ == "commander" or "--commander" in OS.get_cmdline_user_args():
+		set_role("commander")
 	if "--cockpit" in OS.get_cmdline_user_args():
 		cam_mode = 1
 	if "--pause-demo" in OS.get_cmdline_user_args():   # 測試用：直接顯示 ESC 選單
@@ -839,7 +1094,7 @@ func _callsign(kind: String, id: int) -> String:
 
 # 無線電：友軍的鎖定／追擊／中彈／最後通訊／擊落台詞（只在玩家附近、有冷卻；ja／ko 沒有翻譯，顯示英文）
 func radio_say(u: BShip, cat: String, force: bool = false) -> void:
-	if not started or doom > 0 or pl.is_empty() or pl["dead"] or not data.has("RADIO"):
+	if not started or doom > 0 or role != "pilot" or pl.is_empty() or pl["dead"] or not data.has("RADIO"):
 		return
 	var dist: float = u.pos.distance_to((pl["ship"] as BShip).pos)
 	if not force and dist > (7000.0 if u.d["cls"] == "fgt" else 9000.0):
@@ -1499,7 +1754,29 @@ func ai_fighter(s: BShip, dt: float) -> void:
 	var tg := s.tgt
 	var old_tg := s.tgt
 	var spd := s.spd if s.spd > 0.0 else float(d["spd"])
-	if not o.is_empty() and (o["type"] == "focus" or o["type"] == "tomb"):
+	if not o.is_empty() and (o["type"] == "move" or o["type"] == "hold"):   # 移動／固守：前往集結點，在附近巡邏並攔截 2.5 km 內的敵機
+		var wp: Vector3 = s.home if o["type"] == "hold" else (o["pos"] as Vector3)
+		if o["type"] == "hold" and not o.has("set"):
+			o["set"] = true
+			s.home = s.pos
+			wp = s.pos
+		var near := nearest(wp, foes, 2500.0)
+		if near != null:
+			tg = near
+			s.tgt = near
+		elif tg != null and (tg.dead or tg.pos.distance_to(wp) > 3200.0):
+			tg = null
+			s.tgt = null
+		if tg == null:
+			if wp.distance_to(s.pos) > 700.0:
+				turn_toward(s, wp, dt, float(d["turn"]))
+				move_fwd(s, spd, dt)
+			else:
+				s.h += 0.45 * dt
+				s.roll += (-0.5 - s.roll) * dt * 2.0
+				move_fwd(s, spd * 0.7, dt)
+			return
+	elif not o.is_empty() and (o["type"] == "focus" or o["type"] == "tomb"):
 		tg = (_tomb_target(s.pos) if o["type"] == "tomb" else o["tgt"])
 		s.tgt = tg
 	elif not o.is_empty() and o["type"] == "charge":
@@ -1518,7 +1795,7 @@ func ai_fighter(s: BShip, dt: float) -> void:
 				tg = nearest(s.pos, foes, 9000.0)
 		else:
 			var pf: BShip = null
-			if not pl.is_empty() and not pl["dead"] and randf() < 0.18:
+			if role == "pilot" and not pl.is_empty() and not pl["dead"] and randf() < 0.18:
 				pf = pl["ship"]
 			tg = pf
 			if tg == null and randf() < 0.12:
@@ -1597,6 +1874,21 @@ func ai_capital(s: BShip, dt: float) -> void:
 			want = dd / maxf(l, 0.001)
 			sp = minf(sp * 1.3, l * 0.4 + 2.0)
 			face_pos = auto.pos if auto != null else s.home
+			has_face = true
+		elif not o.is_empty() and o["type"] == "move":
+			var mv: Vector3 = (o["pos"] as Vector3) - s.pos
+			var ml := mv.length()
+			if ml > 140.0:
+				want = mv / ml
+				sp = minf(sp, ml * 0.3 + 1.0)
+				face_pos = auto.pos if (auto != null and s.pos.distance_to(auto.pos) < float(d["range"]) * 1.1) else (o["pos"] as Vector3)
+			else:
+				sp = 0.0
+				face_pos = auto.pos if auto != null else s.pos + fwd_of(s) * 100.0
+			has_face = true
+		elif not o.is_empty() and o["type"] == "hold":
+			sp = 0.0
+			face_pos = auto.pos if auto != null else s.pos + fwd_of(s) * 100.0
 			has_face = true
 		elif not o.is_empty():
 			var tg: BShip = _tomb_target(s.pos) if o["type"] == "tomb" else (o["tgt"] if o["type"] == "focus" else auto)
@@ -1996,7 +2288,7 @@ func _mb(btn: int) -> bool:
 	return control and Input.is_mouse_button_pressed(btn)
 
 func _step_player(dt: float) -> void:
-	if pl.is_empty():
+	if pl.is_empty() or role != "pilot":
 		return
 	var P := pl
 	var s: BShip = P["ship"]
@@ -2260,6 +2552,8 @@ func _process(delta: float) -> void:
 		bhud.queue_redraw()
 		return
 	_governor(delta)
+	if role == "commander" and started:
+		_commander_move(minf(delta, 0.1))
 	var dt := minf(delta, 0.2 if big_step else 0.05)
 	gt += dt
 	if game_mode == "script":
@@ -2559,6 +2853,18 @@ func _update_cam(dt: float) -> void:
 		cam.look_at(Vector3(0, lerpf(7800.0, 3800.0, _smooth(pd)) - pa * 800.0, TOMB_POS.z + 800.0), Vector3.UP)
 		cam.fov = 64.0
 		return
+	if role == "commander":
+		var sp := sin(float(cc["pol"]))
+		var cp := cos(float(cc["pol"]))
+		var D := float(cc["dist"])
+		var tgt := Vector3(cc["tx"], cc["ty"], cc["tz"])
+		cam.global_position = tgt + Vector3(D * sp * sin(float(cc["az"])), D * cp, D * sp * cos(float(cc["az"])))
+		cam.look_at(tgt, Vector3.UP)
+		cam.fov = 50.0
+		cam.near = 5.0
+		if cockpit != null:
+			cockpit.visible = false
+		return
 	if pl.is_empty():
 		return
 	var s: BShip = pl["ship"]
@@ -2588,21 +2894,39 @@ func _input(e: InputEvent) -> void:
 			KEY_ESCAPE:
 				if started and not ended:
 					bpaused = not bpaused
-					Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if bpaused else Input.MOUSE_MODE_CAPTURED
+					Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if (bpaused or role == "commander") else Input.MOUSE_MODE_CAPTURED
 					ui.show_pause(bpaused)
 					if not bpaused:
 						save_settings()
 			KEY_T:
-				_cycle_target("reticle")
-				sfx_play("lock_acquired" if pl["target"] != null else "lock_tick", null, -4.0)
+				if role == "commander":
+					order_tomb()
+				else:
+					_cycle_target("reticle")
+					sfx_play("lock_acquired" if pl["target"] != null else "lock_tick", null, -4.0)
 			KEY_Y:
-				_cycle_target("next")
+				if role == "pilot": _cycle_target("next")
 			KEY_U:
-				_cycle_target("awacs")
+				if role == "pilot": _cycle_target("awacs")
 			KEY_C:
-				_call_support("focus")
+				if role == "commander":
+					order_charge()
+				else:
+					_call_support("focus")
 			KEY_G:
-				_call_support("charge")
+				if role == "pilot": _call_support("charge")
+			KEY_TAB:
+				if started and not ended and not bpaused:
+					set_role("commander" if role == "pilot" else "pilot")
+					ui.refresh_role()
+			KEY_1:
+				if role == "commander": select_group(1)
+			KEY_2:
+				if role == "commander": select_group(2)
+			KEY_3:
+				if role == "commander": select_group(3)
+			KEY_X:
+				if role == "commander": order_hold()
 			KEY_V:
 				cam_mode = 1 - cam_mode
 			KEY_Z:
