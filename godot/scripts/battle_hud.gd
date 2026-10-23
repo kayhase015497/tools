@@ -34,6 +34,10 @@ func _draw() -> void:
 func _draw_all() -> void:
 	if battle == null or not battle.started:
 		return
+	if battle.role == "commander":
+		if battle.hud_on:
+			_draw_commander()
+		return
 	if battle.pl.is_empty() or not battle.hud_on:
 		return
 	var vp := size
@@ -208,3 +212,90 @@ func _draw_radar(ctr: Vector2, r: float, ship) -> void:
 		draw_arc(ctr + dd / range_ * r, 5.0, 0, TAU, 12, COL_T, 1.5)
 	draw_line(ctr + Vector2(0, -6), ctr + Vector2(0, 6), HUD_G, 1.5)
 	draw_line(ctr + Vector2(-4, 0), ctr + Vector2(4, 0), HUD_G, 1.5)
+
+# ───────────── 指揮官 HUD ─────────────
+func _draw_commander() -> void:
+	var vp := size
+	var cam: Camera3D = battle.cam
+	# 任務目標與血條（同飛行員模式）
+	if battle.obj_on:
+		draw_string(_font(), Vector2(0, 30), "%s · %s" % [battle.tr_("objLabel"), battle.tr_("objText")], HORIZONTAL_ALIGNMENT_CENTER, vp.x, 20, Color(1.0, 0.85, 0.4))
+	if battle.game_mode == "script":
+		var bf: float = battle.iron_frac()
+		_txt(Vector2(vp.x - 330, 52), "IRONTOMB", 13, Color(1.0, 0.45, 0.55), HORIZONTAL_ALIGNMENT_RIGHT, 320.0)
+		draw_rect(Rect2(vp.x - 330, 58, 320, 8), Color(0, 0, 0, 0.5))
+		draw_rect(Rect2(vp.x - 330, 58, 320.0 * bf, 8), Color(1.0, 0.3, 0.4))
+	_txt(Vector2(vp.x - 520, 22), "GODOT build %d   FPS %d   SHIPS %d   LEGION %d   KILLS %d   SELECTED %d" % [battle.BUILD, Engine.get_frames_per_second(), battle.allies.size(), battle.enemies.size(), battle.kills, battle.selected.size()], 14, Color(0.7, 0.95, 0.9, 0.9), HORIZONTAL_ALIGNMENT_RIGHT, 510.0)
+	# 選取環
+	for u in battle.selected:
+		if u.dead or cam.is_position_behind(u.pos):
+			continue
+		var sp := cam.unproject_position(u.pos)
+		var r: float = maxf(battle._screen_radius(u) * 1.15, 9.0)
+		draw_arc(sp, r, 0, TAU, 28, Color(0.4, 1.0, 0.8, 0.9), 1.6)
+	# 敵艦小標記（大艦＋近處的）
+	var n := 0
+	for e in battle.enemies:
+		if e.dead or cam.is_position_behind(e.pos):
+			continue
+		var big: bool = e.d["hp"] > 1000.0
+		var sp2 := cam.unproject_position(e.pos)
+		if not Rect2(Vector2.ZERO, vp).has_point(sp2):
+			continue
+		n += 1
+		if n > 120:
+			break
+		var rr := 5.0 if not big else 11.0
+		draw_rect(Rect2(sp2 - Vector2(rr, rr), Vector2(rr, rr) * 2.0), Color(COL_E, 0.7), false, 1.0)
+		if big:
+			draw_rect(Rect2(sp2 + Vector2(-16, 14), Vector2(32.0 * e.hp / e.hp_max, 3)), Color(COL_E, 0.9))
+	# 命令標記（擴散圓）
+	for m in battle.cmd_marks:
+		if cam.is_position_behind(m["pos"]):
+			continue
+		var t: float = m["t"] / 1.4
+		var mp := cam.unproject_position(m["pos"])
+		draw_arc(mp, 10.0 + t * 40.0, 0, TAU, 24, Color(m["col"], 1.0 - t), 2.0)
+		draw_circle(mp, 3.0, Color(m["col"], 1.0 - t))
+	# 框選框
+	if battle.drag["on"] and not battle.drag["rot"] and battle.drag["moved"]:
+		var r2 := Rect2(Vector2(minf(battle.drag["x0"], battle.drag["x1"]), minf(battle.drag["y0"], battle.drag["y1"])), Vector2(absf(battle.drag["x1"] - battle.drag["x0"]), absf(battle.drag["y1"] - battle.drag["y0"])))
+		draw_rect(r2, Color(0.4, 1.0, 0.8, 0.12))
+		draw_rect(r2, Color(0.4, 1.0, 0.8, 0.9), false, 1.5)
+	# 小地圖（左下）：鐵墓＝紅圈，友軍藍點、敵軍紅點、鏡頭中心黃框；點擊可移動鏡頭
+	var ms := 240.0
+	var mr := Rect2(Vector2(20, vp.y - ms - 20), Vector2(ms, ms))
+	battle.mini_rect = mr
+	draw_rect(mr, Color(0.01, 0.04, 0.08, 0.7))
+	draw_rect(mr, Color(0.56, 0.9, 1.0, 0.4), false, 1.0)
+	var wx0: float = battle.MINI_X0
+	var wx1: float = battle.MINI_X1
+	var wz0: float = battle.MINI_Z0
+	var wz1: float = battle.MINI_Z1
+	var tomb_p := mr.position + Vector2((battle.TOMB_POS.x - wx0) / (wx1 - wx0) * ms, (battle.TOMB_POS.z - wz0) / (wz1 - wz0) * ms)
+	draw_circle(tomb_p, 7.0, Color(1.0, 0.3, 0.4, 0.8))
+	draw_arc(tomb_p, battle.TOMB_AURA / (wx1 - wx0) * ms, 0, TAU, 32, Color(1.0, 0.3, 0.4, 0.4), 1.0)
+	for list in [battle.allies, battle.enemies]:
+		for u in list:
+			if u.dead:
+				continue
+			var p := mr.position + Vector2((u.pos.x - wx0) / (wx1 - wx0) * ms, (u.pos.z - wz0) / (wz1 - wz0) * ms)
+			if not mr.has_point(p):
+				continue
+			var bg: bool = u.d["hp"] > 1000.0
+			var col := COL_A if u.side == 0 else COL_E
+			if battle.selected.has(u):
+				col = Color(0.4, 1.0, 0.8)
+			draw_rect(Rect2(p - Vector2(1.5, 1.5) * (2.0 if bg else 1.0), Vector2(3, 3) * (2.0 if bg else 1.0)), col)
+	var cpos := mr.position + Vector2((float(battle.cc["tx"]) - wx0) / (wx1 - wx0) * ms, (float(battle.cc["tz"]) - wz0) / (wz1 - wz0) * ms)
+	draw_rect(Rect2(cpos - Vector2(6, 6), Vector2(12, 12)), Color(1.0, 0.85, 0.3), false, 1.5)
+	_txt(Vector2(vp.x - 440, 120), "LMB drag: box select   LMB click: move / focus enemy / Irontomb   RMB drag: rotate   Wheel: zoom   WASD: pan (Shift fast)   Tab: pilot", 12, Color(0.6, 0.8, 0.8, 0.8), HORIZONTAL_ALIGNMENT_RIGHT, 430.0)
+	# 通訊紀錄（左上）
+	var y := 70.0
+	for l in battle.log_lines:
+		var age: float = battle.gt - l["t"]
+		if age > 12.0:
+			continue
+		var a3 := clampf((12.0 - age) / 2.0, 0.0, 1.0)
+		_txt(Vector2(24, y), l["text"], 14, Color(1.0, 0.55, 0.45, a3) if l["warn"] else Color(0.75, 0.95, 1.0, a3))
+		y += 20.0
