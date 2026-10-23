@@ -124,3 +124,5 @@ D3D12 是顯示卡的「溝通方式」（API），不是畫質。Godot 用 D3D1
 **Build 18（特效精修）**：`fx_extra.gd`＋`trail/shield/heat.gdshader`——引擎尾焰（軸向公告板長條，隨油門變長）、護盾泡（球殼菲涅耳＋命中漣漪，破盾大漣漪）、受損大艦（HP<65%）與飛彈的持續煙（16 個發射器池，依粒子密度設定縮減）、飛彈尾跡、熱扭曲環（大爆炸／飛彈命中，折射螢幕貼圖）。
 
 **Build 19（後製調色）**：`post.gdshader`（畫布層，在 HUD 之下）——分離色調調色（陰影冷藍／高光暖）、輕 S 曲線、輕微徑向色差、橫向藍白鏡頭光芒、暗角；ESC 選單新增 POST-FX 頁，各項可調；Low 檔關閉色差與光芒。
+
+**Build 20（材質資料化）**：`data/materials.json`（每艘艦的底色亮度、金屬度、粗糙度、法線強度、發光強度）＋`tools-src/godot/make_pbr_maps.py` 由既有底色／高度圖推導 法線圖（烘進 HSS 面板細節法線）、金屬度圖、發光圖（cruiser、ipc、frigate、fighter、ipc_fighter；hss／ipc_sid／whale／xzd 已有法線圖只調強度）。實測：仙舟巡洋艦的發光圖會把整艘照白 → 該艦發光關閉（emission_energy=0）。`--ship-demo=<kind>` 可貼近某艦種看材質。

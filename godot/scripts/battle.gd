@@ -5,7 +5,7 @@ extends "res://scripts/spike.gd"
 ## 艦艇資料表 DEF、AI（戰機／主力艦）、武器（機炮、光束砲、飛彈、光束泡）、護盾、傷害、增援、預警機資料鏈皆依網頁版移植。
 const Lighting = preload("res://scripts/lighting.gd")
 
-const BUILD := 19   # 畫面上顯示的版號（HUD 右上、標題選單）；每一批更新 +1，回報問題時請附上
+const BUILD := 20   # 畫面上顯示的版號（HUD 右上、標題選單）；每一批更新 +1，回報問題時請附上
 const TOMB_POS := Vector3(0, 1500, -15500)
 const TOMB_SCALE_W := 34.0
 const TOMB_AURA := 4200.0
@@ -2540,6 +2540,17 @@ func _render_shots() -> void:
 func _update_cam(dt: float) -> void:
 	if not started or (lookdev != null and lookdev.cam_locked):
 		return
+	for a_ in OS.get_cmdline_user_args():   # 測試用：--ship-demo=cruis 鏡頭貼近該艦種的第一艘
+		if a_.begins_with("--ship-demo="):
+			var k_ := a_.substr(12)
+			for list in [allies, enemies]:
+				for s in list:
+					if s.kind == k_ and not s.dead and not s.is_player:
+						var len_m: float = float(KMODEL[k_][1]) * s.k
+						cam.global_position = s.pos + basis_of(s) * Vector3(0.45, 0.25, -0.6) * len_m
+						cam.look_at(s.pos, Vector3.UP)
+						cam.fov = 60.0
+						return
 	if doom > 0:   # 過場：從艦隊後上方望向鐵墓；巨劍降下時鏡頭下移，衝擊後拉開看衝擊波掃來
 		var T: Dictionary = data["T"]
 		var pd := clampf((gt - float(T["DOOM"])) / (float(T["IMPACT"]) - float(T["DOOM"])), 0.0, 1.0)
