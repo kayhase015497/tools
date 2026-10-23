@@ -244,20 +244,66 @@ func _tex_sibling(tex: Texture2D, suffix: String) -> Texture2D:
 	var path := tex.resource_path.get_basename() + suffix
 	return load(path) as Texture2D if ResourceLoader.exists(path) else null
 
+var _mat_json: Dictionary = {}
+
+func _mat_data(model: String) -> Dictionary:   # data/materials.json（鍵＝GLB 檔名）
+	if _mat_json.is_empty():
+		var f := FileAccess.open("res://data/materials.json", FileAccess.READ)
+		if f != null:
+			_mat_json = JSON.parse_string(f.get_as_text())
+			f.close()
+	return _mat_json.get(model, {})
+
+func _apply_mat_data(bm: BaseMaterial3D, md: Dictionary) -> void:
+	var am: float = float(md.get("albedo_mul", 1.0))
+	if am != 1.0:
+		bm.albedo_color = Color(bm.albedo_color.r * am, bm.albedo_color.g * am, bm.albedo_color.b * am, bm.albedo_color.a)
+	if bm.albedo_texture != null:
+		if md.get("use_nrm", false) and not bm.normal_enabled:
+			var nt := _tex_sibling(bm.albedo_texture, "_nrm.png")
+			if nt != null:
+				bm.normal_enabled = true
+				bm.normal_texture = nt
+		if bm.normal_enabled:
+			bm.normal_scale = float(md.get("normal_strength", 1.0))
+		if md.get("use_rough_tex", false):
+			var rt := _tex_sibling(bm.albedo_texture, "_rough.png")
+			if rt != null:
+				bm.roughness_texture = rt
+				bm.roughness_texture_channel = BaseMaterial3D.TEXTURE_CHANNEL_RED
+		if md.get("use_metal_tex", false):
+			var mt := _tex_sibling(bm.albedo_texture, "_metal.png")
+			if mt != null:
+				bm.metallic_texture = mt
+				bm.metallic_texture_channel = BaseMaterial3D.TEXTURE_CHANNEL_RED
+		var ee: float = float(md.get("emission_energy", 0.0))
+		if ee > 0.0 and not bm.emission_enabled:
+			var et := _tex_sibling(bm.albedo_texture, "_emit.png")
+			if et != null:
+				bm.emission_enabled = true
+				bm.emission_texture = et
+				bm.emission = Color.WHITE
+				bm.emission_energy_multiplier = ee
+	if md.has("metallic"):
+		bm.metallic = float(md["metallic"])
+	if md.has("roughness"):
+		bm.roughness = float(md["roughness"])
+	if md.has("clearcoat"):
+		bm.clearcoat_enabled = true
+		bm.clearcoat = float(md["clearcoat"])
+		bm.clearcoat_roughness = 0.2
+
 var use_pom := true   # 戰場（battle.gd）設為 false：沿用 GLB 內建的 PBR 材質（底色＋法線貼圖），武器與爆炸的光照直接打在法線上
 
 func _convert_materials(mesh: Mesh, kind: String = "") -> void:
 	if not use_pom:
+		var md: Dictionary = _mat_data(kind)
 		for si in range(mesh.get_surface_count()):
 			var bm := mesh.surface_get_material(si) as BaseMaterial3D
 			if bm == null:
 				continue
-			if kind == "hss":   # 黑塔：耐高溫陶瓷——非金屬、釉面清漆
-				bm.metallic = 0.0
-				bm.roughness = 0.5
-				bm.clearcoat_enabled = true
-				bm.clearcoat = 0.6
-				bm.clearcoat_roughness = 0.2
+			if not md.is_empty():
+				_apply_mat_data(bm, md)
 			_hull_by_name[bm.resource_name] = bm
 		return
 	if _hull_shader == null:

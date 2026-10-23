@@ -1,0 +1,72 @@
+{
+ "_doc": "艦體材質參數（Build 20，不用改程式）。鍵＝GLB 檔名（不含 .glb）。albedo_mul：底色亮度倍率（網頁版為無色調映射提亮過，進 ACES 會過曝 → <1）；metallic／roughness：有金屬度／粗糙度貼圖時是『貼圖的倍率』，沒有時是固定值；normal_strength：法線強度；emission_energy：發光貼圖強度（0＝不用發光貼圖）。貼圖由 tools-src/godot/make_pbr_maps.py 推導（_nrm／_metal／_emit）；已有法線圖的艦（hss、ipc_sid、whale、xzd）只調強度。",
+ "cruiser": {
+  "albedo_mul": 0.95,
+  "metallic": 0.4,
+  "roughness": 1.0,
+  "normal_strength": 1.1,
+  "use_nrm": true,
+  "use_metal_tex": true,
+  "use_rough_tex": true,
+  "emission_energy": 0.0
+ },
+ "ipc": {
+  "albedo_mul": 0.95,
+  "metallic": 0.4,
+  "roughness": 1.0,
+  "normal_strength": 1.1,
+  "use_nrm": true,
+  "use_metal_tex": true,
+  "use_rough_tex": true,
+  "emission_energy": 0.0
+ },
+ "frigate": {
+  "albedo_mul": 0.95,
+  "metallic": 0.4,
+  "roughness": 1.0,
+  "normal_strength": 1.0,
+  "use_nrm": true,
+  "use_metal_tex": true,
+  "use_rough_tex": true,
+  "emission_energy": 0.0
+ },
+ "fighter": {
+  "albedo_mul": 1.0,
+  "metallic": 0.4,
+  "roughness": 1.0,
+  "normal_strength": 1.0,
+  "use_nrm": true,
+  "use_metal_tex": true,
+  "use_rough_tex": true,
+  "emission_energy": 0.0
+ },
+ "ipc_fighter": {
+  "albedo_mul": 1.0,
+  "metallic": 0.4,
+  "roughness": 1.0,
+  "normal_strength": 1.0,
+  "use_nrm": true,
+  "use_metal_tex": true,
+  "use_rough_tex": true,
+  "emission_energy": 0.5
+ },
+ "hss": {
+  "albedo_mul": 1.0,
+  "metallic": 0.0,
+  "roughness": 0.5,
+  "normal_strength": 1.0,
+  "clearcoat": 0.6
+ },
+ "ipc_sid": {
+  "albedo_mul": 1.0,
+  "normal_strength": 1.0
+ },
+ "whale": {
+  "albedo_mul": 1.0,
+  "normal_strength": 1.0
+ },
+ "xzd": {
+  "albedo_mul": 1.0,
+  "normal_strength": 1.0
+ }
+}
