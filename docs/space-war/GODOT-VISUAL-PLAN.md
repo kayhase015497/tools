@@ -122,3 +122,5 @@ D3D12 是顯示卡的「溝通方式」（API），不是畫質。Godot 用 D3D1
 **Build 17（2026-10-24）**：ESC 設定選單（`battle_ui.gd` 的 PAUSE_SPEC、`battle.gd` 的 opt／apply_settings）、引擎光暈（`glow.gdshader`）、HUD／標題版號；Balanced 預設改為不開陰影，陰影等級由選單決定。使用者要求：Godot 畫質提升版改由 Claude 全權推進，使用者只試玩給回饋。
 
 **Build 18（特效精修）**：`fx_extra.gd`＋`trail/shield/heat.gdshader`——引擎尾焰（軸向公告板長條，隨油門變長）、護盾泡（球殼菲涅耳＋命中漣漪，破盾大漣漪）、受損大艦（HP<65%）與飛彈的持續煙（16 個發射器池，依粒子密度設定縮減）、飛彈尾跡、熱扭曲環（大爆炸／飛彈命中，折射螢幕貼圖）。
+
+**Build 19（後製調色）**：`post.gdshader`（畫布層，在 HUD 之下）——分離色調調色（陰影冷藍／高光暖）、輕 S 曲線、輕微徑向色差、橫向藍白鏡頭光芒、暗角；ESC 選單新增 POST-FX 頁，各項可調；Low 檔關閉色差與光芒。

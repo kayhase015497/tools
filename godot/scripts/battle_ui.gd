@@ -285,6 +285,12 @@ const PAUSE_SPEC := {
 		["bloom", "Bloom", "bool", null],
 		["bloom_strength", "Bloom strength", "slider", [0.2, 1.6, 0.05, "%d%%", 100.0]],
 	],
+	"POST-FX": [
+		["post_grade", "Color grading (cool shadows / warm highlights)", "slider", [0.0, 1.0, 0.05, "%d%%", 100.0]],
+		["post_ca", "Chromatic aberration", "slider", [0.0, 1.0, 0.05, "%d%%", 100.0]],
+		["post_streak", "Anamorphic lens streak", "slider", [0.0, 1.0, 0.05, "%d%%", 100.0]],
+		["post_vignette", "Vignette", "slider", [0.0, 1.0, 0.05, "%d%%", 100.0]],
+	],
 	"EFFECTS": [
 		["explosion_budget", "Explosion budget (limit simultaneous)", "bool", null],
 		["explosion_max", "Max simultaneous full explosions", "slider", [3, 24, 1, "%d", 1.0]],

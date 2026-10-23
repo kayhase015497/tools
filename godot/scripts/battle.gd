@@ -5,7 +5,7 @@ extends "res://scripts/spike.gd"
 ## 艦艇資料表 DEF、AI（戰機／主力艦）、武器（機炮、光束砲、飛彈、光束泡）、護盾、傷害、增援、預警機資料鏈皆依網頁版移植。
 const Lighting = preload("res://scripts/lighting.gd")
 
-const BUILD := 18   # 畫面上顯示的版號（HUD 右上、標題選單）；每一批更新 +1，回報問題時請附上
+const BUILD := 19   # 畫面上顯示的版號（HUD 右上、標題選單）；每一批更新 +1，回報問題時請附上
 const TOMB_POS := Vector3(0, 1500, -15500)
 const TOMB_SCALE_W := 34.0
 const TOMB_AURA := 4200.0
@@ -137,6 +137,8 @@ var bhud: Control
 var shot_mm: MultiMesh
 var glow_mm: MultiMesh
 var fxe: Node3D
+var post_mat: ShaderMaterial
+var post_rect: ColorRect
 const ENGINE_GLOW := {"frig": Color(0.55, 0.85, 1.0), "cruis": Color(0.55, 0.85, 1.0), "cap": Color(0.6, 0.88, 1.0), "hss": Color(0.55, 0.8, 1.0), "xzd": Color(0.7, 0.9, 1.0), "ipc": Color(1.0, 0.55, 0.25), "moon": Color(0, 0, 0), "whale": Color(0.7, 0.4, 1.0), "fgt": Color(0.55, 0.85, 1.0), "awacs": Color(0.6, 0.88, 1.0), "fly": Color(0.55, 0.45, 1.0)}
 var shot_inst: MultiMeshInstance3D
 var flash_pool: Array = []
@@ -294,6 +296,7 @@ func opt_defaults(preset: int) -> Dictionary:
 		"wreck_max": [14, 8, 4][p], "wreck_life": [60.0, 40.0, 20.0][p],
 		"radar": true, "mouse_sens": 1.0, "invert_y": false,
 		"music": 1.0, "sfx": 1.0, "voice": 1.0,
+		"post_grade": 1.0, "post_ca": [0.22, 0.18, 0.0][p], "post_streak": [0.45, 0.3, 0.0][p], "post_vignette": 0.25,
 	}
 
 func load_settings() -> void:
@@ -351,6 +354,11 @@ func apply_settings() -> void:
 			if e != null:
 				e.glow_enabled = bool(opt["bloom"])
 				e.glow_intensity = 0.9 * float(opt["bloom_strength"])
+	if post_mat != null:
+		post_mat.set_shader_parameter("grade", float(opt["post_grade"]))
+		post_mat.set_shader_parameter("ca", float(opt["post_ca"]))
+		post_mat.set_shader_parameter("streak", float(opt["post_streak"]))
+		post_mat.set_shader_parameter("vignette", float(opt["post_vignette"]))
 	Lighting.apply(self, bool(opt["lighting_v1"]), ([2, 1, 0] as Array)[int(opt["shadows"])])
 
 func resume_game() -> void:
@@ -700,6 +708,16 @@ func _make_cam_hud() -> void:
 	cam.near = 1.0
 	cam.fov = 70.0
 	add_child(cam)
+	var pl_ := CanvasLayer.new()   # 後製層：在 HUD／介面之下（layer 0）
+	pl_.layer = 0
+	add_child(pl_)
+	post_rect = ColorRect.new()
+	post_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+	post_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	post_mat = ShaderMaterial.new()
+	post_mat.shader = load("res://shaders/post.gdshader")
+	post_rect.material = post_mat
+	pl_.add_child(post_rect)
 	var layer := CanvasLayer.new()
 	add_child(layer)
 	bhud = load("res://scripts/battle_hud.gd").new()
