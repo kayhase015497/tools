@@ -368,7 +368,7 @@
         fx.smoke(x + p[0] * off, y + p[1] * off, z + p[2] * off, dir[0] * sp, dir[1] * sp, dir[2] * sp, sr * 0.12, sr * rnd(0.6, 0.9), V.smoke_life * rnd(0.85, 1.1), smokeFire, 1.6, 1, { delay: born, shift, radius: size * 2.5, cx: x, cy: y, cz: z });
       }
       // 3) 火花：細長曳光（橘黃＋粉紫兩組）。花瓣：5 道窄角火舌
-      const nsp = cnt(V.spark_n * SPARK_BUDGET), L0 = size * 0.07 * V.spark_len * 2.5, w0 = Math.max(0.12, size * 0.0045);
+      const nsp = cnt(V.spark_n * SPARK_BUDGET * (size < 60 ? 0.4 : 1)), L0 = size * 0.07 * V.spark_len * 2.5, w0 = Math.max(0.12, size * 0.0045);
       const gold = purple ? [0.95, 0.7, 1.0] : [1.0, 0.72, 0.3], lilac = purple ? [1.0, 0.6, 0.95] : [0.85, 0.7, 1.0];
       const jets = []; for (let j = 0; j < (V.jets || 0); j++) jets.push(randDir());
       for (let i = 0; i < nsp; i++) {
