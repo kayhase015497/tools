@@ -58,7 +58,7 @@ window.FPVPost = { create: (...a) => createPost(...a) };
 console.info('[v3] backend:', window.SW2.backend, '· quality:', QUALITY);
 
 const BASE3 = new URL('./legacy/', import.meta.url).href, BASE2 = new URL('../v2/legacy/', import.meta.url).href;   // v3 只放有改的檔案，其餘沿用 v2
-const V3_FILES = new Set(['sw-fx', 'sw-breakup', 'battle-sim']);
+const V3_FILES = new Set(['sw-fx', 'sw-breakup', 'battle-sim', 'battle-ui']);
 const FILES = ['sw-assets', 'sw-env', 'sw-fx', 'sw-fleet', 'sw-breakup', 'fpv-audio', 'battle-core', 'battle-render', 'battle-sim', 'battle-ui', 'battle-main'];
 for (const f of FILES) {
   await new Promise((res, rej) => { const s = document.createElement('script'); s.src = (V3_FILES.has(f) ? BASE3 : BASE2) + f + '.js'; s.onload = res; s.onerror = () => rej(new Error('載入失敗：' + f)); document.body.appendChild(s); });
@@ -94,7 +94,7 @@ window.SW2.snap = () => {
     requestAnimationFrame(loop); n++; const t = performance.now();
     if (t - t0 > 500) { fps = n * 1000 / (t - t0); n = 0; t0 = t; if (on) {
       const D = window.battleDebug, r = window.SW2.renderer, ps = r.getPixelRatio();
-      el.textContent = `v3 build 6 · ${window.SW2.backend} · ${window.SW2.QUALITY}\n${fps.toFixed(1)} fps · ${(1000 / Math.max(fps, 1)).toFixed(1)} ms\n${Math.round(innerWidth * ps)}×${Math.round(innerHeight * ps)} (×${ps})\n${gpuName || 'GPU: n/a'}\nships ${D ? D.allies.length + D.enemies.length : 0} · particles ${D && D.fx ? D.fx.particleCount : 0}\n` + (window.battleKnobs ? (k => `[F4] 解析度比例 ×${k.res}   [F5] 抗鋸齒 ${k.msaa ? k.msaa + '×' : '關'}\n[F6] 泛光 ${k.bloom ? '開' : '關'}   [F7] 體積光 ${k.cinema ? '開' : '關'}   [F8] 護盾/損傷特效 ${window.G.lite ? '關' : '開'}\n[F9] 艦隊規模 ×${window.G.fleetScale}（增援即時生效；初始艦隊需重新開始）\n[F10] 即時陰影 ${k.shadow ? '開' : '關'}`)(window.battleKnobs.get()) : '');
+      el.textContent = `v3 build 7 · ${window.SW2.backend} · ${window.SW2.QUALITY}\n${fps.toFixed(1)} fps · ${(1000 / Math.max(fps, 1)).toFixed(1)} ms\n${Math.round(innerWidth * ps)}×${Math.round(innerHeight * ps)} (×${ps})\n${gpuName || 'GPU: n/a'}\nships ${D ? D.allies.length + D.enemies.length : 0} · particles ${D && D.fx ? D.fx.particleCount : 0}\n` + (window.battleKnobs ? (k => `[F4] 解析度比例 ×${k.res}   [F5] 抗鋸齒 ${k.msaa ? k.msaa + '×' : '關'}\n[F6] 泛光 ${k.bloom ? '開' : '關'}   [F7] 體積光 ${k.cinema ? '開' : '關'}   [F8] 護盾/損傷特效 ${window.G.lite ? '關' : '開'}\n[F9] 艦隊規模 ×${window.G.fleetScale}（增援即時生效；初始艦隊需重新開始）\n[F10] 即時陰影 ${k.shadow ? '開' : '關'}`)(window.battleKnobs.get()) : '');
     } }
   })();
 })();
