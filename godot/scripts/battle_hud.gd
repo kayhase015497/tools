@@ -289,7 +289,7 @@ func _draw_commander() -> void:
 			draw_rect(Rect2(p - Vector2(1.5, 1.5) * (2.0 if bg else 1.0), Vector2(3, 3) * (2.0 if bg else 1.0)), col)
 	var cpos := mr.position + Vector2((float(battle.cc["tx"]) - wx0) / (wx1 - wx0) * ms, (float(battle.cc["tz"]) - wz0) / (wz1 - wz0) * ms)
 	draw_rect(Rect2(cpos - Vector2(6, 6), Vector2(12, 12)), Color(1.0, 0.85, 0.3), false, 1.5)
-	_txt(Vector2(vp.x - 440, 120), "LMB drag: box select   LMB click: move / focus enemy / Irontomb   RMB drag: rotate   Wheel: zoom   WASD: pan (Shift fast)   Tab: pilot", 12, Color(0.6, 0.8, 0.8, 0.8), HORIZONTAL_ALIGNMENT_RIGHT, 430.0)
+	_txt(Vector2(vp.x * 0.5 - 520, vp.y - 98), "LMB drag: box select   LMB click: move / focus enemy / Irontomb   RMB drag: rotate   Wheel: zoom   WASD: pan (Shift fast)   Tab: pilot", 12, Color(0.6, 0.8, 0.8, 0.8), HORIZONTAL_ALIGNMENT_CENTER, 1040.0)
 	# 通訊紀錄（左上）
 	var y := 70.0
 	for l in battle.log_lines:

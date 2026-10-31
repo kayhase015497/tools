@@ -5,7 +5,7 @@ extends "res://scripts/spike.gd"
 ## 艦艇資料表 DEF、AI（戰機／主力艦）、武器（機炮、光束砲、飛彈、光束泡）、護盾、傷害、增援、預警機資料鏈皆依網頁版移植。
 const Lighting = preload("res://scripts/lighting.gd")
 
-const BUILD := 21   # 畫面上顯示的版號（HUD 右上、標題選單）；每一批更新 +1，回報問題時請附上
+const BUILD := 22   # 畫面上顯示的版號（HUD 右上、標題選單）；每一批更新 +1，回報問題時請附上
 const TOMB_POS := Vector3(0, 1500, -15500)
 const TOMB_SCALE_W := 34.0
 const TOMB_AURA := 4200.0
@@ -31,7 +31,7 @@ const DEF := {
 		"flak": {"cd": 0.1, "dmg": 110.0, "w": 2.6, "len": 70.0, "bs": 900.0, "col": Color(0.3, 0.7, 1.0)}, "beam": {"cd": 2.2, "n": 6, "dmg": 2600.0, "w": 24.0, "col": Color(0.2, 0.55, 1.0)}, "msl": {"cd": 3.6, "n": 8, "dmg": 900.0}},
 	"moon":  {"side": 0, "name": "Screwllum Moon", "hp": 260000.0, "shield": 50000.0, "spd": 16.0, "turn": 0.03, "rad": 740.0, "range": 3400.0, "cd": 5.0, "boom": 24.0, "cls": "cap", "bubble": true,
 		"flak": {"cd": 0.4, "dmg": 90.0, "w": 2.2, "len": 60.0, "bs": 900.0, "col": Color(0.35, 0.75, 1.0)}, "beam": {"cd": 3.0, "n": 2, "dmg": 1500.0, "w": 16.0, "col": Color(0.25, 0.6, 1.0)}},
-	"awacs": {"side": 0, "name": "Sentinel AWACS", "hp": 9000.0, "shield": 1500.0, "spd": 40.0, "turn": 0.2, "rad": 75.0, "boom": 6.0, "cls": "ship", "noGun": true},
+	"awacs": {"side": 0, "name": "IPC SID", "hp": 24000.0, "shield": 4500.0, "spd": 30.0, "turn": 0.14, "rad": 210.0, "boom": 6.0, "cls": "ship", "noGun": true},
 	"fly":   {"side": 1, "name": "Legion Fighter", "hp": 90.0, "spd": 112.0, "rad": 7.0, "turn": 1.5, "boom": 0.8, "cls": "fgt"},
 	"whale": {"side": 1, "name": "Legion Carrier", "hp": 30000.0, "shield": 6000.0, "spd": 20.0, "turn": 0.08, "rad": 170.0, "range": 1700.0, "boom": 9.0, "cls": "cap",
 		"flak": {"cd": 0.6, "dmg": 45.0, "w": 1.8, "len": 50.0, "bs": 800.0, "col": Color(0.62, 0.22, 1.0)}, "beam": {"cd": 3.2, "n": 1, "dmg": 700.0, "w": 14.0, "col": Color(0.65, 0.2, 1.0)}},
@@ -40,7 +40,7 @@ const DEF := {
 const KMODEL := {
 	"frig": ["frigate", 85.5, "frigate", 140], "cruis": ["cruiser", 231.0, "cruiser", 70], "cap": ["ipc_sid", 1040.0, "ipc_sid", 24],
 	"hss": ["hss", 2040.0, "hss", 3], "xzd": ["xzd", 2720.0, "", 3], "ipc": ["ipc", 264.0, "ipc", 70], "moon": ["moon", 1530.0, "", 6],
-	"whale": ["whale", 378.0, "whale", 40], "fgt": ["fighter", 14.0, "", 220], "fly": ["butterfly", 12.0, "", 320], "awacs": ["fighter", 90.0, "", 8],
+	"whale": ["whale", 378.0, "whale", 40], "fgt": ["fighter", 14.0, "", 220], "fly": ["butterfly", 12.0, "", 320], "awacs": ["ipc_sid", 264.0, "ipc_sid", 8],
 }
 const SHIP_KINDS := ["frig", "cruis", "ipc", "cap", "xzd", "hss", "moon", "awacs"]
 
@@ -105,6 +105,14 @@ class BShot:
 	var homing := false
 	var big := false
 	var tgt: BShip = null
+	var vls := false          # 艦載垂直發射飛彈：冷發射（stage 0）→ 點火追蹤（stage 1）
+	var stage := 0
+	var age := 0.0
+	var t1 := 0.7
+	var cold := 120.0
+	var up := Vector3.UP
+	var dv := Vector3.ZERO    # 發射艦的速度（冷發射時繼承）
+	var wrate := 0.0          # 彈頭角速度（導引慣性）
 
 var allies: Array = []
 var enemies: Array = []
@@ -121,6 +129,8 @@ var next_wave := 6.0
 var next_reinf := 25.0
 var next_launch := 6.0
 var reinf_n := 0
+var vls_demo_done := false
+var awacs_pending := 0.0   # IPC SID 被擊毀後，這個時間點會有新的一艘上線
 var last_alloc := -9.0
 var tomb_t: BShip
 var iron_dmg := 0.0
@@ -685,7 +695,7 @@ func start_game(mode_: String, lang_: String, voice_: String, role_: String = "p
 		bpaused = true
 		ui.show_pause(true)
 	if not ("--demo-cam" in OS.get_cmdline_user_args() or "--lookdev" in OS.get_cmdline_user_args()):
-		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if (role == "commander" or bpaused) else Input.MOUSE_MODE_CAPTURED
 
 func menu_cam(dt: float) -> void:   # 選單背景：鏡頭在聯軍艦隊後方緩慢環繞，望向鐵墓
 	menu_t += dt
@@ -1172,9 +1182,6 @@ func _init_world() -> void:
 	mk_ring("xzd", 8900.0, 0.4, -0.06)
 	for m in [[-0.85, 0.35], [0.8, -0.3], [0.05, 0.62]]:
 		mk_ring("moon", 9500.0, m[0], m[1])
-	var cp := [0.38, -0.3, 0.12, -0.42, 0.3, -0.1]
-	for i in range(6):
-		mk_ring("cap", 7200.0, -0.8 + i * 0.32, cp[i])
 	for i in range(10):
 		mk_ring("ipc" if i % 2 == 1 else "cruis", rr(6000, 8000), -SIDE_AZ + (i + 0.5) * (2.0 * SIDE_AZ / 10.0) + rr(-0.1, 0.1), rr(-0.65, 0.65))
 	for i in range(24):
@@ -1341,10 +1348,6 @@ func _reinforce() -> void:
 			var rp := _rally_point(kk)
 			_warp_in(kk, rp[1], true, rp[0])
 		say("Cruiser squadron warping in", "巡洋艦中隊折躍進場")
-	if reinf_n % 4 == 0 and cnt("cap") < 10:
-		var rp2 := _rally_point("cap")
-		_warp_in("cap", rp2[1], true, rp2[0])
-		say("Dreadnought warping in behind the line", "無畏艦自後方折躍馳援")
 	if cnt("frig") < 46:
 		for i in range(3):
 			var rp3 := _rally_point("frig")
@@ -1471,10 +1474,11 @@ func _kill(s: BShip, src: BShip) -> void:
 	if float(s.d["boom"]) >= 3.0:
 		say(str(s.d["name"]) + " destroyed" + (" · " + s.cs if s.side == 0 else ""), str(s.d["name"]) + " 被擊毀", s.side == 0)
 	if s.kind == "awacs":
-		say("Sentinel lost — datalink degraded", "預警機失去聯繫——資料鏈降級，各單位改為自主作戰", true)
+		say("IPC SID lost — datalink degraded, units on local control", "戰略投資部專用艦失去聯繫——資料鏈降級，各單位改為自主作戰", true)
 		for u in allies:
 			u.aw_tgt = null
 		pl["suggest"] = null
+		awacs_pending = gt + rr(55.0, 80.0)
 	if s.side == 0 and not s.is_player:
 		radio_say(s, "final")
 	if s.is_player:
@@ -1624,7 +1628,59 @@ func _step_shots(dt: float) -> void:
 			shots.remove_at(i)
 		i -= 1
 
+const MSL_WMAX := 4.6
+const MSL_AC := 20.0
+const MSL_SPD := 470.0
+const MSL_ACC := 640.0
+
+func _step_vls(m: BShot, dt: float) -> bool:
+	m.age += dt
+	m.life -= dt
+	var tg := m.tgt
+	if m.stage == 0:
+		var k := clampf(m.age / m.t1, 0.0, 1.0)
+		var sp := m.cold * (1.0 - 0.5 * k)
+		m.vel = m.up * sp + m.dv
+		m.pos += m.vel * dt
+		m.fwd = m.up
+		if m.age >= m.t1:   # 第二段：主發動機點火（閃光＋熱浪）
+			m.stage = 1
+			m.spd = maxf(sp, 60.0)
+			m.col = Color(1.0, 0.65, 0.3)
+			_flash(m.pos, 150.0, 0.3, Color(1.0, 0.8, 0.5))
+			fxe.heat_ring(m.pos, 40.0)
+		return m.life > 0.0
+	if tg != null and not tg.dead:
+		var D := lead_point(m.pos, tg, maxf(m.spd, 100.0))
+		var to := D - m.pos
+		var dist := to.length()
+		var V := to / maxf(dist, 0.001)
+		var nose := m.fwd
+		var cr := nose.cross(V)
+		var sn := cr.length()
+		var ang := atan2(sn, nose.dot(V))
+		var w_t := minf(MSL_WMAX, sqrt(2.0 * MSL_AC * ang * 0.8))
+		m.wrate += clampf(w_t - m.wrate, -MSL_AC * dt, MSL_AC * dt)
+		var step := minf(m.wrate * dt, ang)
+		if sn > 1e-5 and step > 0.0:
+			m.fwd = nose.rotated(cr / sn, step).normalized()
+		m.spd = minf(m.spd + MSL_ACC * dt, MSL_SPD)
+		var sl := minf(1.0, 4.2 * dt)   # 速度向量延遲追上彈頭方向（慣性滑移）
+		m.vel += (m.fwd * m.spd - m.vel) * sl
+		if dist < tg.rad + 14.0:
+			Explosion.spawn(self, m.pos, 40.0, m.side, 0, false)
+			fxe.heat_ring(m.pos, 30.0)
+			damage(tg, m.dmg, m.pos, m.src)
+			return false
+	else:
+		m.spd = minf(m.spd + MSL_ACC * dt, MSL_SPD)
+		m.vel = m.fwd * m.spd
+	m.pos += m.vel * dt
+	return m.life > 0.0
+
 func _step_missile(m: BShot, dt: float) -> bool:
+	if m.vls:
+		return _step_vls(m, dt)
 	var tg := m.tgt
 	if tg != null and not tg.dead:
 		var to := tg.pos - m.pos
@@ -2126,29 +2182,39 @@ func _release_beam_vis(b: Dictionary) -> void:
 	(beam_pool[vis]["sparks"] as GPUParticles3D).emitting = false
 
 func _fire_ship_missiles(s: BShip, tg: BShip, spec: Dictionary) -> void:
+	# 垂直發射：從艦背沿艦艇「上方」冷發射，再二段點火轉向目標（網頁版 v2 的 fireShipMissiles）
 	for i in range(int(spec["n"])):
 		get_tree().create_timer(i * 0.12).timeout.connect(func():
 			if s.dead or tg.dead:
 				return
+			var bs := basis_of(s)
+			var up := bs.y
+			var o := s.pos + bs.x * (rr(-0.6, 0.6) * s.rad * 0.5) + bs.z * (rr(-0.55, 0.55) * s.rad * 0.7) + up * (s.rad * 0.3)
+			up = (up + bs.x * rr(-0.1, 0.1) + bs.z * rr(-0.1, 0.1)).normalized()   # 微小散布，齊射時呈扇形
 			var m := BShot.new()
-			var o := s.pos + basis_of(s).x * (s.rad * 0.3 * (1.0 if i % 2 == 0 else -1.0)) + Vector3(rr(-40, 40), rr(-40, 40), rr(-40, 40))
-			var f := ((tg.pos - o).normalized() + Vector3(rr(-0.35, 0.35), rr(0.0, 0.5), rr(-0.35, 0.35))).normalized()
 			m.pos = o
-			m.fwd = f
-			m.vel = f * 90.0
-			m.spd = 90.0
-			m.life = 16.0
+			m.fwd = up
+			m.vel = up * 130.0
+			m.spd = 130.0
+			m.life = 18.0
 			m.big = true
 			m.homing = true
+			m.vls = true
+			m.stage = 0
+			m.t1 = rr(0.6, 0.85)
+			m.cold = rr(110.0, 150.0)
+			m.up = up
+			m.dv = s.vel
 			m.dmg = float(spec["dmg"]) * (enemy_dmg if s.side == 1 else 1.0)
 			m.side = s.side
 			m.src = s
 			m.tgt = tg
 			m.w = 6.0
 			m.len = 40.0
-			m.col = Color(1.0, 0.6, 0.25)
+			m.col = Color(0.8, 0.82, 0.88)
 			shots.append(m)
-			_flash(o, 70.0, 0.3, Color(1, 0.8, 0.5)))
+			_flash(o, 55.0, 0.22, Color(0.9, 0.92, 1.0))
+			fxe.heat_ring(o, 18.0))
 
 func _bubble_target(s: BShip, range_: float) -> BShip:
 	var best: BShip = null
@@ -2584,6 +2650,16 @@ func _process(delta: float) -> void:
 	_build_grid()
 	_pf("grid", t0)
 	t0 = Time.get_ticks_usec()
+	if "--vls-demo" in OS.get_cmdline_user_args() and not vls_demo_done and gt > 0.3:   # 測試用：立刻從第一艘 IPC 巡洋艦齊射飛彈
+		vls_demo_done = true
+		for u in allies:
+			if u.kind == "ipc" and not u.dead and not enemies.is_empty():
+				_fire_ship_missiles(u, enemies[0], {"n": 6, "dmg": 900.0})
+				break
+	if _awacs_unit() == null and awacs_pending > 0.0 and gt >= awacs_pending and doom == 0:
+		awacs_pending = 0.0
+		var ns := mk_ship("awacs", Vector3(rr(-800, 800), 700.0, 3600.0), PI)
+		say(ns.cs + " online — datalink restored, taking over target allocation", ns.cs + " 上線——資料鏈恢復，接管目標分配")
 	for s in allies:
 		if s.dead or s.is_player:
 			continue
@@ -2623,7 +2699,7 @@ func _process(delta: float) -> void:
 	stats_t += dt
 	if stats_t >= 10.0 and "--stats" in OS.get_cmdline_user_args():
 		stats_t = 0.0
-		print("[stats] t=%.0f allies=%d enemies=%d kills=%d shots=%d beams=%d wave=%d player_hull=%.0f msl=%d" % [gt, allies.size(), enemies.size(), kills, shots.size(), bbeams.size(), wave, pl["hull"], pl["missiles"]])
+		print("[stats] vls=%d t=%.0f allies=%d enemies=%d kills=%d shots=%d beams=%d wave=%d player_hull=%.0f msl=%d" % [shots.filter(func(x): return x.vls).size(), gt, allies.size(), enemies.size(), kills, shots.size(), bbeams.size(), wave, pl["hull"], pl["missiles"]])
 	t0 = Time.get_ticks_usec()
 	fxe.begin_trails()
 	_render_ships()
@@ -2827,7 +2903,9 @@ func _render_shots() -> void:
 		var bw := Basis(bs.x * b.w, bs.y * b.w, bs.z * b.len)
 		shot_mm.set_instance_transform(i, Transform3D(bw, b.pos - dir * b.len * 0.5))
 		shot_mm.set_instance_color(i, b.col)
-		if b.homing:
+		if b.vls and b.stage == 0:   # 冷發射：粗短的白色燃氣，沒有火焰
+			fxe.add_trail(b.pos, dir, 30.0 + b.spd * 0.25, 7.0, Color(0.85, 0.87, 0.92))
+		elif b.homing:
 			fxe.add_trail(b.pos, dir, 50.0 + b.spd * 0.35, 1.6 if not b.big else 4.0, Color(1.0, 0.65, 0.3))
 	shot_mm.visible_instance_count = n
 
