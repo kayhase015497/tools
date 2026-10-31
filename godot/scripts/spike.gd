@@ -304,6 +304,24 @@ func _convert_materials(mesh: Mesh, kind: String = "") -> void:
 				continue
 			if not md.is_empty():
 				_apply_mat_data(bm, md)
+			if kind == "hss" and bm.albedo_texture != null:   # 近距離細節：三平面面板縫／刮痕疊在 GLB 貼圖上
+				var hm := ShaderMaterial.new()
+				hm.shader = load("res://shaders/hss_hull.gdshader")
+				hm.set_shader_parameter("albedo_tex", bm.albedo_texture)
+				if bm.normal_texture != null:
+					hm.set_shader_parameter("normal_tex", bm.normal_texture)
+				if bm.emission_texture != null:
+					hm.set_shader_parameter("emission_tex", bm.emission_texture)
+					hm.set_shader_parameter("emission_energy", maxf(bm.emission_energy_multiplier, 1.0))
+				hm.set_shader_parameter("normal_scale", bm.normal_scale)
+				hm.set_shader_parameter("metallic", bm.metallic)
+				hm.set_shader_parameter("roughness", bm.roughness)
+				hm.set_shader_parameter("clearcoat", bm.clearcoat if bm.clearcoat_enabled else 0.0)
+				hm.set_shader_parameter("albedo_mul", float(md.get("albedo_mul", 1.0)))
+				hm.resource_name = bm.resource_name
+				mesh.surface_set_material(si, hm)
+				_hull_by_name[bm.resource_name] = hm
+				continue
 			_hull_by_name[bm.resource_name] = bm
 		return
 	if _hull_shader == null:
