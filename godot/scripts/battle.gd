@@ -5,7 +5,7 @@ extends "res://scripts/spike.gd"
 ## 艦艇資料表 DEF、AI（戰機／主力艦）、武器（機炮、光束砲、飛彈、光束泡）、護盾、傷害、增援、預警機資料鏈皆依網頁版移植。
 const Lighting = preload("res://scripts/lighting.gd")
 
-const BUILD := 23   # 畫面上顯示的版號（HUD 右上、標題選單）；每一批更新 +1，回報問題時請附上
+const BUILD := 24   # 畫面上顯示的版號（HUD 右上、標題選單）；每一批更新 +1，回報問題時請附上
 const TOMB_POS := Vector3(0, 1500, -15500)
 const TOMB_SCALE_W := 34.0
 const TOMB_AURA := 4200.0
@@ -89,6 +89,7 @@ class BShip:
 	var fx_t := 0.0
 	var set_home := false
 	var shield_fx_t := -9.0
+	var fly_prev := 1e9       # 上一次與鏡頭的距離（掠過音效偵測）
 
 class BShot:
 	var pos := Vector3.ZERO
@@ -1301,6 +1302,19 @@ func _flash(pos: Vector3, size: float, dur: float, col: Color) -> void:
 	n.global_position = pos
 	n.scale = Vector3.ONE * size
 
+func _step_flybys() -> void:   # 戰機高速掠過鏡頭附近：進入 140 公尺時播一次掠過音
+	if cam == null:
+		return
+	var cp := cam.global_position
+	for list in [allies, enemies]:
+		for s in list:
+			if s.dead or s.is_player or not (s.kind == "fgt" or s.kind == "fly"):
+				continue
+			var d: float = s.pos.distance_to(cp)
+			if d < 140.0 and s.fly_prev >= 140.0 and s.vel.length() > 60.0:
+				sfx_play("flyby", s.pos, -3.0, 0.25, 120.0)
+			s.fly_prev = d
+
 func _step_flashes(dt: float) -> void:
 	for f in flash_pool:
 		if not f["on"]:
@@ -1420,6 +1434,7 @@ func _shield_absorb(s: BShip, dmg: float, pos: Vector3) -> float:
 		s.sh = 0.0
 		s.sh_down = gt + 7.0
 		fxe.shield_break(s)
+		sfx_play("explosion_med", s.pos, -4.0, 0.15, 500.0)
 		if s.side == 0 and s.d["hp"] >= 8000.0:
 			say(str(s.d["name"]) + " shields down", str(s.d["name"]) + " 護盾失效", true)
 	return dmg - take
@@ -1653,6 +1668,7 @@ func _step_vls(m: BShot, dt: float) -> bool:
 			m.col = Color(1.0, 0.65, 0.3)
 			_flash(m.pos, 150.0, 0.3, Color(1.0, 0.8, 0.5))
 			fxe.heat_ring(m.pos, 40.0)
+			sfx_play("afterburner", m.pos, -12.0, 0.25, 500.0)
 		return m.life > 0.0
 	if tg != null and not tg.dead:
 		var D := lead_point(m.pos, tg, maxf(m.spd, 100.0))
@@ -1674,6 +1690,7 @@ func _step_vls(m: BShot, dt: float) -> bool:
 		if dist < tg.rad + 14.0:
 			Explosion.spawn(self, m.pos, 40.0, m.side, 0, false)
 			fxe.heat_ring(m.pos, 30.0)
+			sfx_play("explosion_small", m.pos, -2.0, 0.05, 500.0)
 			damage(tg, m.dmg, m.pos, m.src)
 			return false
 	else:
@@ -1698,6 +1715,7 @@ func _step_missile(m: BShot, dt: float) -> bool:
 		if dist < tg.rad + 14.0:
 			Explosion.spawn(self, m.pos, 40.0 if m.big else 28.0, m.side, 0, false)
 			fxe.heat_ring(m.pos, 30.0)
+			sfx_play("explosion_small", m.pos, -2.0, 0.05, 500.0)
 			damage(tg, m.dmg, m.pos, m.src)
 			return false
 	else:
@@ -2218,7 +2236,8 @@ func _fire_ship_missiles(s: BShip, tg: BShip, spec: Dictionary) -> void:
 			m.col = Color(0.8, 0.82, 0.88)
 			shots.append(m)
 			_flash(o, 55.0, 0.22, Color(0.9, 0.92, 1.0))
-			fxe.heat_ring(o, 18.0))
+			fxe.heat_ring(o, 18.0)
+			sfx_play("missile_launch", o, -5.0, 0.18, 700.0))
 
 func _bubble_target(s: BShip, range_: float) -> BShip:
 	var best: BShip = null
@@ -2693,6 +2712,7 @@ func _process(delta: float) -> void:
 	_step_beams(dt)
 	_step_shields(dt)
 	_step_flashes(dt)
+	_step_flybys()
 	if mobius != null:
 		mobius.update(gt)
 	_step_damage_fx(dt)
