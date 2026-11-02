@@ -144,7 +144,7 @@ func _draw_all() -> void:
 				if a.sh_max > 0.0:
 					draw_rect(Rect2(c.x - 150, 49, 300 * a.sh / a.sh_max, 4), COL_A)
 	if battle.obj_on:
-		draw_string(_font(), Vector2(0, 30), "%s · %s" % [battle.tr_("objLabel"), battle.tr_("objText")], HORIZONTAL_ALIGNMENT_CENTER, vp.x, 20, Color(1.0, 0.85, 0.4))
+		pass
 		if not hss_alive:
 			draw_string(_font(), Vector2(0, 66), "HSS DESTROYED", HORIZONTAL_ALIGNMENT_CENTER, vp.x, 26, Color(1, 0.3, 0.3))
 	if battle.game_mode == "script":   # 鐵墓血條（只降到 80%：鐵墓不會倒下）
@@ -159,27 +159,7 @@ func _draw_all() -> void:
 	if battle.gt - battle.hud_note_t < 3.0:
 		var al := clampf(3.0 - (battle.gt - battle.hud_note_t), 0.0, 1.0)
 		draw_string(_font(), Vector2(0, c.y + 110), battle.hud_note_text, HORIZONTAL_ALIGNMENT_CENTER, vp.x, 22, Color(0.5, 1.0, 0.7, al))
-	# 通訊紀錄（左上）
-	var y := 70.0
-	for l in battle.log_lines:
-		var age: float = battle.gt - l["t"]
-		if age > 12.0:
-			continue
-		var a3 := clampf((12.0 - age) / 2.0, 0.0, 1.0)
-		_txt(Vector2(24, y), l["text"], 14, Color(1.0, 0.55, 0.45, a3) if l["warn"] else Color(0.75, 0.95, 1.0, a3))
-		y += 20.0
-	# 無線電（右側，在鐵墓血條下方）
-	var now := Time.get_ticks_msec() / 1000.0
-	var ry := 86.0
-	for rl in battle.radio_lines:
-		var age: float = now - float(rl["t"])
-		if age > float(rl["life"]):
-			continue
-		var a4 := clampf((float(rl["life"]) - age) / 1.4, 0.0, 1.0)
-		var col := Color(1.0, 0.5, 0.45, a4) if rl["cat"] == "final" or rl["cat"] == "hit" else Color(0.6, 0.95, 1.0, a4)
-		_txt(Vector2(vp.x - 440, ry), str(rl["cs"]), 12, Color(col, a4 * 0.85), HORIZONTAL_ALIGNMENT_RIGHT, 430.0)
-		_txt(Vector2(vp.x - 440, ry + 16), str(rl["text"]), 14, col, HORIZONTAL_ALIGNMENT_RIGHT, 430.0)
-		ry += 38.0
+	_draw_feed(false)
 	# 按鍵提示
 	_txt(Vector2(24, vp.y - 14), "Mouse steer  W/S throttle  Q/E roll  A/D/R/F strafe  Shift boost  X stop  LMB fire  RMB missile  T lock  Y next  U AWACS tgt  C focus  G charge  V cam  Z assist  N radar  Esc pause", 12, Color(0.6, 0.8, 0.8, 0.7))
 
@@ -219,7 +199,7 @@ func _draw_commander() -> void:
 	var cam: Camera3D = battle.cam
 	# 任務目標與血條（同飛行員模式）
 	if battle.obj_on:
-		draw_string(_font(), Vector2(0, 30), "%s · %s" % [battle.tr_("objLabel"), battle.tr_("objText")], HORIZONTAL_ALIGNMENT_CENTER, vp.x, 20, Color(1.0, 0.85, 0.4))
+		pass
 	if battle.game_mode == "script":
 		var bf: float = battle.iron_frac()
 		_txt(Vector2(vp.x - 330, 52), "IRONTOMB", 13, Color(1.0, 0.45, 0.55), HORIZONTAL_ALIGNMENT_RIGHT, 320.0)
@@ -290,12 +270,99 @@ func _draw_commander() -> void:
 	var cpos := mr.position + Vector2((float(battle.cc["tx"]) - wx0) / (wx1 - wx0) * ms, (float(battle.cc["tz"]) - wz0) / (wz1 - wz0) * ms)
 	draw_rect(Rect2(cpos - Vector2(6, 6), Vector2(12, 12)), Color(1.0, 0.85, 0.3), false, 1.5)
 	_txt(Vector2(vp.x * 0.5 - 520, vp.y - 98), "LMB drag: box select   LMB click: move / focus enemy / Irontomb   RMB drag: rotate   Wheel: zoom   WASD: pan (Shift fast)   Tab: pilot", 12, Color(0.6, 0.8, 0.8, 0.8), HORIZONTAL_ALIGNMENT_CENTER, 1040.0)
-	# 通訊紀錄（左上）
-	var y := 70.0
+	_draw_feed(true)
+
+# ───────────── 左右資訊流（對照網頁版 #b-left / #b-radio：色條＋漸層底＋滑入／淡出）─────────────
+const FEED_CYAN := Color("8fe6ff")
+const FEED_GOLD := Color("ffd98a")
+const FEED_RED := Color("ff4466")
+const FEED_GREEN := Color("7dffb0")
+const FEED_AMBER := Color("ffb04a")
+var _mono: Font = null
+var _mono_b: Font = null
+
+func _fonts() -> void:
+	if _mono != null:
+		return
+	var fb: Font = ThemeDB.fallback_font
+	var f1: FontFile = load("res://assets/fonts/SpaceMono-Regular.ttf")
+	var f2: FontFile = load("res://assets/fonts/SpaceMono-Bold.ttf")
+	f1.fallbacks = [fb]
+	f2.fallbacks = [fb]
+	_mono = f1
+	_mono_b = f2
+
+# 橫向漸層底：from_left＝由左往右淡出，否則由右往左
+func _grad(r: Rect2, c: Color, from_left: bool) -> void:
+	var t := Color(c.r, c.g, c.b, 0.0)
+	var cols := PackedColorArray([c, t, t, c]) if from_left else PackedColorArray([t, c, c, t])
+	draw_polygon(PackedVector2Array([r.position, Vector2(r.end.x, r.position.y), r.end, Vector2(r.position.x, r.end.y)]), cols)
+
+func _wrap_h(text: String, font: Font, fs: int, w: float) -> float:
+	return font.get_multiline_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, w, fs).y
+
+func _draw_feed(commander: bool) -> void:
+	_fonts()
+	var vp := size
+	var k := clampf(minf(vp.x, vp.y) / 720.0, 0.8, 1.4)
+	var lw: float = minf(vp.x * 0.4, 400.0 * k)
+	var x := 16.0
+	var y := 70.0 * k
+	var now: float = battle.gt
+	# 任務目標（金色左色條）
+	if battle.obj_on:
+		var otxt: String = str(battle.tr_("objText"))
+		var oh := 11.0 * k + 6.0 + _wrap_h(otxt, _mono_b, int(17 * k), lw - 14.0) + 8.0
+		_grad(Rect2(x, y, lw, oh), Color(0.16, 0.12, 0.03, 0.75), true)
+		draw_rect(Rect2(x, y, 3, oh), FEED_GOLD)
+		draw_string(_mono, Vector2(x + 11, y + 14 * k), str(battle.tr_("objLabel")).to_upper(), HORIZONTAL_ALIGNMENT_LEFT, lw, int(10 * k), Color(FEED_GOLD, 0.8))
+		draw_multiline_string(_mono_b, Vector2(x + 11 + 1, y + 34 * k + 1), otxt, HORIZONTAL_ALIGNMENT_LEFT, lw - 14.0, int(17 * k), -1, Color(0, 0, 0, 0.7))
+		draw_multiline_string(_mono_b, Vector2(x + 11, y + 34 * k), otxt, HORIZONTAL_ALIGNMENT_LEFT, lw - 14.0, int(17 * k), -1, Color(1.0, 0.953, 0.81))
+		y += oh + 10.0
+	# 通訊紀錄（青色／警告紅色左色條，滑入、最後 1 秒淡出）
+	var fs := int(12 * k)
 	for l in battle.log_lines:
-		var age: float = battle.gt - l["t"]
+		var age: float = now - float(l["t"])
 		if age > 12.0:
 			continue
-		var a3 := clampf((12.0 - age) / 2.0, 0.0, 1.0)
-		_txt(Vector2(24, y), l["text"], 14, Color(1.0, 0.55, 0.45, a3) if l["warn"] else Color(0.75, 0.95, 1.0, a3))
-		y += 20.0
+		var txt: String = str(l.get("zh", l["text"])) if battle.lang == "zh" else str(l.get("en", l["text"]))
+		var warn: bool = l["warn"]
+		var a := clampf((12.0 - age) / 1.0, 0.0, 1.0) * clampf(age / 0.25, 0.0, 1.0)
+		var slide := (1.0 - clampf(age / 0.4, 0.0, 1.0)) * -18.0
+		var th := _wrap_h(txt, _mono, fs, lw - 14.0) + 6.0
+		var rc := Rect2(x + slide, y, lw, th)
+		_grad(rc, Color(0.2, 0.08, 0.1, 0.7 * a) if warn else Color(0.04, 0.08, 0.16, 0.7 * a), true)
+		draw_rect(Rect2(rc.position.x, rc.position.y, 2, th), Color(FEED_RED if warn else FEED_CYAN, a))
+		draw_multiline_string(_mono, rc.position + Vector2(10, fs + 2), txt, HORIZONTAL_ALIGNMENT_LEFT, lw - 14.0, fs, -1, Color(1.0, 0.82, 0.855, a) if warn else Color(0.9, 0.95, 1.0, a))
+		y += th + 6.0
+	if commander:
+		return
+	# 無線電（右側，右色條，依類別著色）
+	var rw := minf(vp.x * 0.34, 310.0 * k)
+	var rx := vp.x - 16.0
+	var ry := 86.0 * k
+	var tnow := Time.get_ticks_msec() / 1000.0
+	for rl in battle.radio_lines:
+		var age2: float = tnow - float(rl["t"])
+		var life := float(rl["life"])
+		if age2 > life:
+			continue
+		var a2 := clampf((life - age2) / 1.0, 0.0, 1.0) * clampf(age2 / 0.2, 0.0, 1.0)
+		var slide2 := (1.0 - clampf(age2 / 0.35, 0.0, 1.0)) * 18.0
+		var cat: String = str(rl["cat"])
+		var bc: Color = FEED_CYAN
+		if cat == "hit":
+			bc = FEED_AMBER
+		elif cat == "final":
+			bc = FEED_RED
+		elif cat == "kill":
+			bc = FEED_GREEN
+		var rtxt: String = str(rl["text"])
+		var rfs := int(12 * k)
+		var th2 := 14.0 * k + _wrap_h(rtxt, _mono, rfs, rw - 12.0) + 8.0
+		var rr := Rect2(rx - rw + slide2, ry, rw, th2)
+		_grad(rr, Color(0.04, 0.08, 0.16, 0.72 * a2), false)
+		draw_rect(Rect2(rr.end.x - 2, rr.position.y, 2, th2), Color(bc, a2))
+		draw_string(_mono_b, Vector2(rr.position.x, rr.position.y + 11 * k), str(rl["cs"]), HORIZONTAL_ALIGNMENT_RIGHT, rw - 10.0, int(10 * k), Color(bc, a2))
+		draw_multiline_string(_mono, Vector2(rr.position.x, rr.position.y + 11 * k + rfs + 3), rtxt, HORIZONTAL_ALIGNMENT_RIGHT, rw - 10.0, rfs, -1, Color(0.81, 0.89, 0.96, a2) if cat != "final" else Color(1.0, 0.82, 0.855, a2))
+		ry += th2 + 5.0
