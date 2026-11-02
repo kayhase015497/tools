@@ -5,7 +5,7 @@ extends "res://scripts/spike.gd"
 ## 艦艇資料表 DEF、AI（戰機／主力艦）、武器（機炮、光束砲、飛彈、光束泡）、護盾、傷害、增援、預警機資料鏈皆依網頁版移植。
 const Lighting = preload("res://scripts/lighting.gd")
 
-const BUILD := 22   # 畫面上顯示的版號（HUD 右上、標題選單）；每一批更新 +1，回報問題時請附上
+const BUILD := 23   # 畫面上顯示的版號（HUD 右上、標題選單）；每一批更新 +1，回報問題時請附上
 const TOMB_POS := Vector3(0, 1500, -15500)
 const TOMB_SCALE_W := 34.0
 const TOMB_AURA := 4200.0
@@ -130,6 +130,7 @@ var next_reinf := 25.0
 var next_launch := 6.0
 var reinf_n := 0
 var vls_demo_done := false
+var mobius: Node3D = null   # 翁法羅斯的莫比烏斯環
 var awacs_pending := 0.0   # IPC SID 被擊毀後，這個時間點會有新的一艘上線
 var last_alloc := -9.0
 var tomb_t: BShip
@@ -246,6 +247,9 @@ func _ready() -> void:
 			quality = clampi(int(a_.substr(4)), 0, 2)
 	_make_environment()
 	_make_tomb_b()
+	mobius = load("res://scripts/mobius.gd").new()
+	add_child(mobius)
+	mobius.build(TOMB_POS, TOMB_SCALE_W)
 	_load_fleets()
 	_make_shot_render()
 	_make_glow()
@@ -1057,7 +1061,7 @@ func rr(a: float, b: float) -> float:
 	return randf_range(a, b)
 
 func say(en: String, zh: String, warn: bool = false) -> void:
-	log_lines.append({"t": gt, "text": en + "  ·  " + zh, "warn": warn})
+	log_lines.append({"t": gt, "text": en + "  ·  " + zh, "en": en, "zh": zh, "warn": warn})
 	if log_lines.size() > 6:
 		log_lines.pop_front()
 
@@ -2689,6 +2693,8 @@ func _process(delta: float) -> void:
 	_step_beams(dt)
 	_step_shields(dt)
 	_step_flashes(dt)
+	if mobius != null:
+		mobius.update(gt)
 	_step_damage_fx(dt)
 	_pf("beams+fx", t0)
 	allies = allies.filter(func(s): return not s.dead)
@@ -2911,6 +2917,11 @@ func _render_shots() -> void:
 
 func _update_cam(dt: float) -> void:
 	if not started or (lookdev != null and lookdev.cam_locked):
+		return
+	if "--mobius-demo" in OS.get_cmdline_user_args():   # 測試用：從聯軍陣線望向莫比烏斯環
+		cam.global_position = TOMB_POS + Vector3(0, -200, 9500)
+		cam.look_at(TOMB_POS + Vector3(0, -370 - 1500, 1800), Vector3.UP)
+		cam.fov = 70.0
 		return
 	for a_ in OS.get_cmdline_user_args():   # 測試用：--ship-demo=cruis 鏡頭貼近該艦種的第一艘
 		if a_.begins_with("--ship-demo="):
