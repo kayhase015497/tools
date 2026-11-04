@@ -8,3 +8,4 @@ Build 25：鐵墓外殼（暗金屬＋紅輪廓光＋裂光）是否太暗／太
 Build 26：天空星雲結構的好壞；GPU 是否因此變卡（Low 檔位可關）；藍色星雲是否太搶。
 Build 27：太空塵速度感是否自然、是否太明顯或看不到（建議用 Shift 加速觀察）。
 效能：各檔位實際 FPS（HUD 右上）、開／關陰影的差異、`godot\tools\lookdev.bat` 的毫秒數。
+Build 28~30（規劃）：待實作，見 docs/space-war/AUDIO-VISUAL-PLAN-2.md；音訊批次一次試聽，無法在雲端驗證聽感。
