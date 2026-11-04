@@ -31,7 +31,7 @@ void sky() {
 		float cl = fbm3(d * 3.2);
 		float fil = fbm3(d * 7.5 + cl * 1.7);
 		float lum = dot(col, vec3(0.3, 0.55, 0.15));
-		col *= mix(1.0, 0.35 + 1.5 * smoothstep(0.25, 0.8, fil), nebula_detail);
+		col *= mix(1.0, 0.25 + 1.0 * smoothstep(0.3, 0.85, fil), nebula_detail);
 		float band = exp(-pow(dot(d, normalize(vec3(0.25, 0.9, -0.35))) * 3.2, 2.0));
 		float dust = smoothstep(0.45, 0.75, fbm3(d * 5.0 + 3.0));
 		col += vec3(0.16, 0.14, 0.24) * band * (0.3 + 0.9 * fil) * (1.0 - 0.75 * dust) * 0.55 * nebula_detail;

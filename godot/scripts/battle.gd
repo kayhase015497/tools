@@ -5,7 +5,7 @@ extends "res://scripts/spike.gd"
 ## 艦艇資料表 DEF、AI（戰機／主力艦）、武器（機炮、光束砲、飛彈、光束泡）、護盾、傷害、增援、預警機資料鏈皆依網頁版移植。
 const Lighting = preload("res://scripts/lighting.gd")
 
-const BUILD := 26   # 畫面上顯示的版號（HUD 右上、標題選單）；每一批更新 +1，回報問題時請附上
+const BUILD := 27   # 畫面上顯示的版號（HUD 右上、標題選單）；每一批更新 +1，回報問題時請附上
 const TOMB_POS := Vector3(0, 1500, -15500)
 const TOMB_SCALE_W := 34.0
 const TOMB_AURA := 4200.0
@@ -919,6 +919,15 @@ func _make_glow() -> void:   # 引擎光暈：全艦隊共用一個 MultiMesh（
 	mi.custom_aabb = AABB(Vector3(-40000, -40000, -40000), Vector3(80000, 80000, 80000))
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(mi)
+
+var dust: SpaceDust
+
+func _update_dust() -> void:   # Build 27：太空塵速度感（只在駕駛模式且速度夠快時顯示）
+	if dust == null:
+		dust = SpaceDust.new()
+		add_child(dust)
+	var on: bool = quality < 2 and role == "pilot" and doom == 0 and not bool(pl.get("dead", false)) and not pl.is_empty()
+	dust.update(cam.global_position, pl["vel"] if on else Vector3.ZERO, on)
 
 func _render_glows() -> void:
 	if not glow_on:
@@ -2759,6 +2768,7 @@ func _process(delta: float) -> void:
 	_render_ships()
 	_render_shots()
 	_render_glows()
+	_update_dust()
 	fxe.update(dt)
 	_pf("render", t0)
 	_update_doom_visuals(dt)
