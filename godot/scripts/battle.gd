@@ -5,7 +5,7 @@ extends "res://scripts/spike.gd"
 ## 艦艇資料表 DEF、AI（戰機／主力艦）、武器（機炮、光束砲、飛彈、光束泡）、護盾、傷害、增援、預警機資料鏈皆依網頁版移植。
 const Lighting = preload("res://scripts/lighting.gd")
 
-const BUILD := 29   # 畫面上顯示的版號（HUD 右上、標題選單）；每一批更新 +1，回報問題時請附上
+const BUILD := 30   # 畫面上顯示的版號（HUD 右上、標題選單）；每一批更新 +1，回報問題時請附上
 const TOMB_POS := Vector3(0, 1500, -15500)
 const TOMB_SCALE_W := 34.0
 const TOMB_AURA := 4200.0
@@ -1088,6 +1088,8 @@ var hum: AudioStreamPlayer
 var hum_pb: AudioStreamGeneratorPlayback
 var hum_lp := 0.0
 var hum_ph := 0.0
+var fov_k := 0.0
+var muzzle: OmniLight3D
 var duck := 0.0   # 0~1，語音播放時平滑升到 1
 
 func _setup_buses() -> void:
@@ -2638,6 +2640,15 @@ func _player_fire() -> void:
 		if (l - s.pos).normalized().dot(f) > 0.985:
 			tp = l
 	fire_shot(s, gun, (tp - gun).normalized(), 1900.0 + (P["vel"] as Vector3).length() * 0.3, 16.0, 0.5, 34.0, Color(0.3, 0.72, 1), 2.1)
+	if muzzle == null:   # 砲口閃光：單一短命點光源（不投影），每發重新定位並歸零衰減
+		muzzle = OmniLight3D.new()
+		muzzle.light_color = Color(0.45, 0.75, 1.0)
+		muzzle.omni_range = 90.0
+		muzzle.shadow_enabled = false
+		muzzle.light_energy = 0.0
+		add_child(muzzle)
+	muzzle.global_position = gun + f * 3.0
+	muzzle.light_energy = 3.0
 
 func _player_missile() -> void:
 	var P := pl
@@ -2887,6 +2898,11 @@ func _process(delta: float) -> void:
 	_render_glows()
 	_update_dust()
 	_audio_tick(delta)
+	if muzzle != null and muzzle.light_energy > 0.0:
+		muzzle.light_energy = maxf(0.0, muzzle.light_energy - delta * 40.0)
+	if post_mat != null:   # 受擊色差脈衝（疊在設定的色差上）
+		var ca0: float = float(opt["post_ca"])
+		post_mat.set_shader_parameter("ca", ca0 + (hurt_k * 1.4 if ca0 > 0.0 else 0.0))
 	fxe.update(dt)
 	_pf("render", t0)
 	_update_doom_visuals(dt)
@@ -3148,7 +3164,8 @@ func _update_cam(dt: float) -> void:
 	cam_pos_s = cam_pos_s.lerp(target_pos, 1.0 - exp(-dt * 12.0)) if cam_mode == 0 else target_pos
 	var sh := Vector3(randf_range(-1, 1), randf_range(-1, 1), randf_range(-1, 1)) * cam_shake * 0.4
 	cam.global_transform = Transform3D(bas * Basis(Vector3.UP, PI), cam_pos_s + sh)
-	cam.fov = 70.0 + (6.0 if pl["boost"] else 0.0)
+	fov_k = lerpf(fov_k, (1.0 if pl["boost"] else 0.0), 1.0 - exp(-dt * (5.0 if pl["boost"] else 2.5)))   # Build 30：加速視野平滑拉伸
+	cam.fov = 70.0 + 11.0 * fov_k + 3.0 * float(pl["thr"])
 	var in_cp: bool = cam_mode == 1 and not pl["dead"] and doom == 0
 	cam.near = 0.05 if in_cp else 1.0
 	if cockpit != null:
