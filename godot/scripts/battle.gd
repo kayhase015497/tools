@@ -5,7 +5,7 @@ extends "res://scripts/spike.gd"
 ## 艦艇資料表 DEF、AI（戰機／主力艦）、武器（機炮、光束砲、飛彈、光束泡）、護盾、傷害、增援、預警機資料鏈皆依網頁版移植。
 const Lighting = preload("res://scripts/lighting.gd")
 
-const BUILD := 25   # 畫面上顯示的版號（HUD 右上、標題選單）；每一批更新 +1，回報問題時請附上
+const BUILD := 26   # 畫面上顯示的版號（HUD 右上、標題選單）；每一批更新 +1，回報問題時請附上
 const TOMB_POS := Vector3(0, 1500, -15500)
 const TOMB_SCALE_W := 34.0
 const TOMB_AURA := 4200.0
@@ -366,6 +366,8 @@ func apply_settings() -> void:
 	Breakup.MAX_ACTIVE = int(opt["wreck_max"])
 	Breakup.LIFETIME = float(opt["wreck_life"])
 	glow_on = bool(opt["engine_glow"])
+	if sky_mat != null:
+		sky_mat.set_shader_parameter("nebula_detail", 0.0 if quality == 2 else 1.0)
 	radar_on = bool(opt["radar"])
 	mouse_sens = float(opt["mouse_sens"])
 	if not pl.is_empty():
