@@ -149,3 +149,6 @@ D3D12 是顯示卡的「溝通方式」（API），不是畫質。Godot 用 D3D1
 
 ## Build 25
 - 鐵墓外殼 `shaders/tomb_hull.gdshader`（`battle.gd` `_tomb_skin`）：本體壓暗＋紅色菲涅爾輪廓光（沿用網頁版）＋三平面大面板縫／明暗差＋縫上緩慢呼吸的暗紅裂光；GLB 原本的發光部位（劍、手、核心）保留。測試：`--tomb-demo`。
+
+## Build 26
+- 天空星雲（`shaders/sky.gdshader`）：fbm 雲氣把三團色塊撕成絲狀結構、一條銀河帶與暗塵帶、星點色溫差異；`nebula_detail` 於 Low 檔位為 0（關閉）。天空每幀每像素約 12 次三維雜訊，若 GPU 吃緊請回報，可再降階。
