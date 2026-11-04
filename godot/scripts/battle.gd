@@ -5,7 +5,7 @@ extends "res://scripts/spike.gd"
 ## 艦艇資料表 DEF、AI（戰機／主力艦）、武器（機炮、光束砲、飛彈、光束泡）、護盾、傷害、增援、預警機資料鏈皆依網頁版移植。
 const Lighting = preload("res://scripts/lighting.gd")
 
-const BUILD := 24   # 畫面上顯示的版號（HUD 右上、標題選單）；每一批更新 +1，回報問題時請附上
+const BUILD := 25   # 畫面上顯示的版號（HUD 右上、標題選單）；每一批更新 +1，回報問題時請附上
 const TOMB_POS := Vector3(0, 1500, -15500)
 const TOMB_SCALE_W := 34.0
 const TOMB_AURA := 4200.0
@@ -794,6 +794,31 @@ func _make_doom() -> void:
 	wave_ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(wave_ring)
 
+func _tomb_skin(node: Node) -> void:   # Build 25：鐵墓外殼改用 tomb_hull.gdshader（保留 GLB 原本的底色與自發光）
+	var sh := load("res://shaders/tomb_hull.gdshader") as Shader
+	var cache: Dictionary = {}
+	for mi in node.find_children("*", "MeshInstance3D", true, false):
+		var m3 := mi as MeshInstance3D
+		if m3.mesh == null:
+			continue
+		for si in range(m3.mesh.get_surface_count()):
+			var bm := m3.mesh.surface_get_material(si) as BaseMaterial3D
+			if bm == null:
+				continue
+			var key := bm.resource_name
+			if not cache.has(key):
+				var sm := ShaderMaterial.new()
+				sm.shader = sh
+				sm.set_shader_parameter("base_color", Vector3(bm.albedo_color.r, bm.albedo_color.g, bm.albedo_color.b))
+				sm.set_shader_parameter("metallic", bm.metallic)
+				sm.set_shader_parameter("roughness", bm.roughness)
+				if bm.emission_enabled:
+					sm.set_shader_parameter("emit_color", Vector3(bm.emission.r, bm.emission.g, bm.emission.b))
+					sm.set_shader_parameter("emit_energy", 1.5 * maxf(bm.emission_energy_multiplier, 1.0))
+					sm.set_shader_parameter("albedo_k", 0.9)   # 發光部位（劍、手、核心）不壓暗
+				cache[key] = sm
+			m3.set_surface_override_material(si, cache[key])
+
 func _make_tomb_b() -> void:
 	var ps := load("res://assets/models/irontomb.glb") as PackedScene
 	var root := ps.instantiate() as Node3D
@@ -802,6 +827,7 @@ func _make_tomb_b() -> void:
 	var s := (248.0 * TOMB_SCALE_W) / maxf(aabb.size.y, 0.001)
 	root.scale = Vector3.ONE * s
 	root.position = TOMB_POS
+	_tomb_skin(root)
 	Lighting.mark_caster(root)
 	var l := OmniLight3D.new()
 	l.light_color = Color(1.0, 0.16, 0.27)
@@ -2937,6 +2963,11 @@ func _render_shots() -> void:
 
 func _update_cam(dt: float) -> void:
 	if not started or (lookdev != null and lookdev.cam_locked):
+		return
+	if "--tomb-demo" in OS.get_cmdline_user_args():   # 測試用：近看鐵墓上半身
+		cam.global_position = TOMB_POS + Vector3(2600, 5200, 5200)
+		cam.look_at(TOMB_POS + Vector3(0, 3800, 0), Vector3.UP)
+		cam.fov = 55.0
 		return
 	if "--mobius-demo" in OS.get_cmdline_user_args():   # 測試用：從聯軍陣線望向莫比烏斯環
 		cam.global_position = TOMB_POS + Vector3(0, -200, 9500)
