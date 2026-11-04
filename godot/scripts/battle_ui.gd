@@ -286,6 +286,7 @@ const PAUSE_SPEC := {
 		["lighting_v1", "Sky reflections + fill light", "bool", null],
 		["bloom", "Bloom", "bool", null],
 		["bloom_strength", "Bloom strength", "slider", [0.2, 1.6, 0.05, "%d%%", 100.0]],
+		["fleet_scale", "Fleet size x (initial fleet: next battle; waves: immediate)", "slider", [1, 4, 1, "x%d", 1.0]],
 	],
 	"POST-FX": [
 		["post_grade", "Color grading (cool shadows / warm highlights)", "slider", [0.0, 1.0, 0.05, "%d%%", 100.0]],
