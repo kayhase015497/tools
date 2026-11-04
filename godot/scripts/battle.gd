@@ -5,7 +5,7 @@ extends "res://scripts/spike.gd"
 ## 艦艇資料表 DEF、AI（戰機／主力艦）、武器（機炮、光束砲、飛彈、光束泡）、護盾、傷害、增援、預警機資料鏈皆依網頁版移植。
 const Lighting = preload("res://scripts/lighting.gd")
 
-const BUILD := 27   # 畫面上顯示的版號（HUD 右上、標題選單）；每一批更新 +1，回報問題時請附上
+const BUILD := 28   # 畫面上顯示的版號（HUD 右上、標題選單）；每一批更新 +1，回報問題時請附上
 const TOMB_POS := Vector3(0, 1500, -15500)
 const TOMB_SCALE_W := 34.0
 const TOMB_AURA := 4200.0
@@ -1054,16 +1054,60 @@ func _make_audio() -> void:
 		pl3.attenuation_model = AudioStreamPlayer3D.ATTENUATION_INVERSE_DISTANCE
 		add_child(pl3)
 		sfx_pool.append(pl3)
-	sfx2d = AudioStreamPlayer.new()
-	add_child(sfx2d)
+	_setup_buses()
+	for pp_ in sfx_pool:
+		(pp_ as AudioStreamPlayer3D).bus = "SFX"
+	for i in range(SFX2D_N):   # 2D 音效小池：輪流使用，不再每次 new／free
+		var p2d := AudioStreamPlayer.new()
+		p2d.bus = "SFX"
+		add_child(p2d)
+		sfx2d_pool.append(p2d)
 	var ms = load("res://assets/sfx/bgm.mp3")
 	if ms != null:
 		ms.loop = true
 		bgm = AudioStreamPlayer.new()
 		bgm.stream = ms
 		bgm.volume_db = -11.0
+		bgm.bus = "Music"
 		add_child(bgm)
 		bgm.play()
+	if voice_player != null:
+		voice_player.bus = "Voice"
+
+# 音訊匯流排（Build 28）：Music／SFX／Voice → Master（限幅器）。語音播放時壓低音樂與音效（_audio_tick）。
+const SFX2D_N := 8
+const SFX_PRIO := {"lance": 6, "explosion_big": 5, "explosion_med": 4, "missile_launch": 3, "explosion_small": 3, "cannon": 3,
+	"shield_hit": 2, "hit_hull": 2, "flyby": 2, "alarm": 4, "blaster": 1, "enemy_blaster": 1}
+var sfx2d_pool: Array = []
+var sfx2d_i := 0
+var duck := 0.0   # 0~1，語音播放時平滑升到 1
+
+func _setup_buses() -> void:
+	for nm in ["Music", "SFX", "Voice"]:
+		if AudioServer.get_bus_index(nm) < 0:
+			AudioServer.add_bus()
+			var ix := AudioServer.bus_count - 1
+			AudioServer.set_bus_name(ix, nm)
+			AudioServer.set_bus_send(ix, "Master")
+	var lim: AudioEffect = null
+	if ClassDB.class_exists("AudioEffectHardLimiter"):
+		lim = ClassDB.instantiate("AudioEffectHardLimiter") as AudioEffect
+		lim.set("pre_gain_db", 0.0)
+		lim.set("ceiling_db", -0.3)
+	else:
+		lim = AudioEffectLimiter.new()
+	if AudioServer.get_bus_effect_count(0) == 0:
+		AudioServer.add_bus_effect(0, lim)
+
+func _audio_tick(dt: float) -> void:
+	var talking: bool = voice_player != null and voice_player.playing
+	duck = move_toward(duck, 1.0 if talking else 0.0, dt / (0.2 if talking else 0.6))
+	var mi := AudioServer.get_bus_index("Music")
+	var si := AudioServer.get_bus_index("SFX")
+	if mi >= 0:
+		AudioServer.set_bus_volume_db(mi, -8.0 * duck)
+	if si >= 0:
+		AudioServer.set_bus_volume_db(si, -4.0 * duck)
 
 # 播放音效：pos 為空＝非空間音效（玩家自己的聲音）；rate_gap＝同名音效最短間隔（秒）
 func sfx_play(nm: String, pos: Variant = null, vol_db: float = 0.0, rate_gap: float = 0.0, unit: float = 300.0) -> void:
@@ -1076,23 +1120,42 @@ func sfx_play(nm: String, pos: Variant = null, vol_db: float = 0.0, rate_gap: fl
 	var st: AudioStream = (sfx[nm] as Array)[randi() % (sfx[nm] as Array).size()]
 	vol_db += sfx_db
 	if pos == null:
-		var p2 := AudioStreamPlayer.new()
+		if sfx2d_pool.is_empty():
+			return
+		var p2 := sfx2d_pool[sfx2d_i % sfx2d_pool.size()] as AudioStreamPlayer
+		for k in range(sfx2d_pool.size()):   # 先找閒置的，找不到才搶最舊的
+			var c := sfx2d_pool[(sfx2d_i + k) % sfx2d_pool.size()] as AudioStreamPlayer
+			if not c.playing:
+				p2 = c
+				break
+		sfx2d_i += 1
 		p2.stream = st
 		p2.volume_db = vol_db
-		add_child(p2)
-		p2.finished.connect(p2.queue_free)
 		p2.play()
 		return
+	# 3D：分數＝重要性×1000 −與鏡頭的距離；池滿時搶走分數最低且低於新音效的那個，不再直接丟掉新音效
+	var base_nm := nm.rstrip("_123")
+	var score: float = float(SFX_PRIO.get(base_nm, 2)) * 1000.0 - (pos as Vector3).distance_to(cam.global_position)
+	var victim: AudioStreamPlayer3D = null
+	var worst := INF
 	for p in sfx_pool:
 		var pp := p as AudioStreamPlayer3D
 		if not pp.playing:
-			pp.stream = st
-			pp.volume_db = vol_db
-			pp.unit_size = unit
-			pp.pitch_scale = randf_range(0.93, 1.07)
-			pp.global_position = pos
-			pp.play()
-			return
+			victim = pp
+			break
+		var sc: float = float(pp.get_meta("score", 0.0))
+		if sc < worst:
+			worst = sc
+			victim = pp
+	if victim == null or (victim.playing and worst >= score):
+		return
+	victim.stream = st
+	victim.volume_db = vol_db
+	victim.unit_size = unit
+	victim.pitch_scale = randf_range(0.93, 1.07)
+	victim.global_position = pos
+	victim.set_meta("score", score)
+	victim.play()
 
 # ───────────── 小工具 ─────────────
 func rr(a: float, b: float) -> float:
@@ -2769,6 +2832,7 @@ func _process(delta: float) -> void:
 	_render_shots()
 	_render_glows()
 	_update_dust()
+	_audio_tick(delta)
 	fxe.update(dt)
 	_pf("render", t0)
 	_update_doom_visuals(dt)
