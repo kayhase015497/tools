@@ -5,7 +5,7 @@ extends "res://scripts/spike.gd"
 ## 艦艇資料表 DEF、AI（戰機／主力艦）、武器（機炮、光束砲、飛彈、光束泡）、護盾、傷害、增援、預警機資料鏈皆依網頁版移植。
 const Lighting = preload("res://scripts/lighting.gd")
 
-const BUILD := 30   # 畫面上顯示的版號（HUD 右上、標題選單）；每一批更新 +1，回報問題時請附上
+const BUILD := 31   # 畫面上顯示的版號（HUD 右上、標題選單）；每一批更新 +1，回報問題時請附上
 const TOMB_POS := Vector3(0, 1500, -15500)
 const TOMB_SCALE_W := 34.0
 const TOMB_AURA := 4200.0
@@ -19,14 +19,14 @@ const DEF := {
 	"fgt":   {"side": 0, "name": "Interceptor", "hp": 150.0, "spd": 105.0, "rad": 8.0, "turn": 1.7, "boom": 0.8, "cls": "fgt"},
 	"frig":  {"side": 0, "name": "Frigate", "hp": 3000.0, "shield": 500.0, "spd": 28.0, "turn": 0.20, "rad": 40.0, "range": 1500.0, "boom": 4.0, "cls": "ship",
 		"flak": {"cd": 0.5, "dmg": 40.0, "w": 1.2, "len": 30.0, "bs": 900.0, "col": Color(0.3, 0.7, 1.0)}, "beam": {"cd": 4.0, "n": 1, "dmg": 260.0, "w": 5.0, "col": Color(0.35, 0.7, 1.0)}},
-	"cruis": {"side": 0, "name": "Cruiser", "hp": 9000.0, "shield": 1800.0, "spd": 24.0, "turn": 0.14, "rad": 95.0, "range": 1900.0, "boom": 6.0, "cls": "ship",
-		"flak": {"cd": 0.45, "dmg": 60.0, "w": 1.6, "len": 40.0, "bs": 900.0, "col": Color(0.3, 0.7, 1.0)}, "beam": {"cd": 3.5, "n": 1, "dmg": 600.0, "w": 9.0, "col": Color(0.3, 0.65, 1.0)}},
+	"cruis": {"side": 0, "name": "Cruiser", "hp": 24000.0, "shield": 4500.0, "spd": 24.0, "turn": 0.12, "rad": 190.0, "range": 2300.0, "boom": 10.0, "cls": "ship",
+		"flak": {"cd": 0.35, "dmg": 90.0, "w": 2.0, "len": 50.0, "bs": 900.0, "col": Color(0.3, 0.7, 1.0)}, "beam": {"cd": 3.0, "n": 2, "dmg": 900.0, "w": 14.0, "col": Color(0.3, 0.65, 1.0)}, "msl": {"cd": 4.5, "n": 4, "dmg": 700.0}},
 	"cap":   {"side": 0, "name": "Dreadnought", "hp": 42000.0, "shield": 8000.0, "spd": 21.0, "turn": 0.09, "rad": 340.0, "range": 2600.0, "boom": 12.0, "cls": "cap",
 		"flak": {"cd": 0.4, "dmg": 90.0, "w": 2.2, "len": 60.0, "bs": 900.0, "col": Color(0.35, 0.75, 1.0)}, "beam": {"cd": 3.0, "n": 2, "dmg": 1500.0, "w": 16.0, "col": Color(0.25, 0.6, 1.0)}},
 	"hss":   {"side": 0, "name": "HSS", "hp": 160000.0, "shield": 30000.0, "spd": 20.0, "turn": 0.06, "rad": 700.0, "range": 3200.0, "boom": 20.0, "cls": "cap",
 		"flak": {"cd": 0.3, "dmg": 140.0, "w": 3.0, "len": 80.0, "bs": 900.0, "col": Color(1.0, 0.9, 0.5)}, "beam": {"cd": 2.6, "n": 3, "dmg": 3000.0, "w": 28.0, "col": Color(1.0, 0.85, 0.45)}},
-	"ipc":   {"side": 0, "name": "IPC Cruiser", "hp": 10000.0, "shield": 1800.0, "spd": 25.0, "turn": 0.14, "rad": 105.0, "range": 2000.0, "boom": 6.0, "cls": "ship",
-		"flak": {"cd": 0.4, "dmg": 60.0, "w": 1.6, "len": 40.0, "bs": 900.0, "col": Color(1.0, 0.25, 0.22)}, "beam": {"cd": 3.2, "n": 2, "dmg": 700.0, "w": 10.0, "col": Color(1.0, 0.1, 0.16)}},
+	"ipc":   {"side": 0, "name": "IPC Cruiser", "hp": 26000.0, "shield": 4500.0, "spd": 25.0, "turn": 0.12, "rad": 210.0, "range": 2400.0, "boom": 10.0, "cls": "ship",
+		"flak": {"cd": 0.33, "dmg": 100.0, "w": 2.0, "len": 50.0, "bs": 900.0, "col": Color(1.0, 0.25, 0.22)}, "beam": {"cd": 2.8, "n": 2, "dmg": 1000.0, "w": 16.0, "col": Color(1.0, 0.1, 0.16)}, "msl": {"cd": 4.0, "n": 4, "dmg": 800.0}},
 	"xzd":   {"side": 0, "name": "Xianzhou Dreadnought", "hp": 420000.0, "shield": 80000.0, "spd": 18.0, "turn": 0.04, "rad": 1000.0, "range": 3800.0, "boom": 26.0, "cls": "cap",
 		"flak": {"cd": 0.1, "dmg": 110.0, "w": 2.6, "len": 70.0, "bs": 900.0, "col": Color(0.3, 0.7, 1.0)}, "beam": {"cd": 2.2, "n": 6, "dmg": 2600.0, "w": 24.0, "col": Color(0.2, 0.55, 1.0)}, "msl": {"cd": 3.6, "n": 8, "dmg": 900.0}},
 	"moon":  {"side": 0, "name": "Screwllum Moon", "hp": 260000.0, "shield": 50000.0, "spd": 16.0, "turn": 0.03, "rad": 740.0, "range": 3400.0, "cd": 5.0, "boom": 24.0, "cls": "cap", "bubble": true,
@@ -38,9 +38,9 @@ const DEF := {
 }
 # 網頁版 kind → [Godot 模型, 目標長度(公尺), 斷裂檔前綴（空字串＝沒有斷片）, 實例容量]
 const KMODEL := {
-	"frig": ["frigate", 85.5, "frigate", 140], "cruis": ["cruiser", 231.0, "cruiser", 70], "cap": ["ipc_sid", 1040.0, "ipc_sid", 24],
-	"hss": ["hss", 2040.0, "hss", 3], "xzd": ["xzd", 2720.0, "", 3], "ipc": ["ipc", 264.0, "ipc", 70], "moon": ["moon", 1530.0, "", 6],
-	"whale": ["whale", 378.0, "whale", 40], "fgt": ["fighter", 14.0, "", 220], "fly": ["butterfly", 12.0, "", 320], "awacs": ["ipc_sid", 264.0, "ipc_sid", 8],
+	"frig": ["frigate", 85.5, "frigate", 320], "cruis": ["cruiser", 231.0, "cruiser", 160], "cap": ["ipc_sid", 1040.0, "ipc_sid", 24],
+	"hss": ["hss", 2040.0, "hss", 3], "xzd": ["xzd", 2720.0, "", 3], "ipc": ["ipc", 264.0, "ipc", 160], "moon": ["moon", 1530.0, "", 6],
+	"whale": ["whale", 378.0, "whale", 90], "fgt": ["fighter", 14.0, "", 480], "fly": ["butterfly", 12.0, "", 700], "awacs": ["ipc_sid", 264.0, "ipc_sid", 8],
 }
 const SHIP_KINDS := ["frig", "cruis", "ipc", "cap", "xzd", "hss", "moon", "awacs"]
 
@@ -322,7 +322,7 @@ func opt_defaults(preset: int) -> Dictionary:
 		"explosion_budget": p >= 1, "explosion_max": [14, 8, 5][p], "particle_density": [1.0, 0.8, 0.5][p], "engine_glow": true,
 		"wreck_max": [14, 8, 4][p], "wreck_life": [60.0, 40.0, 20.0][p],
 		"radar": true, "mouse_sens": 1.0, "invert_y": false,
-		"music": 1.0, "sfx": 1.0, "voice": 1.0,
+		"music": 1.0, "sfx": 1.0, "voice": 1.0, "fleet_scale": [2, 2, 1][p],
 		"post_grade": 1.0, "post_ca": [0.22, 0.18, 0.0][p], "post_streak": [0.45, 0.3, 0.0][p], "post_vignette": 0.25,
 	}
 
@@ -1047,7 +1047,7 @@ func _make_audio() -> void:
 		var path2 := "res://assets/sfx/%s.mp3" % nm
 		if ResourceLoader.exists(path2):
 			sfx[nm] = [load(path2)]
-	for i in range(28):
+	for i in range(SFX3D_N):
 		var pl3 := AudioStreamPlayer3D.new()
 		pl3.max_distance = 9000.0
 		pl3.unit_size = 300.0
@@ -1078,6 +1078,9 @@ func _make_audio() -> void:
 
 # 音訊匯流排（Build 28）：Music／SFX／Voice → Master（限幅器）。語音播放時壓低音樂與音效（_audio_tick）。
 const SFX2D_N := 8
+const SFX3D_N := 160   # 同時 3D 音源數（原 28）
+const DUCK_MUSIC_DB := 0.0   # 使用者要求：語音出現時不壓低音樂與音效（語音音質普通，混戰聲能掩蓋）；要恢復就改成 8.0／4.0
+const DUCK_SFX_DB := 0.0
 const SFX_PRIO := {"lance": 6, "explosion_big": 5, "explosion_med": 4, "missile_launch": 3, "explosion_small": 3, "cannon": 3,
 	"shield_hit": 2, "hit_hull": 2, "flyby": 2, "alarm": 4, "blaster": 1, "enemy_blaster": 1}
 var sfx2d_pool: Array = []
@@ -1156,9 +1159,9 @@ func _audio_tick(dt: float) -> void:
 	var mi := AudioServer.get_bus_index("Music")
 	var si := AudioServer.get_bus_index("SFX")
 	if mi >= 0:
-		AudioServer.set_bus_volume_db(mi, -8.0 * duck)
+		AudioServer.set_bus_volume_db(mi, -DUCK_MUSIC_DB * duck)
 	if si >= 0:
-		AudioServer.set_bus_volume_db(si, -4.0 * duck)
+		AudioServer.set_bus_volume_db(si, -DUCK_SFX_DB * duck)
 
 # 播放音效：pos 為空＝非空間音效（玩家自己的聲音）；rate_gap＝同名音效最短間隔（秒）
 func sfx_play(nm: String, pos: Variant = null, vol_db: float = 0.0, rate_gap: float = 0.0, unit: float = 300.0) -> void:
@@ -1333,20 +1336,24 @@ func mk_ring(kind: String, r: float, az: float, pitch: float, k: float = 1.0) ->
 	return s
 
 # ───────────── 開局編成 ─────────────
+func fsc() -> int:
+	return clampi(int(opt.get("fleet_scale", 2)), 1, 4)
+
 func _init_world() -> void:
+	var S := fsc()
 	mk_ring("hss", 8200.0, 0.0, 0.05)
 	mk_ring("xzd", 8900.0, 0.4, -0.06)
 	for m in [[-0.85, 0.35], [0.8, -0.3], [0.05, 0.62]]:
 		mk_ring("moon", 9500.0, m[0], m[1])
-	for i in range(10):
-		mk_ring("ipc" if i % 2 == 1 else "cruis", rr(6000, 8000), -SIDE_AZ + (i + 0.5) * (2.0 * SIDE_AZ / 10.0) + rr(-0.1, 0.1), rr(-0.65, 0.65))
-	for i in range(24):
+	for i in range(14 * S):
+		mk_ring("ipc" if i % 2 == 1 else "cruis", rr(5800, 8400), -SIDE_AZ + (i + 0.5) * (2.0 * SIDE_AZ / (14.0 * S)) + rr(-0.1, 0.1), rr(-0.7, 0.7))
+	for i in range(24 * S):
 		mk_ring("frig", rr(5400, 8600), rr(-SIDE_AZ, SIDE_AZ), rr(-0.75, 0.75))
 	var caps: Array = []
 	for a in allies:
 		if a.d["hp"] > 1000.0:
 			caps.append(a)
-	for i in range(30):
+	for i in range(30 * S):
 		var c: BShip = caps[i % caps.size()]
 		var f := mk_fighter("fgt", c.pos + Vector3(rr(-700, 700), rr(-500, 500), rr(-700, 700)))
 		face_tomb(f)
@@ -1403,8 +1410,9 @@ func _spawn_player(at_hss: bool) -> void:
 func _spawn_wave() -> void:
 	wave += 1
 	var w := wave
-	var n_w := mini(2 + w / 2, 8) + mini(4, w / 3)
-	var n_f := mini(14 + w * 4, 70) + mini(30, w * 2)
+	var S := fsc()
+	var n_w := roundi(float(mini(2 + w / 2, 8) + mini(4, w / 3)) * (1.0 + (S - 1) * 0.8))
+	var n_f := (mini(14 + w * 4, 70) + mini(30, w * 2)) * S
 	var live := 0
 	for e in enemies:
 		if e.kind == "whale" and not e.dead:
@@ -1412,7 +1420,7 @@ func _spawn_wave() -> void:
 	var live_f := enemies.size() - live
 	var az := rr(-0.5, 0.5)
 	for i in range(n_w):
-		if live + i >= 22:
+		if float(live + i) >= 22.0 * (1.0 + (S - 1) * 0.8):
 			break
 		var q := _spot(rr(3300, 4000), 0.9, az)
 		var k := rr(0.8, 1.5)
@@ -1420,7 +1428,7 @@ func _spawn_wave() -> void:
 		s.hp = s.d["hp"] * k * enemy_hp
 		s.hp_max = s.hp
 	for i in range(n_f):
-		if live_f + i >= 140:
+		if live_f + i >= 140 * S:
 			break
 		var q2 := _spot(rr(3000, 4200), 1.1, az)
 		mk_fighter("fly", q2[0], q2[1])
@@ -1512,13 +1520,15 @@ func _rally_point(kind: String) -> Array:
 
 func _reinforce() -> void:
 	reinf_n += 1
-	if reinf_n % 2 == 0 and cnt("cruis") + cnt("ipc") < 22:
-		for kk in ["cruis", "ipc"]:
-			var rp := _rally_point(kk)
-			_warp_in(kk, rp[1], true, rp[0])
+	var S := fsc()
+	if reinf_n % 2 == 0 and cnt("cruis") + cnt("ipc") < 30 * S:
+		for k_ in range(S):
+			for kk in ["cruis", "ipc"]:
+				var rp := _rally_point(kk)
+				_warp_in(kk, rp[1], true, rp[0])
 		say("Cruiser squadron warping in", "巡洋艦中隊折躍進場")
-	if cnt("frig") < 46:
-		for i in range(3):
+	if cnt("frig") < 46 * S:
+		for i in range(3 * S):
 			var rp3 := _rally_point("frig")
 			_warp_in("frig", rp3[1], false, rp3[0])
 		say("Alliance reinforcements warping in", "聯軍增援折躍抵達")
@@ -1527,9 +1537,9 @@ func _reinforce() -> void:
 		for a in allies:
 			if a.kind == "fgt" and not a.dead and not a.is_player:
 				nf += 1
-		if nf < 56:
+		if nf < 56 * S:
 			var rp4 := _rally_point("fgt")
-			for k in range(6):
+			for k in range(6 * S):
 				_warp_in("fgt", rp4[1] + Vector3(rr(-500, 500), rr(-400, 400), rr(-500, 500)), false, rp4[0])
 			say("Fighter wing warping in", "戰機中隊折躍進場")
 
@@ -2890,6 +2900,11 @@ func _process(delta: float) -> void:
 	stats_t += dt
 	if stats_t >= 10.0 and "--stats" in OS.get_cmdline_user_args():
 		stats_t = 0.0
+		var kc := {}
+		for a_ in allies:
+			if not a_.dead:
+				kc[a_.kind] = int(kc.get(a_.kind, 0)) + 1
+		print("[stats] allies by kind: ", kc)
 		print("[stats] vls=%d t=%.0f allies=%d enemies=%d kills=%d shots=%d beams=%d wave=%d player_hull=%.0f msl=%d" % [shots.filter(func(x): return x.vls).size(), gt, allies.size(), enemies.size(), kills, shots.size(), bbeams.size(), wave, pl["hull"], pl["missiles"]])
 	t0 = Time.get_ticks_usec()
 	fxe.begin_trails()
