@@ -5,7 +5,7 @@ extends "res://scripts/spike.gd"
 ## 艦艇資料表 DEF、AI（戰機／主力艦）、武器（機炮、光束砲、飛彈、光束泡）、護盾、傷害、增援、預警機資料鏈皆依網頁版移植。
 const Lighting = preload("res://scripts/lighting.gd")
 
-const BUILD := 28   # 畫面上顯示的版號（HUD 右上、標題選單）；每一批更新 +1，回報問題時請附上
+const BUILD := 29   # 畫面上顯示的版號（HUD 右上、標題選單）；每一批更新 +1，回報問題時請附上
 const TOMB_POS := Vector3(0, 1500, -15500)
 const TOMB_SCALE_W := 34.0
 const TOMB_AURA := 4200.0
@@ -1052,6 +1052,8 @@ func _make_audio() -> void:
 		pl3.max_distance = 9000.0
 		pl3.unit_size = 300.0
 		pl3.attenuation_model = AudioStreamPlayer3D.ATTENUATION_INVERSE_DISTANCE
+		pl3.attenuation_filter_cutoff_hz = 4200.0   # Build 29：越遠越悶（距離低通）
+		pl3.attenuation_filter_db = -18.0
 		add_child(pl3)
 		sfx_pool.append(pl3)
 	_setup_buses()
@@ -1080,6 +1082,12 @@ const SFX_PRIO := {"lance": 6, "explosion_big": 5, "explosion_med": 4, "missile_
 	"shield_hit": 2, "hit_hull": 2, "flyby": 2, "alarm": 4, "blaster": 1, "enemy_blaster": 1}
 var sfx2d_pool: Array = []
 var sfx2d_i := 0
+var cp_lp: AudioEffectLowPassFilter
+var cp_cut := 20500.0
+var hum: AudioStreamPlayer
+var hum_pb: AudioStreamGeneratorPlayback
+var hum_lp := 0.0
+var hum_ph := 0.0
 var duck := 0.0   # 0~1，語音播放時平滑升到 1
 
 func _setup_buses() -> void:
@@ -1089,6 +1097,12 @@ func _setup_buses() -> void:
 			var ix := AudioServer.bus_count - 1
 			AudioServer.set_bus_name(ix, nm)
 			AudioServer.set_bus_send(ix, "Master")
+	var si_ := AudioServer.get_bus_index("SFX")
+	if si_ >= 0 and AudioServer.get_bus_effect_count(si_) == 0:
+		cp_lp = AudioEffectLowPassFilter.new()
+		cp_lp.cutoff_hz = 20500.0
+		AudioServer.add_bus_effect(si_, cp_lp)
+	_make_engine_hum()
 	var lim: AudioEffect = null
 	if ClassDB.class_exists("AudioEffectHardLimiter"):
 		lim = ClassDB.instantiate("AudioEffectHardLimiter") as AudioEffect
@@ -1099,9 +1113,44 @@ func _setup_buses() -> void:
 	if AudioServer.get_bus_effect_count(0) == 0:
 		AudioServer.add_bus_effect(0, lim)
 
+const HUM_RATE := 22050.0
+
+func _make_engine_hum() -> void:   # Build 29：程序式引擎低頻轟鳴（濾波噪音＋低頻正弦），音量／音高隨油門與加速變化
+	var gen := AudioStreamGenerator.new()
+	gen.mix_rate = HUM_RATE
+	gen.buffer_length = 0.25
+	hum = AudioStreamPlayer.new()
+	hum.stream = gen
+	hum.bus = "SFX"
+	hum.volume_db = -14.0
+	add_child(hum)
+	hum.play()
+	hum_pb = hum.get_stream_playback() as AudioStreamGeneratorPlayback
+
+func _hum_fill(dt: float) -> void:
+	if hum_pb == null:
+		return
+	var on: bool = role == "pilot" and doom == 0 and not pl.is_empty() and not bool(pl.get("dead", false)) and not bpaused
+	var thr: float = float(pl["thr"]) if on else 0.0
+	var boost: bool = on and bool(pl["boost"])
+	var amp: float = (0.0 if not on else 0.06 + 0.22 * thr + (0.2 if boost else 0.0))
+	var k: float = 0.015 + 0.05 * thr + (0.05 if boost else 0.0)
+	var f0: float = 34.0 + 46.0 * thr + (24.0 if boost else 0.0)
+	var n: int = mini(hum_pb.get_frames_available(), int(HUM_RATE * minf(dt, 0.1)) + 8)
+	for i in range(n):
+		hum_lp += (randf() * 2.0 - 1.0 - hum_lp) * k
+		hum_ph += f0 / HUM_RATE
+		var v: float = (hum_lp * 1.6 + sin(hum_ph * TAU) * 0.5) * amp
+		hum_pb.push_frame(Vector2(v, v))
+
 func _audio_tick(dt: float) -> void:
 	var talking: bool = voice_player != null and voice_player.playing
 	duck = move_toward(duck, 1.0 if talking else 0.0, dt / (0.2 if talking else 0.6))
+	_hum_fill(dt)
+	if cp_lp != null:   # 駕駛艙視點：外部音效悶一些（自己的武器／引擎仍是 2D 聲，同樣走 SFX 匯流排但感覺像艙內回音）
+		var want := 7500.0 if (cam_mode == 1 and role == "pilot") else 20500.0
+		cp_cut = lerpf(cp_cut, want, 1.0 - exp(-dt * 6.0))
+		cp_lp.cutoff_hz = cp_cut
 	var mi := AudioServer.get_bus_index("Music")
 	var si := AudioServer.get_bus_index("SFX")
 	if mi >= 0:
@@ -1590,6 +1639,11 @@ func _kill(s: BShip, src: BShip) -> void:
 		fxe.heat_ring(s.pos, size)
 	var bm_: float = s.d["boom"]
 	sfx_play("explosion_big" if bm_ >= 9.0 else ("explosion_med" if bm_ >= 3.0 else "explosion_small"), s.pos, 2.0 if bm_ >= 9.0 else 0.0, 0.05, 700.0 if bm_ >= 3.0 else 200.0)
+	var d_boom: float = s.pos.distance_to(cam.global_position)
+	if bm_ >= 3.0 and d_boom > 1800.0:   # 遠處爆炸：聲音比火光晚到（壓縮音速 1500 m/s）、再補一層低頻悶響
+		var pos_: Vector3 = s.pos
+		var nm_: String = "explosion_big" if bm_ >= 9.0 else "explosion_med"
+		get_tree().create_timer(minf(d_boom / 1500.0, 3.5)).timeout.connect(func(): sfx_play(nm_, pos_, -7.0, 0.0, 1400.0))
 	if float(s.d["boom"]) >= 3.0:
 		say(str(s.d["name"]) + " destroyed" + (" · " + s.cs if s.side == 0 else ""), str(s.d["name"]) + " 被擊毀", s.side == 0)
 	if s.kind == "awacs":
